@@ -11,6 +11,7 @@ Parser::Parser(QObject *parent)
     : QObject(parent) {
 }
 
+// Функция для чтения данных из OBJ файла
 void Parser::readFromObjFile(const QString& filename) {
     QFile file(filename);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -26,6 +27,7 @@ void Parser::readFromObjFile(const QString& filename) {
     QString line;
     while (!in.atEnd()) {
         line = in.readLine().simplified();
+        // Пропускаем пустые строки и комментарии
         if (line.isEmpty() || line.startsWith("#")) continue;
         QStringList parts = line.split(' ');
         processLine(parts);
@@ -37,6 +39,7 @@ void Parser::readFromObjFile(const QString& filename) {
     qDebug() << "Total triangles read:" << triangles.count();
     qDebug() << "File reading completed: " << filename;
 
+    // Подготовка данных для дальнейшего использования
     QVector<QVector3D> vertices;
     for (const auto& node : nodes) {
         vertices.append(QVector3D(node->getX(), node->getY(), node->getZ()));
@@ -56,14 +59,17 @@ void Parser::readFromObjFile(const QString& filename) {
         triangleIndices.append(indices);
     }
 
+    // Генерация сигнала о завершении разбора файла с передачей данных
     emit fileParsed(vertices, triangleIndices, triangles);
 }
 
+// Обработка строки из файла
 void Parser::processLine(const QStringList& parts) {
     if (parts.isEmpty()) return;
 
     QString type = parts[0].toLower();
 
+    // Обработка разных типов данных
     if (type == "v" && parts.size() >= 4) {
         createNode(parts);
     } else if (type == "f" && parts.size() >= 4) {
@@ -85,6 +91,7 @@ void Parser::processLine(const QStringList& parts) {
     }
 }
 
+// Извлечение числовых значений из строки
 QVector<double> Parser::extractNumericValues(const QStringList& parts) {
     QVector<double> values;
     values.reserve(parts.size() - 1); // Резервируем память заранее
@@ -104,6 +111,7 @@ QVector<double> Parser::extractNumericValues(const QStringList& parts) {
     return values;
 }
 
+// Создание узла
 void Parser::createNode(const QStringList& parts) {
     QVector<double> values = extractNumericValues(parts);
     if (values.size() != 3) {
@@ -116,6 +124,7 @@ void Parser::createNode(const QStringList& parts) {
     nodeIndexCache[newNode] = nodes.size() - 1;
 }
 
+// Создание треугольника
 void Parser::createTriangle(const QStringList& parts) {
     QVector<int> vertexIndices;
 
@@ -142,6 +151,7 @@ void Parser::createTriangle(const QStringList& parts) {
     }
 }
 
+// Создание текстурной координаты
 void Parser::createTextureCoordinate(const QStringList& parts) {
     QVector<double> values = extractNumericValues(parts);
     // Для текстурных координат ожидаем от двух до трех значений: u, v, [w]
@@ -168,6 +178,7 @@ void Parser::createNormal(const QStringList& parts) {
     normals.append(QVector3D(values[0], values[1], values[2]));
 }
 
+// Создание вершины в пространстве параметров
 void Parser::createParameterSpaceVertex(const QStringList& parts) {
     QVector<double> values = extractNumericValues(parts);
     // Для вершин в пространстве параметров ожидаем от одного до трех значений: u, v, w (v и w опциональны)
@@ -183,6 +194,7 @@ void Parser::createParameterSpaceVertex(const QStringList& parts) {
     parameterSpaceVertices.append(QVector3D(u, v, w));
 }
 
+// Очистка данных парсера
 void Parser::clearData() {
     nodes.clear();
     triangles.clear();

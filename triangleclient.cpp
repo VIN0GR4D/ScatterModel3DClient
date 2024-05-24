@@ -10,14 +10,16 @@ TriangleClient::TriangleClient(const QUrl &url, QObject *parent)
     connect(m_webSocket, &QWebSocket::disconnected, this, &TriangleClient::onDisconnected);
     connect(m_webSocket, &QWebSocket::textMessageReceived, this, &TriangleClient::onTextMessageReceived);
     connect(m_webSocket, &QWebSocket::errorOccurred, this, &TriangleClient::onErrorOccurred);
-    m_webSocket->open(url);
+    m_webSocket->open(url); // Открываем соединение с сервером
 }
 
 TriangleClient::~TriangleClient() {
     m_webSocket->close();
 }
 
+// Обработчик события успешного подключения к серверу
 void TriangleClient::onConnected() {
+    emit logMessage("WebSocket connected");
     qDebug() << "WebSocket connected, preparing to send data...";
     QVector<QSharedPointer<triangle>> triangles;
     if (!triangles.isEmpty()) {
@@ -25,12 +27,20 @@ void TriangleClient::onConnected() {
     }
 }
 
+bool TriangleClient::isConnected() const {
+    return m_webSocket->isValid() && m_webSocket->state() == QAbstractSocket::ConnectedState;
+}
+
+// Обработчик события отключения от сервера
 void TriangleClient::onDisconnected() {
+    emit logMessage("WebSocket disconnected");
     qDebug() << "WebSocket disconnected, attempting to reconnect...";
     QTimer::singleShot(5000, this, [this]() { m_webSocket->open(m_url); });
 }
 
+// Обработчик ошибок соединения
 void TriangleClient::onErrorOccurred(QAbstractSocket::SocketError error) {
+    emit logMessage("WebSocket error occurred, code: " + QString::number(error));
     qDebug() << "WebSocket error occurred, code:" << error;
     switch (error) {
     case QAbstractSocket::ConnectionRefusedError:
@@ -55,7 +65,9 @@ void TriangleClient::onErrorOccurred(QAbstractSocket::SocketError error) {
     }
 }
 
+// Обработчик получения текстового сообщения от сервера
 void TriangleClient::onTextMessageReceived(QString message) {
+    emit logMessage("Message received: " + message);
     qDebug() << "Message received:" << message;
     QJsonDocument doc = QJsonDocument::fromJson(message.toUtf8());
     QJsonObject obj = doc.object();
@@ -64,11 +76,12 @@ void TriangleClient::onTextMessageReceived(QString message) {
         QString type = obj["type"].toString();
         if (type == "result") {
             qDebug() << "Results received from server.";
-            emit resultsReceived(obj["data"].toString());
+            emit resultsReceived(obj["data"].toString()); // Эмитирование сигнала с полученными данными
         }
     }
 }
 
+// Функция для авторизации на сервере
 void TriangleClient::authorize(const QString &username, const QString &password) {
     QJsonObject authObject = {
         {"type", "auth"},
@@ -80,6 +93,7 @@ void TriangleClient::authorize(const QString &username, const QString &password)
     qDebug() << "Attempting to authorize...";
 }
 
+// Функция для отправки данных о треугольниках на сервер
 void TriangleClient::sendTriangleData(const QVector<QSharedPointer<triangle>>& triangles) {
     if (!m_webSocket->isValid()) {
         qDebug() << "WebSocket is not connected. Attempting to resend data...";
@@ -101,13 +115,28 @@ void TriangleClient::sendTriangleData(const QVector<QSharedPointer<triangle>>& t
 
     QJsonObject messageObject = {
         {"type", "triangles"},
-        {"data", triangleArray}
+        {"data", triangleArray},
+        {"polarRadiation", m_polarRadiation},
+        {"polarRecive", m_polarRecive},
+        {"typeAngle", m_typeAngle},
+        {"typeAzimut", m_typeAzimut},
+        {"typeLength", m_typeLength}
     };
     QJsonDocument doc(messageObject);
-    m_webSocket->sendTextMessage(doc.toJson(QJsonDocument::Compact));
+    m_webSocket->sendTextMessage(doc.toJson(QJsonDocument::Compact)); // Отправка данных о треугольниках
     qDebug() << "Sending triangle data to server...";
 }
 
+// Установите значения для поляризации и типов радиопортрета
+void TriangleClient::setPolarizationAndType(int polarRadiation, int polarRecive, bool typeAngle, bool typeAzimut, bool typeLength) {
+    m_polarRadiation = polarRadiation;
+    m_polarRecive = polarRecive;
+    m_typeAngle = typeAngle;
+    m_typeAzimut = typeAzimut;
+    m_typeLength = typeLength;
+}
+
+// Преобразование вектора в JSON объект
 QJsonObject TriangleClient::vectorToJson(const QSharedPointer<const rVect>& vector) {
     return {
         {"x", vector->getX()},
@@ -116,6 +145,7 @@ QJsonObject TriangleClient::vectorToJson(const QSharedPointer<const rVect>& vect
     };
 }
 
+// Функция для отправки команды на сервер
 void TriangleClient::sendCommand(const QString &command) {
     if (m_webSocket->isValid()) {
         QJsonObject messageObject = {
@@ -125,11 +155,12 @@ void TriangleClient::sendCommand(const QString &command) {
         QJsonDocument doc(messageObject);
         QString dataString = doc.toJson(QJsonDocument::Compact);
         qDebug() << "Sending data to server:" << dataString;
-        m_webSocket->sendTextMessage(dataString);
+        m_webSocket->sendTextMessage(dataString); // Отправка команды на сервер
         qDebug() << "Sending" << command << "command to server...";
     }
 }
 
+// Обработка полученных результатов с сервера
 void TriangleClient::processResults(const QJsonObject &results) {
     qDebug() << "Processing results from server...";
     if (results.contains("content") && results["type"].toString() == "radioportrait") {

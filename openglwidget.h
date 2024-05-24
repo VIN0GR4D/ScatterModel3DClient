@@ -55,7 +55,8 @@ private:
     void updateCameraPosition(const QVector3D& center, float radius);
     void computeBoundingVolume();
     void updateVisibility(const QVector<QSharedPointer<triangle>>& triangles);
-    void updateVisibility();  
+    void updateVisibility();
+    void resetCamera();
 
 protected:
     void initializeGL() override;

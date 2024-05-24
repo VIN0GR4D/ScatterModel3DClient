@@ -32,6 +32,9 @@ private slots:
     void loadModel();
     void performCalculation();
     void updateResultsDisplay(const QString& results);
+    void saveResults();
+    void connectToServer();
+    void logMessage(const QString& message);
 
 private:
     Ui::MainWindow *ui;
@@ -39,15 +42,15 @@ private:
     Parser *parser;
     RayTracer *rayTracer;
     TriangleClient *triangleClient;
-    QLineEdit *lineEditFilePath;
-    QPushButton *buttonLoadModel, *buttonSaveResults, *buttonPerformCalculation;
-    QTextEdit *resultDisplay;
+
+    QLineEdit *lineEditFilePath, *serverAddressInput;
+    QPushButton *buttonLoadModel, *buttonSaveResults, *buttonPerformCalculation, *connectButton;
+    QTextEdit *resultDisplay, *logDisplay;
     QDoubleSpinBox *inputWavelength, *inputResolution;
     QComboBox *inputPolarization, *inputPortraitType;
     QWidget *controlWidget;
     QFormLayout *formLayout;
     bool serverEnabled;
-    void saveResults();
     void updateScene();
 };
 

@@ -7,6 +7,7 @@ RayTracer::RayTracer() {}
 RayTracer::~RayTracer() {
 }
 
+// Функция для вычисления центроида треугольника
 rVect calculateCentroid(const QSharedPointer<const triangle>& tri) {
     const rVect v1 = *tri->getV1();
     const rVect v2 = *tri->getV2();
@@ -16,10 +17,12 @@ rVect calculateCentroid(const QSharedPointer<const triangle>& tri) {
                  (v1.getZ() + v2.getZ() + v3.getZ()) / 3);
 }
 
+// Установка треугольников для трассировки лучей
 void RayTracer::setTriangles(const QVector<QSharedPointer<triangle>>& tris) {
     triangles = tris; // Сохранение списка треугольников в поле класса
 }
 
+// Функция для получения компоненты вектора по индексу
 double getComponent(const rVect& vec, int index) {
     switch (index) {
     case 0: return vec.getX();
@@ -29,17 +32,20 @@ double getComponent(const rVect& vec, int index) {
     }
 }
 
+// Вычисление нормали треугольника
 rVect RayTracer::computeNormal(const QSharedPointer<const triangle>& tri) {
     const rVect v1 = *tri->getV2() - *tri->getV1();
     const rVect v2 = *tri->getV3() - *tri->getV1();
     return v1 ^ v2;
 }
 
+// Проверка, направлен ли треугольник к наблюдателю
 bool RayTracer::isFacingObserver(const rVect& normal, const rVect& observerToTriangle) {
     double dotProduct = normal * observerToTriangle;
     return dotProduct > 0;
 }
 
+// Проверка пересечения луча с треугольником
 bool RayTracer::intersects(const rVect& rayOrigin, const rVect& rayVector, const triangle& tri, double& t, double& u, double& v) {
     const double EPSILON = 0.0000001;
     const rVect vertex0 = *tri.getV1();
@@ -51,7 +57,7 @@ bool RayTracer::intersects(const rVect& rayOrigin, const rVect& rayVector, const
     const double a = edge1 * h;
 
     if (std::abs(a) < EPSILON) {
-        return false;
+        return false; // Луч параллелен треугольнику
     }
 
     const double f = 1.0 / a;
@@ -70,15 +76,16 @@ bool RayTracer::intersects(const rVect& rayOrigin, const rVect& rayVector, const
     }
 
     t = f * (edge2 * q);
-    return t > EPSILON;
+    return t > EPSILON; // Пересечение произошло, если t > EPSILON
 }
 
+// Определение видимости треугольников относительно наблюдателя
 void RayTracer::determineVisibility(const QVector<QSharedPointer<triangle>>& triangles, const rVect& observerPosition) {
     for (const auto& triPtr : triangles) {
         const rVect normal = computeNormal(triPtr);
         const rVect observerToTriangle = calculateCentroid(triPtr) - observerPosition;
         bool isVisible = isFacingObserver(normal, observerToTriangle);
-        triPtr->setVisible(isVisible);
+        triPtr->setVisible(isVisible); // Установка флага видимости для треугольника
     }
 }
 
