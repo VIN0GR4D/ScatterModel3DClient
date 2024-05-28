@@ -1,1 +1,0 @@
-# ScatterModel3DClient
