@@ -52,8 +52,12 @@ DISTFILES += \
     footballPlayer.obj \
     heart.obj \
     helicopter.obj \
+    icon.png \
     m4a1.obj \
     plane.obj \
     simple_triangle.obj \
     t34.obj \
     test.obj
+
+RESOURCES += \
+    resources.qrc

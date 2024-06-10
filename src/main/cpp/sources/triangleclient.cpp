@@ -3,6 +3,7 @@
 #include <QJsonDocument>
 #include <QDebug>
 #include <QTimer>
+#include <QFile>
 
 TriangleClient::TriangleClient(const QUrl &url, QObject *parent)
     : QObject(parent), m_webSocket(new QWebSocket), m_url(url), m_reconnectAttempts(0), m_maxReconnectAttempts(3) {
@@ -32,10 +33,6 @@ void TriangleClient::onConnected() {
     emit logMessage("WebSocket connected");
     qDebug() << "WebSocket connected, preparing to send data...";
     m_reconnectAttempts = 0;
-    QVector<QSharedPointer<triangle>> triangles;
-    if (!triangles.isEmpty()) {
-        sendTriangleData(triangles);
-    }
 }
 
 bool TriangleClient::isConnected() const {
@@ -80,15 +77,31 @@ void TriangleClient::onErrorOccurred(QAbstractSocket::SocketError error) {
 void TriangleClient::onTextMessageReceived(QString message) {
     emit logMessage("Message received: " + message);
     qDebug() << "Message received:" << message;
+
+    // Логирование сообщения в файл
+    logMessageToFile(message);
+
     QJsonDocument doc = QJsonDocument::fromJson(message.toUtf8());
     QJsonObject obj = doc.object();
 
     if (obj.contains("type")) {
         QString type = obj["type"].toString();
         if (type == "result") {
-            qDebug() << "Results received from server.";
-            emit resultsReceived(obj["data"].toString()); // Эмитирование сигнала с полученными данными
+            qDebug() << "Results received from server:" << obj["content"].toObject();
+            emit resultsReceived(obj["content"].toObject()); // Эмитирование сигнала с полученными данными
+        } else if (type == "answer") {
+            qDebug() << "Answer received from server.";
+            emit logMessage("Answer received: " + obj["msg"].toString());
+        } else if (type == "progress_bar") {
+            qDebug() << "Progress bar update received:" << obj["content"].toInt();
+            emit logMessage("Progress: " + QString::number(obj["content"].toInt()) + "%");
+        } else {
+            qDebug() << "Unknown message type received:" << type;
+            qDebug() << "Message content:" << message;
         }
+    } else {
+        qDebug() << "Message does not contain a type field.";
+        qDebug() << "Message content:" << message;
     }
 }
 
@@ -136,6 +149,8 @@ void TriangleClient::sendTriangleData(const QVector<QSharedPointer<triangle>>& t
     QJsonDocument doc(messageObject);
     QString message = doc.toJson(QJsonDocument::Compact);
 
+    qDebug() << "Sending triangle data to server:" << message;
+
     if (m_webSocket->sendTextMessage(message) == -1) {
         qDebug() << "Error sending triangle data to server";
         emit logMessage("Error sending triangle data to server");
@@ -163,12 +178,9 @@ QJsonObject TriangleClient::vectorToJson(const QSharedPointer<const rVect>& vect
 }
 
 // Функция для отправки команды на сервер
-void TriangleClient::sendCommand(const QString &command) {
+void TriangleClient::sendCommand(const QJsonObject &commandObject) {
     if (m_webSocket->isValid()) {
-        QJsonObject messageObject = {
-            {"type", "command"},
-            {"command", command}
-        };
+        QJsonObject messageObject = commandObject;
         QJsonDocument doc(messageObject);
         QString dataString = doc.toJson(QJsonDocument::Compact);
         qDebug() << "Sending data to server:" << dataString;
@@ -177,11 +189,31 @@ void TriangleClient::sendCommand(const QString &command) {
             qDebug() << "Error sending command to server";
             emit logMessage("Error sending command to server");
         } else {
-            qDebug() << "Sending" << command << "command to server...";
+            qDebug() << "Sending command to server...";
         }
     }
 }
 
+// Отправка данных модели на сервер
+void TriangleClient::sendModelData(const QJsonObject &modelData) {
+    if (!m_webSocket->isValid()) {
+        qDebug() << "WebSocket is not connected. Attempting to resend model data...";
+        QTimer::singleShot(5000, this, [this, modelData]() { sendModelData(modelData); });
+        return;
+    }
+
+    QJsonDocument doc(modelData);
+    QString message = doc.toJson(QJsonDocument::Compact);
+
+    qDebug() << "Sending model data to server:" << message;
+
+    if (m_webSocket->sendTextMessage(message) == -1) {
+        qDebug() << "Error sending model data to server";
+        emit logMessage("Error sending model data to server");
+    } else {
+        qDebug() << "Sending model data to server...";
+    }
+}
 
 // Обработка полученных результатов с сервера
 void TriangleClient::processResults(const QJsonObject &results) {
@@ -195,5 +227,13 @@ void TriangleClient::processResults(const QJsonObject &results) {
         qDebug() << "Progress: " << progress << "%";
     } else {
         qDebug() << "Unknown result type or content";
+    }
+}
+
+void TriangleClient::logMessageToFile(const QString &message) {
+    QFile file("received_messages.log");
+    if (file.open(QIODevice::Append | QIODevice::Text)) {
+        QTextStream out(&file);
+        out << message << "\n";
     }
 }

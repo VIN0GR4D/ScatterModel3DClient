@@ -36,7 +36,14 @@ private slots:
     void updateResultsDisplay(const QString& results);
     void saveResults();
     void connectToServer();
+    void onConnectedToServer();
     void logMessage(const QString& message);
+    void updateResultsDisplay(const QJsonObject& results);
+    void authorizeClient();
+    void displayResults(const QJsonObject &results);
+    void sendDataAfterAuthorization(std::function<void()> sendDataFunc);
+    void sendCalculationData();
+    void sendModelData();
 
 private:
     Ui::MainWindow *ui;
@@ -54,6 +61,7 @@ private:
     QWidget *controlWidget;
     QFormLayout *formLayout;
     bool serverEnabled;
+    QJsonObject vectorToJson(const QSharedPointer<const rVect>& vector);
 };
 
 #endif // MAINWINDOW_H

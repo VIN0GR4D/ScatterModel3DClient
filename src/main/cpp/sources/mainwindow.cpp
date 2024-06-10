@@ -19,8 +19,7 @@ MainWindow::MainWindow(QWidget *parent)
     , openGLWidget(new OpenGLWidget(this))
     , parser(new Parser(this))
     , rayTracer(new RayTracer())
-    , triangleClient(nullptr)
-    , serverEnabled(false) // Отключаем сервер
+    , serverEnabled(false)
 {
     ui->setupUi(this);
     setCentralWidget(openGLWidget);
@@ -102,6 +101,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(buttonPerformCalculation, &QPushButton::clicked, this, &MainWindow::performCalculation);
     connect(connectButton, &QPushButton::clicked, this, &MainWindow::connectToServer);
     connect(buttonSaveResults, &QPushButton::clicked, this, &MainWindow::saveResults);
+    connect(triangleClient, &TriangleClient::resultsReceived, this, QOverload<const QJsonObject &>::of(&MainWindow::displayResults));
     connect(parser, &Parser::fileParsed, this, [&](const QVector<QVector3D> &v, const QVector<QVector<int>> &t, const QVector<QSharedPointer<triangle>> &tri) {
         QVector3D observerPositionQVector = openGLWidget->getCameraPosition();
         rVect observerPosition = openGLWidget->QVector3DToRVect(observerPositionQVector);
@@ -126,6 +126,12 @@ void MainWindow::loadModel() {
     }
 }
 
+void MainWindow::displayResults(const QJsonObject &results) {
+    QJsonDocument doc(results);
+    QString resultsString = doc.toJson(QJsonDocument::Indented);
+    resultDisplay->setText(resultsString);
+}
+
 void MainWindow::applyRotation() {
     float rotationX = inputRotationX->value();
     float rotationY = inputRotationY->value();
@@ -142,19 +148,35 @@ void MainWindow::resetRotation() {
     openGLWidget->setRotation(0, 0, 0);
 }
 
-// Функция для выполнения расчета
-void MainWindow::performCalculation() {
+// Метод для авторизации
+void MainWindow::authorizeClient() {
+    QString username = "user";  // Логин
+    QString password = "user";  // Пароль
+    triangleClient->authorize(username, password);
+}
+
+void MainWindow::sendDataAfterAuthorization(std::function<void()> sendDataFunc) {
     if (!triangleClient || !triangleClient->isConnected()) {
         resultDisplay->setText("Not connected to the server. Please connect first.");
         return;
     }
 
+    authorizeClient();
+
+    QTimer::singleShot(2000, this, [this, sendDataFunc]() {  // Задержка, чтобы дождаться авторизации
+        if (triangleClient->isConnected()) {
+            sendDataFunc();
+        }
+    });
+}
+
+// Метод для подготовки и отправки данных
+void MainWindow::sendCalculationData() {
     double wavelength = inputWavelength->value();
     double resolution = inputResolution->value();
     QString polarizationText = inputPolarization->currentText();
     QString portraitTypeText = inputPortraitType->currentText();
 
-    // Преобразование текста поляризации в соответствующие значения
     int polarRadiation = 0; // Вертикальная поляризация по умолчанию
     int polarRecive = 0;    // Вертикальная поляризация по умолчанию
     if (polarizationText == "Горизонтальный") {
@@ -165,7 +187,6 @@ void MainWindow::performCalculation() {
         polarRecive = 2;
     }
 
-    // Определение типов радиопортретов
     bool typeAngle = (portraitTypeText == "Угломестный");
     bool typeAzimut = (portraitTypeText == "Азимутальный");
     bool typeLength = (portraitTypeText == "Дальностный");
@@ -173,6 +194,7 @@ void MainWindow::performCalculation() {
     triangleClient->setPolarizationAndType(polarRadiation, polarRecive, typeAngle, typeAzimut, typeLength);
 
     QJsonObject parameters{
+        {"type", "triangles"},
         {"wavelength", wavelength},
         {"resolution", resolution},
         {"polarRadiation", polarRadiation},
@@ -182,8 +204,7 @@ void MainWindow::performCalculation() {
         {"typeLength", typeLength}
     };
 
-    triangleClient->sendCommand(QJsonDocument(parameters).toJson(QJsonDocument::Compact));
-    buttonSaveResults->show();
+    triangleClient->sendCommand(parameters);
 
     resultDisplay->append(QString("Prepared for calculation with wavelength %1 nm, resolution %2 m, polarization %3, portrait type %4...")
                               .arg(wavelength, 0, 'f', 2)
@@ -192,12 +213,49 @@ void MainWindow::performCalculation() {
                               .arg(portraitTypeText));
 }
 
+void MainWindow::sendModelData() {
+    QVector<QSharedPointer<triangle>> triangles = openGLWidget->getTriangles();
+    QJsonArray triangleArray;
+
+    for (const auto& tri : triangles) {
+        QJsonObject triObject;
+        triObject["v1"] = vectorToJson(tri->getV1());
+        triObject["v2"] = vectorToJson(tri->getV2());
+        triObject["v3"] = vectorToJson(tri->getV3());
+        triangleArray.append(triObject);
+    }
+
+    QJsonObject modelData;
+    modelData["type"] = "model";
+    modelData["triangles"] = triangleArray;
+    triangleClient->sendCommand(modelData);
+}
+
+QJsonObject MainWindow::vectorToJson(const QSharedPointer<const rVect>& vector) {
+    QJsonObject obj;
+    obj["x"] = vector->getX();
+    obj["y"] = vector->getY();
+    obj["z"] = vector->getZ();
+    return obj;
+}
+
+// Функция для выполнения расчета
+void MainWindow::performCalculation() {
+    sendDataAfterAuthorization([this]() {
+        sendModelData(); // Отправляем данные модели перед отправкой параметров
+        sendCalculationData();
+    });
+
+    buttonSaveResults->show();
+}
+
 // Функция для обновления отображения результатов
 void MainWindow::updateResultsDisplay(const QString& results) {
     resultDisplay->setText(results);
 }
 
 // Функция для подключения к серверу
+// Функция для подключения к серверу с обработкой результатов
 void MainWindow::connectToServer() {
     QString serverAddress = serverAddressInput->text().trimmed();
     if (!serverAddress.isEmpty()) {
@@ -206,19 +264,37 @@ void MainWindow::connectToServer() {
         }
         triangleClient = new TriangleClient(QUrl(serverAddress), this);
 
-        // Подключение сигналов
-        connect(triangleClient, &TriangleClient::resultsReceived, this, &MainWindow::updateResultsDisplay);
-        connect(triangleClient, &TriangleClient::logMessage, this, &MainWindow::logMessage);
+        if (triangleClient) {
+            // Подключение сигналов
+            connect(triangleClient, &TriangleClient::resultsReceived, this, &MainWindow::displayResults);
+            connect(triangleClient, &TriangleClient::logMessage, this, &MainWindow::logMessage);
 
-        serverEnabled = true;
-        logMessage("Connecting to server: " + serverAddress);
+            serverEnabled = true;
+            logMessage("Connecting to server: " + serverAddress);
+        } else {
+            logMessage("Failed to create TriangleClient.");
+        }
     } else {
         logMessage("Server address is empty.");
     }
 }
 
+void MainWindow::onConnectedToServer() {
+    sendDataAfterAuthorization([this]() {
+        QVector<QSharedPointer<triangle>> triangles;
+        // Заполните вектор triangles необходимыми данными
+        triangleClient->sendTriangleData(triangles);
+    });
+}
+
 void MainWindow::logMessage(const QString& message) {
     logDisplay->append(message);
+}
+
+void MainWindow::updateResultsDisplay(const QJsonObject& results) {
+    QJsonDocument doc(results);
+    QString resultsString = doc.toJson(QJsonDocument::Indented);
+    resultDisplay->setText(resultsString);
 }
 
 // Функция для сохранения результатов

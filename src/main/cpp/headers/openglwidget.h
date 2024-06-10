@@ -12,10 +12,12 @@
 #include <raytracer.h>
 
 class OpenGLWidget : public QOpenGLWidget, protected QOpenGLFunctions_3_0 {
+
 public:
     explicit OpenGLWidget(QWidget *parent = nullptr);
     void setGeometry(const QVector<QVector3D> &vertices, const QVector<QVector<int>> &triangleIndices, const QVector<QSharedPointer<triangle>> &triangles);
     QVector3D getCameraPosition() const;
+    QVector<QSharedPointer<triangle>> getTriangles() const;
     void updateScene();
     void clearScene();
     rVect QVector3DToRVect(const QVector3D& vec);

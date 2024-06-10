@@ -110,6 +110,10 @@ void OpenGLWidget::setRotation(float x, float y, float z) {
     update();
 }
 
+QVector<QSharedPointer<triangle>> OpenGLWidget::getTriangles() const {
+    return triangles;
+}
+
 // Инициализация OpenGL
 void OpenGLWidget::initializeGL() {
     initializeOpenGLFunctions();

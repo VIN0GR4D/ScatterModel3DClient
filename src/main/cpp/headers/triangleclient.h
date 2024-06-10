@@ -19,11 +19,12 @@ public:
 
     bool isConnected() const;
     void authorize(const QString &username, const QString &password);
-    void sendCommand(const QString &command);
+    void sendCommand(const QJsonObject &commandObject);
     void setPolarizationAndType(int polarRadiation, int polarRecive, bool typeAngle, bool typeAzimut, bool typeLength);
+    void sendModelData(const QJsonObject &modelData);
 
 signals:
-    void resultsReceived(const QString &results);
+    void resultsReceived(const QJsonObject &results);
     void logMessage(const QString &message);
 
 public slots:
@@ -47,6 +48,7 @@ private:
     const int m_maxReconnectAttempts;
 
     void attemptReconnect();
+    void logMessageToFile(const QString &message);
 };
 
 #endif // TRIANGLECLIENT_H
