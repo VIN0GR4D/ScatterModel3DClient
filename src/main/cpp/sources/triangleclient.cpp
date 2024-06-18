@@ -125,21 +125,20 @@ void TriangleClient::sendTriangleData(const QVector<QSharedPointer<triangle>>& t
         return;
     }
 
-    QJsonArray triangleArray;
+    QJsonObject dataObject;
+    int index = 0;
     for (const auto& tri : triangles) {
         if (tri->getVisible()) {
-            QJsonObject triObject = {
-                {"v1", vectorToJson(tri->getV1())},
-                {"v2", vectorToJson(tri->getV2())},
-                {"v3", vectorToJson(tri->getV3())}
-            };
-            triangleArray.append(triObject);
+            dataObject[QString::number(index)] = vectorToJson(tri->getV1());
+            dataObject[QString::number(index + 1)] = vectorToJson(tri->getV2());
+            dataObject[QString::number(index + 2)] = vectorToJson(tri->getV3());
+            index += 3;
         }
     }
 
     QJsonObject messageObject = {
         {"type", "triangles"},
-        {"data", triangleArray},
+        {"data", dataObject},
         {"polarRadiation", m_polarRadiation},
         {"polarRecive", m_polarRecive},
         {"typeAngle", m_typeAngle},
@@ -159,6 +158,35 @@ void TriangleClient::sendTriangleData(const QVector<QSharedPointer<triangle>>& t
     }
 }
 
+// Функция для отправки команды на сервер
+void TriangleClient::sendCommand(const QJsonObject &commandObject) {
+    if (m_webSocket->isValid()) {
+        QJsonObject messageObject = commandObject;
+
+        // Добавляем вектор направления
+        QJsonObject directVector;
+        directVector["x"] = m_directVector.getX();
+        directVector["y"] = m_directVector.getY();
+        directVector["z"] = m_directVector.getZ();
+        messageObject["directVector"] = directVector;
+
+        QJsonDocument doc(messageObject);
+        QString dataString = doc.toJson(QJsonDocument::Compact);
+        qDebug() << "Sending data to server:" << dataString;
+
+        if (m_webSocket->sendTextMessage(dataString) == -1) {
+            qDebug() << "Error sending command to server";
+            emit logMessage("Error sending command to server");
+        } else {
+            qDebug() << "Sending command to server...";
+        }
+    }
+}
+
+void TriangleClient::setDirectVector(const rVect& directVector) {
+    m_directVector = directVector;
+}
+
 // Установите значения для поляризации и типов радиопортрета
 void TriangleClient::setPolarizationAndType(int polarRadiation, int polarRecive, bool typeAngle, bool typeAzimut, bool typeLength) {
     m_polarRadiation = polarRadiation;
@@ -175,23 +203,6 @@ QJsonObject TriangleClient::vectorToJson(const QSharedPointer<const rVect>& vect
         {"y", vector->getY()},
         {"z", vector->getZ()}
     };
-}
-
-// Функция для отправки команды на сервер
-void TriangleClient::sendCommand(const QJsonObject &commandObject) {
-    if (m_webSocket->isValid()) {
-        QJsonObject messageObject = commandObject;
-        QJsonDocument doc(messageObject);
-        QString dataString = doc.toJson(QJsonDocument::Compact);
-        qDebug() << "Sending data to server:" << dataString;
-
-        if (m_webSocket->sendTextMessage(dataString) == -1) {
-            qDebug() << "Error sending command to server";
-            emit logMessage("Error sending command to server");
-        } else {
-            qDebug() << "Sending command to server...";
-        }
-    }
 }
 
 // Отправка данных модели на сервер

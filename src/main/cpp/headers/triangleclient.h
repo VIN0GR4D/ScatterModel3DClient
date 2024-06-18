@@ -22,6 +22,13 @@ public:
     void sendCommand(const QJsonObject &commandObject);
     void setPolarizationAndType(int polarRadiation, int polarRecive, bool typeAngle, bool typeAzimut, bool typeLength);
     void sendModelData(const QJsonObject &modelData);
+    void setDirectVector(const rVect& directVector);
+
+    int getPolarRadiation() const { return m_polarRadiation; }
+    int getPolarRecive() const { return m_polarRecive; }
+    bool getTypeAngle() const { return m_typeAngle; }
+    bool getTypeAzimut() const { return m_typeAzimut; }
+    bool getTypeLength() const { return m_typeLength; }
 
 signals:
     void resultsReceived(const QJsonObject &results);
@@ -46,6 +53,7 @@ private:
     void processResults(const QJsonObject &results);
     int m_reconnectAttempts;
     const int m_maxReconnectAttempts;
+    rVect m_directVector;
 
     void attemptReconnect();
     void logMessageToFile(const QString &message);

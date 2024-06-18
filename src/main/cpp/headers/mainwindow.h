@@ -44,6 +44,7 @@ private slots:
     void sendDataAfterAuthorization(std::function<void()> sendDataFunc);
     void sendCalculationData();
     void sendModelData();
+    // void sendCombinedData();
 
 private:
     Ui::MainWindow *ui;
