@@ -213,7 +213,10 @@ void TriangleClient::sendModelData(const QJsonObject &modelData) {
         return;
     }
 
-    QJsonDocument doc(modelData);
+    QJsonObject messageObject = modelData;
+    messageObject["type"] = "triangles";
+
+    QJsonDocument doc(messageObject);
     QString message = doc.toJson(QJsonDocument::Compact);
 
     qDebug() << "Sending model data to server:" << message;
