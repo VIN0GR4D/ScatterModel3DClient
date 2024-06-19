@@ -219,6 +219,7 @@ void TriangleClient::sendModelData(const QJsonObject &modelData) {
     QJsonDocument doc(messageObject);
     QString message = doc.toJson(QJsonDocument::Compact);
 
+    // Добавим отладочное сообщение для проверки данных перед отправкой
     qDebug() << "Sending model data to server:" << message;
 
     if (m_webSocket->sendTextMessage(message) == -1) {

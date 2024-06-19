@@ -171,92 +171,92 @@ void MainWindow::sendDataAfterAuthorization(std::function<void()> sendDataFunc) 
 }
 
 // Метод для подготовки и отправки данных
-void MainWindow::sendCalculationData() {
-    double wavelength = inputWavelength->value();
-    double resolution = inputResolution->value();
-    QString polarizationText = inputPolarization->currentText();
-    QString portraitTypeText = inputPortraitType->currentText();
+// void MainWindow::sendCalculationData() {
+//     double wavelength = inputWavelength->value();
+//     double resolution = inputResolution->value();
+//     QString polarizationText = inputPolarization->currentText();
+//     QString portraitTypeText = inputPortraitType->currentText();
 
-    int polarRadiation = 0; // Вертикальная поляризация по умолчанию
-    int polarRecive = 0;    // Вертикальная поляризация по умолчанию
-    if (polarizationText == "Горизонтальный") {
-        polarRadiation = 1;
-        polarRecive = 1;
-    } else if (polarizationText == "Круговой") {
-        polarRadiation = 2;
-        polarRecive = 2;
-    }
+//     int polarRadiation = 0; // Вертикальная поляризация по умолчанию
+//     int polarRecive = 0;    // Вертикальная поляризация по умолчанию
+//     if (polarizationText == "Горизонтальный") {
+//         polarRadiation = 1;
+//         polarRecive = 1;
+//     } else if (polarizationText == "Круговой") {
+//         polarRadiation = 2;
+//         polarRecive = 2;
+//     }
 
-    bool typeAngle = (portraitTypeText == "Угломестный");
-    bool typeAzimut = (portraitTypeText == "Азимутальный");
-    bool typeLength = (portraitTypeText == "Дальностный");
+//     bool typeAngle = (portraitTypeText == "Угломестный");
+//     bool typeAzimut = (portraitTypeText == "Азимутальный");
+//     bool typeLength = (portraitTypeText == "Дальностный");
 
-    triangleClient->setPolarizationAndType(polarRadiation, polarRecive, typeAngle, typeAzimut, typeLength);
+//     triangleClient->setPolarizationAndType(polarRadiation, polarRecive, typeAngle, typeAzimut, typeLength);
 
-    QJsonObject parameters{
-        {"type", "triangles"},
-        {"wavelength", wavelength},
-        {"resolution", resolution},
-        {"polarRadiation", polarRadiation},
-        {"polarRecive", polarRecive},
-        {"typeAngle", typeAngle},
-        {"typeAzimut", typeAzimut},
-        {"typeLength", typeLength}
-    };
+//     QJsonObject parameters{
+//         {"type", "triangles"},
+//         {"wavelength", wavelength},
+//         {"resolution", resolution},
+//         {"polarRadiation", polarRadiation},
+//         {"polarRecive", polarRecive},
+//         {"typeAngle", typeAngle},
+//         {"typeAzimut", typeAzimut},
+//         {"typeLength", typeLength}
+//     };
 
-    triangleClient->sendCommand(parameters);
+//     triangleClient->sendCommand(parameters);
 
-    resultDisplay->append(QString("Prepared for calculation with wavelength %1 nm, resolution %2 m, polarization %3, portrait type %4...")
-                              .arg(wavelength, 0, 'f', 2)
-                              .arg(resolution, 0, 'f', 2)
-                              .arg(polarizationText)
-                              .arg(portraitTypeText));
-}
+//     resultDisplay->append(QString("Prepared for calculation with wavelength %1 nm, resolution %2 m, polarization %3, portrait type %4...")
+//                               .arg(wavelength, 0, 'f', 2)
+//                               .arg(resolution, 0, 'f', 2)
+//                               .arg(polarizationText)
+//                               .arg(portraitTypeText));
+// }
 
-void MainWindow::sendModelData() {
-    QVector<QSharedPointer<triangle>> triangles = openGLWidget->getTriangles();
-    QJsonArray dataArray;
-    QJsonArray visibleTrianglesArray;
+// void MainWindow::sendModelData() {
+//     QVector<QSharedPointer<triangle>> triangles = openGLWidget->getTriangles();
+//     QJsonObject dataObject;
+//     QJsonArray visibleTrianglesArray;
+//     int index = 0;
 
-    for (const auto& tri : triangles) {
-        QSharedPointer<rVect> v1 = tri->getV1();
-        QSharedPointer<rVect> v2 = tri->getV2();
-        QSharedPointer<rVect> v3 = tri->getV3();
+//     // Создаем одномерный массив для координат
+//     for (const auto& tri : triangles) {
+//         QSharedPointer<rVect> v1 = tri->getV1();
+//         QSharedPointer<rVect> v2 = tri->getV2();
+//         QSharedPointer<rVect> v3 = tri->getV3();
 
-        QJsonArray triArray;
-        triArray.append(v1->getX());
-        triArray.append(v1->getY());
-        triArray.append(v1->getZ());
-        triArray.append(v2->getX());
-        triArray.append(v2->getY());
-        triArray.append(v2->getZ());
-        triArray.append(v3->getX());
-        triArray.append(v3->getY());
-        triArray.append(v3->getZ());
+//         dataObject[QString::number(index++)] = v1->getX();
+//         dataObject[QString::number(index++)] = v1->getY();
+//         dataObject[QString::number(index++)] = v1->getZ();
+//         dataObject[QString::number(index++)] = v2->getX();
+//         dataObject[QString::number(index++)] = v2->getY();
+//         dataObject[QString::number(index++)] = v2->getZ();
+//         dataObject[QString::number(index++)] = v3->getX();
+//         dataObject[QString::number(index++)] = v3->getY();
+//         dataObject[QString::number(index++)] = v3->getZ();
 
-        dataArray.append(triArray);
-        visibleTrianglesArray.append(tri->getVisible());
-    }
+//         visibleTrianglesArray.append(tri->getVisible());
+//     }
 
-    QVector3D cameraPosition = openGLWidget->getCameraPosition();
-    rVect directVector = openGLWidget->QVector3DToRVect(cameraPosition);
+//     QVector3D cameraPosition = openGLWidget->getCameraPosition();
+//     rVect directVector = openGLWidget->QVector3DToRVect(cameraPosition);
 
-    QJsonObject modelData;
-    modelData["data"] = dataArray;
-    modelData["visibleTriangles"] = visibleTrianglesArray;
-    modelData["freqBand"] = 5;  // Пример диапазона частот
-    modelData["polarRadiation"] = triangleClient->getPolarRadiation();
-    modelData["polarRecive"] = triangleClient->getPolarRecive();
-    modelData["typeAngle"] = triangleClient->getTypeAngle();
-    modelData["typeAzimut"] = triangleClient->getTypeAzimut();
-    modelData["typeLength"] = triangleClient->getTypeLength();
-    modelData["pplane"] = false;
-    modelData["directVector"] = vectorToJson(QSharedPointer<rVect>::create(directVector));
-    modelData["resolution"] = inputResolution->value();
-    modelData["wavelength"] = inputWavelength->value();
+//     QJsonObject modelData;
+//     modelData["data"] = dataObject;
+//     modelData["visibleTriangles"] = visibleTrianglesArray;
+//     modelData["freqBand"] = 5;  // Пример диапазона частот
+//     modelData["polarRadiation"] = triangleClient->getPolarRadiation();
+//     modelData["polarRecive"] = triangleClient->getPolarRecive();
+//     modelData["typeAngle"] = triangleClient->getTypeAngle();
+//     modelData["typeAzimut"] = triangleClient->getTypeAzimut();
+//     modelData["typeLength"] = triangleClient->getTypeLength();
+//     modelData["pplane"] = false;
+//     modelData["directVector"] = vectorToJson(QSharedPointer<rVect>::create(directVector));
+//     modelData["resolution"] = inputResolution->value();
+//     modelData["wavelength"] = inputWavelength->value();
 
-    triangleClient->sendModelData(modelData);
-}
+//     triangleClient->sendModelData(modelData);
+// }
 
 QJsonObject MainWindow::vectorToJson(const QSharedPointer<const rVect>& vector) {
     QJsonObject obj;
@@ -287,11 +287,52 @@ void MainWindow::performCalculation() {
     bool typeAzimut = (portraitTypeText == "Азимутальный");
     bool typeLength = (portraitTypeText == "Дальностный");
 
-    triangleClient->setPolarizationAndType(polarRadiation, polarRecive, typeAngle, typeAzimut, typeLength);
+    QVector<QSharedPointer<triangle>> triangles = openGLWidget->getTriangles();
+    QJsonObject dataObject;
+    QJsonArray visibleTrianglesArray;
 
-    sendDataAfterAuthorization([this]() {
-        sendModelData(); // Отправляем данные модели перед отправкой параметров
-        sendCalculationData();
+    int index = 0;
+    for (const auto& tri : triangles) {
+        QSharedPointer<rVect> v1 = tri->getV1();
+        QSharedPointer<rVect> v2 = tri->getV2();
+        QSharedPointer<rVect> v3 = tri->getV3();
+
+        dataObject[QString::number(index++)] = v1->getX();
+        dataObject[QString::number(index++)] = v1->getY();
+        dataObject[QString::number(index++)] = v1->getZ();
+        dataObject[QString::number(index++)] = v2->getX();
+        dataObject[QString::number(index++)] = v2->getY();
+        dataObject[QString::number(index++)] = v2->getZ();
+        dataObject[QString::number(index++)] = v3->getX();
+        dataObject[QString::number(index++)] = v3->getY();
+        dataObject[QString::number(index++)] = v3->getZ();
+
+        visibleTrianglesArray.append(tri->getVisible());
+    }
+
+    QVector3D cameraPosition = openGLWidget->getCameraPosition();
+    rVect directVector = openGLWidget->QVector3DToRVect(cameraPosition);
+
+    QJsonObject modelData;
+    modelData["data"] = dataObject;
+    modelData["visbleTriangles"] = visibleTrianglesArray; // исправлено: "visbleTriangles" вместо "visibleTriangles"
+    modelData["freqBand"] = 5;  // Пример диапазона частот
+    modelData["polarRadiation"] = polarRadiation;
+    modelData["polarRecive"] = polarRecive;
+    modelData["typeAngle"] = typeAngle;
+    modelData["typeAzimut"] = typeAzimut;
+    modelData["typeLength"] = typeLength;
+    modelData["pplane"] = false;
+    modelData["directVector"] = vectorToJson(QSharedPointer<rVect>::create(directVector));
+    modelData["resolution"] = resolution;
+    modelData["wavelength"] = wavelength;
+
+    // Добавим отладочное сообщение для проверки данных перед отправкой
+    QJsonDocument doc(modelData);
+    qDebug() << "Model data to be sent to server:" << doc.toJson(QJsonDocument::Indented);
+
+    sendDataAfterAuthorization([this, modelData]() {
+        triangleClient->sendModelData(modelData);
     });
 
     buttonSaveResults->show();
