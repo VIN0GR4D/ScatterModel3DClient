@@ -86,12 +86,19 @@ void TriangleClient::onTextMessageReceived(QString message) {
 
     if (obj.contains("type")) {
         QString type = obj["type"].toString();
+
         if (type == "result") {
             qDebug() << "Results received from server:" << obj["content"].toObject();
             emit resultsReceived(obj["content"].toObject()); // Эмитирование сигнала с полученными данными
         } else if (type == "answer") {
+            QString msg = obj["msg"].toString();
+            if (msg == "клиент подключен") {
+                m_isAuthorized = true;  // Устанавливаем флаг авторизации в true
+                qDebug() << "Authorization successful";
+                emit logMessage("Authorization successful.");
+            }
+            emit logMessage("Answer received: " + msg);
             qDebug() << "Answer received from server.";
-            emit logMessage("Answer received: " + obj["msg"].toString());
         } else if (type == "progress_bar") {
             qDebug() << "Progress bar update received:" << obj["content"].toInt();
             emit logMessage("Progress: " + QString::number(obj["content"].toInt()) + "%");
@@ -107,6 +114,11 @@ void TriangleClient::onTextMessageReceived(QString message) {
 
 // Функция для авторизации на сервере
 void TriangleClient::authorize(const QString &username, const QString &password) {
+    if (m_isAuthorized) {
+        emit logMessage("Already authorized.");
+        return;
+    }
+
     QJsonObject authObject = {
         {"type", "auth"},
         {"login", username},
@@ -115,6 +127,10 @@ void TriangleClient::authorize(const QString &username, const QString &password)
     QJsonDocument doc(authObject);
     m_webSocket->sendTextMessage(doc.toJson(QJsonDocument::Compact));
     qDebug() << "Attempting to authorize...";
+}
+
+bool TriangleClient::isAuthorized() const {
+    return m_isAuthorized;
 }
 
 // Функция для отправки данных о треугольниках на сервер

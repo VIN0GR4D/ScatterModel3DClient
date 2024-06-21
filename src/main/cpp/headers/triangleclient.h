@@ -30,6 +30,8 @@ public:
     bool getTypeAzimut() const { return m_typeAzimut; }
     bool getTypeLength() const { return m_typeLength; }
 
+    bool isAuthorized() const;
+
 signals:
     void resultsReceived(const QJsonObject &results);
     void logMessage(const QString &message);
@@ -54,6 +56,7 @@ private:
     int m_reconnectAttempts;
     const int m_maxReconnectAttempts;
     rVect m_directVector;
+    bool m_isAuthorized = false;
 
     void attemptReconnect();
     void logMessageToFile(const QString &message);

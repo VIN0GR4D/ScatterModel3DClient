@@ -42,9 +42,6 @@ private slots:
     void authorizeClient();
     void displayResults(const QJsonObject &results);
     void sendDataAfterAuthorization(std::function<void()> sendDataFunc);
-    // void sendCalculationData();
-    // void sendModelData();
-    // void sendCombinedData();
 
 private:
     Ui::MainWindow *ui;
