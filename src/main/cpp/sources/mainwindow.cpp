@@ -16,6 +16,7 @@
 #include <QFutureWatcher>
 
 QVector<double> absEout;
+QVector<double> normEout;
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -148,8 +149,22 @@ void MainWindow::displayResults(const QJsonObject &results) {
     for (const QJsonValue &value : absEoutArray) {
         QJsonArray innerArray = value.toArray();
         if (!innerArray.isEmpty()) {
-            double val = innerArray[0].toArray()[0].toDouble(); // Изменено здесь
+            double val = innerArray[0].toArray()[0].toDouble();
             absEout.append(val);
+        } else {
+            qDebug() << "Inner array is empty or not found";
+        }
+    }
+
+    // Извлечение данных normEout из JSON-объекта
+    QJsonArray normEoutArray = results["normEout"].toArray();
+    normEout.clear();
+
+    for (const QJsonValue &value : normEoutArray) {
+        QJsonArray innerArray = value.toArray();
+        if (!innerArray.isEmpty()) {
+            double val = innerArray[0].toArray()[0].toDouble();
+            normEout.append(val);
         } else {
             qDebug() << "Inner array is empty or not found";
         }
@@ -157,6 +172,7 @@ void MainWindow::displayResults(const QJsonObject &results) {
 
     // Выводим данные для отладки
     qDebug() << "absEout extracted from JSON:" << absEout;
+    qDebug() << "normEout extracted from JSON:" << normEout;
 }
 
 void MainWindow::applyRotation() {
@@ -351,8 +367,9 @@ void MainWindow::openGraphWindow() {
 
     qDebug() << "x:" << x;
     qDebug() << "absEout:" << absEout;
+    qDebug() << "normEout:" << normEout;
 
-    graphWindow->setData(x, absEout);
+    graphWindow->setData(x, absEout, normEout);
     graphWindow->setAttribute(Qt::WA_DeleteOnClose);
     graphWindow->show();
 }

@@ -9,10 +9,17 @@ class GraphWindow : public QDialog {
 
 public:
     explicit GraphWindow(QWidget *parent = nullptr);
-    void setData(const QVector<double> &x, const QVector<double> &y);
+    void setData(const QVector<double> &x, const QVector<double> &y1, const QVector<double> &y2);
+
+private slots:
+    void toggleAbsEout(bool checked);
+    void toggleNormEout(bool checked);
+    void resetZoom();
 
 private:
     QCustomPlot *customPlot;
+    QCheckBox *absEoutCheckBox, *normEoutCheckBox;
+    QCPRange xRange, yRange;
 };
 
 #endif // GRAPHWINDOW_H
