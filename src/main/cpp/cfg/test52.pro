@@ -1,4 +1,4 @@
-QT       += core gui websockets opengl openglwidgets widgets charts
+QT       += core gui websockets opengl openglwidgets widgets charts printsupport
 LIBS += -lopengl32
 LIBS += -lglu32
 
@@ -11,10 +11,12 @@ CONFIG += c++17
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    graphwindow.cpp \
     main.cpp \
     mainwindow.cpp \
     openglwidget.cpp \
     parser.cpp \
+    qcustomplot.cpp \
     raytracer.cpp \
     triangleclient.cpp
 
@@ -23,9 +25,11 @@ HEADERS += \
     Node.h \
     Triangle.h \
     cVect.h \
+    graphwindow.h \
     mainwindow.h \
     openglwidget.h \
     parser.h \
+    qcustomplot.h \
     rVect.h \
     raytracer.h \
     triangleclient.h

@@ -13,6 +13,7 @@
 #include "parser.h"
 #include "raytracer.h"
 #include "triangleclient.h"
+#include "graphwindow.h"
 #include <QDoubleSpinBox>
 #include <QComboBox>
 
@@ -42,6 +43,7 @@ private slots:
     void authorizeClient();
     void displayResults(const QJsonObject &results);
     void sendDataAfterAuthorization(std::function<void()> sendDataFunc);
+    void openGraphWindow();
 
 private:
     Ui::MainWindow *ui;
