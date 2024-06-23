@@ -19,4 +19,8 @@ void GraphWindow::setData(const QVector<double> &x, const QVector<double> &y) {
     customPlot->graph(0)->setData(x, y);
     customPlot->rescaleAxes();
     customPlot->replot();
+
+    // Для отладки
+    qDebug() << "Graph data X:" << x;
+    qDebug() << "Graph data Y:" << y;
 }

@@ -13,9 +13,9 @@
 #include "parser.h"
 #include "raytracer.h"
 #include "triangleclient.h"
-#include "graphwindow.h"
 #include <QDoubleSpinBox>
 #include <QComboBox>
+#include <QVector>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -61,6 +61,7 @@ private:
     QWidget *controlWidget;
     QFormLayout *formLayout;
     bool serverEnabled;
+    // QVector<double> absEout;
     QJsonObject vectorToJson(const QSharedPointer<const rVect>& vector);
 };
 

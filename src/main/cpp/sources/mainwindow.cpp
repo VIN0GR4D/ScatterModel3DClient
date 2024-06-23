@@ -15,6 +15,8 @@
 #include <QtConcurrent/QtConcurrent>
 #include <QFutureWatcher>
 
+QVector<double> absEout;
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
@@ -138,6 +140,23 @@ void MainWindow::displayResults(const QJsonObject &results) {
     QJsonDocument doc(results);
     QString resultsString = doc.toJson(QJsonDocument::Indented);
     resultDisplay->setText(resultsString);
+
+    // Извлечение данных absEout из JSON-объекта
+    QJsonArray absEoutArray = results["absEout"].toArray();
+    absEout.clear();
+
+    for (const QJsonValue &value : absEoutArray) {
+        QJsonArray innerArray = value.toArray();
+        if (!innerArray.isEmpty()) {
+            double val = innerArray[0].toArray()[0].toDouble(); // Изменено здесь
+            absEout.append(val);
+        } else {
+            qDebug() << "Inner array is empty or not found";
+        }
+    }
+
+    // Выводим данные для отладки
+    qDebug() << "absEout extracted from JSON:" << absEout;
 }
 
 void MainWindow::applyRotation() {
@@ -325,27 +344,15 @@ void MainWindow::saveResults() {
 void MainWindow::openGraphWindow() {
     GraphWindow *graphWindow = new GraphWindow(this);
 
-    // Пример данных для графика из сообщения
-    QVector<double> x, y;
-    y = {0.004315734559934541, 0.005435415426171632, 0.007306582355086828, 0.011100124837206713,
-         0.022126173445402016, 0.06237013233212178, 0.07280667824775514, 0.02322611007250268,
-         0.011183774601480073, 0.007649375758080893, 0.005971322376723318, 0.004969002458367119,
-         0.004299026924597744, 0.003718884081238181, 0.0034838265279634566, 0.003214427674061197,
-         0.0030055983732954136, 0.002844474942924908, 0.002720836221838338, 0.002628212673460953,
-         0.0025625452403116654, 0.0025215455484128044, 0.0025044081328977016, 0.0025117670054664986,
-         0.002545889239056153, 0.002611181947664431, 0.0027152182360220853, 0.002870760836385987,
-         0.0030999419483687665, 0.003443694690226158, 0.003985976838912225, 0.004928503825086683,
-         0.006888443022484095, 0.012474931355445286, 0.03414402379582771, 0.09046356438498697,
-         0.033440567120951496, 0.011270377048985838, 0.005358429454477918, 0.003338506034822429,
-         0.0023837042198719357, 0.0018360210176986923, 0.00151258567149257, 0.0011121195437811449,
-         0.0009986169820483184, 0.0008640451765258658, 0.0007575670962061622, 0.0006726508065866708,
-         0.0006043256903465568, 0.0005489338207575103, 0.0005037763936973117, 0.0004668280136033241,
-         0.00043653873485566605, 0.000411700348532736, 0.000391355682488425, 0.0003747362311220821};
-    for (int i = 0; i < y.size(); ++i) {
+    QVector<double> x;
+    for (int i = 0; i < absEout.size(); ++i) {
         x.append(i);
     }
 
-    graphWindow->setData(x, y);
+    qDebug() << "x:" << x;
+    qDebug() << "absEout:" << absEout;
+
+    graphWindow->setData(x, absEout);
     graphWindow->setAttribute(Qt::WA_DeleteOnClose);
     graphWindow->show();
 }
