@@ -134,6 +134,16 @@ void MainWindow::loadModel() {
         openGLWidget->clearScene();
         parser->clearData();
         parser->readFromObjFile(fileName);
+
+        // Проверка наличия треугольников после загрузки файла
+        if (openGLWidget->getTriangles().isEmpty()) {
+            logMessage("Ошибка: файл не содержит корректных данных объекта. Пожалуйста, загрузите корректный файл.");
+            lineEditFilePath->clear();
+        } else {
+            logMessage("Файл успешно загружен.");
+        }
+    } else {
+        logMessage("Ошибка: файл не был выбран.");
     }
 }
 
@@ -228,6 +238,18 @@ QJsonObject MainWindow::vectorToJson(const QSharedPointer<const rVect>& vector) 
 
 // Функция для выполнения расчета
 void MainWindow::performCalculation() {
+    // Проверка, загружен ли объект
+    if (lineEditFilePath->text().isEmpty()) {
+        logMessage("Ошибка: объект не загружен. Пожалуйста, загрузите объект перед выполнением расчета.");
+        return;
+    }
+
+    QVector<QSharedPointer<triangle>> triangles = openGLWidget->getTriangles();
+    if (triangles.isEmpty()) {
+        logMessage("Ошибка: загруженный файл не содержит корректных данных объекта.");
+        return;
+    }
+
     double wavelength = inputWavelength->value();
     double resolution = inputResolution->value();
     QString polarizationText = inputPolarization->currentText();
@@ -247,7 +269,6 @@ void MainWindow::performCalculation() {
     bool typeAzimut = (portraitTypeText == "Азимутальный");
     bool typeLength = (portraitTypeText == "Дальностный");
 
-    QVector<QSharedPointer<triangle>> triangles = openGLWidget->getTriangles();
     QJsonObject dataObject;
     QJsonArray visibleTrianglesArray;
 
@@ -275,7 +296,7 @@ void MainWindow::performCalculation() {
 
     QJsonObject modelData;
     modelData["data"] = dataObject;
-    modelData["visbleTriangles"] = visibleTrianglesArray; // исправлено: "visbleTriangles" вместо "visibleTriangles"
+    modelData["visbleTriangles"] = visibleTrianglesArray;
     modelData["freqBand"] = 5;  // Пример диапазона частот
     modelData["polarRadiation"] = polarRadiation;
     modelData["polarRecive"] = polarRecive;
