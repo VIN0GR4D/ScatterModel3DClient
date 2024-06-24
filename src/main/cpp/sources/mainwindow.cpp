@@ -62,8 +62,10 @@ MainWindow::MainWindow(QWidget *parent)
     serverAddressInput = new QLineEdit(controlWidget);
     serverAddressInput->setPlaceholderText("ws://yourserveraddress:port");
     connectButton = new QPushButton("Connect", controlWidget);
+    QPushButton *disconnectButton = new QPushButton("Disconnect", controlWidget);
     formLayout->addRow(new QLabel("Server Address:"), serverAddressInput);
     formLayout->addRow(connectButton);
+    formLayout->addRow(disconnectButton);
 
     logDisplay = new QTextEdit(controlWidget);
     logDisplay->setReadOnly(true);
@@ -111,6 +113,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(buttonLoadModel, &QPushButton::clicked, this, &MainWindow::loadModel);
     connect(buttonPerformCalculation, &QPushButton::clicked, this, &MainWindow::performCalculation);
     connect(connectButton, &QPushButton::clicked, this, &MainWindow::connectToServer);
+    connect(disconnectButton, &QPushButton::clicked, this, &MainWindow::disconnectFromServer);
     connect(buttonSaveResults, &QPushButton::clicked, this, &MainWindow::saveResults);
     connect(triangleClient, &TriangleClient::resultsReceived, this, QOverload<const QJsonObject &>::of(&MainWindow::displayResults));
     connect(parser, &Parser::fileParsed, this, [&](const QVector<QVector3D> &v, const QVector<QVector<int>> &t, const QVector<QSharedPointer<triangle>> &tri) {
@@ -354,6 +357,16 @@ void MainWindow::onConnectedToServer() {
         // Заполните вектор triangles необходимыми данными
         triangleClient->sendTriangleData(triangles);
     });
+}
+
+void MainWindow::disconnectFromServer() {
+    if (triangleClient && triangleClient->isConnected()) {
+        triangleClient->disconnectFromServer();
+        logMessage("Disconnected from server.");
+        serverEnabled = false;
+    } else {
+        logMessage("Not connected to any server.");
+    }
 }
 
 void MainWindow::logMessage(const QString& message) {

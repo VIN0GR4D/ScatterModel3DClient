@@ -32,6 +32,8 @@ public:
 
     bool isAuthorized() const;
 
+    void disconnectFromServer();
+
 signals:
     void resultsReceived(const QJsonObject &results);
     void logMessage(const QString &message);
@@ -55,6 +57,7 @@ private:
     void processResults(const QJsonObject &results);
     int m_reconnectAttempts;
     const int m_maxReconnectAttempts;
+    bool m_intentionalDisconnect;
     rVect m_directVector;
     bool m_isAuthorized = false;
 

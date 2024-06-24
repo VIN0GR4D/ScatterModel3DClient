@@ -44,6 +44,7 @@ private slots:
     void displayResults(const QJsonObject &results);
     void sendDataAfterAuthorization(std::function<void()> sendDataFunc);
     void openGraphWindow();
+    void disconnectFromServer();
 
 private:
     Ui::MainWindow *ui;

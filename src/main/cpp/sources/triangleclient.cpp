@@ -6,7 +6,7 @@
 #include <QFile>
 
 TriangleClient::TriangleClient(const QUrl &url, QObject *parent)
-    : QObject(parent), m_webSocket(new QWebSocket), m_url(url), m_reconnectAttempts(0), m_maxReconnectAttempts(3) {
+    : QObject(parent), m_webSocket(new QWebSocket), m_url(url), m_reconnectAttempts(0), m_maxReconnectAttempts(3), m_intentionalDisconnect(false) {
     connect(m_webSocket, &QWebSocket::connected, this, &TriangleClient::onConnected);
     connect(m_webSocket, &QWebSocket::disconnected, this, &TriangleClient::onDisconnected);
     connect(m_webSocket, &QWebSocket::textMessageReceived, this, &TriangleClient::onTextMessageReceived);
@@ -19,6 +19,11 @@ TriangleClient::~TriangleClient() {
 }
 // Попытка переподключения
 void TriangleClient::attemptReconnect() {
+    if (m_intentionalDisconnect) {
+        emit logMessage("Намеренное отключение. Попытки повторного подключения прекращены.");
+        return;
+    }
+
     if (m_reconnectAttempts < m_maxReconnectAttempts) {
         m_reconnectAttempts++;
         QTimer::singleShot(5000, this, [this]() { m_webSocket->open(m_url); });
@@ -33,17 +38,33 @@ void TriangleClient::onConnected() {
     emit logMessage("WebSocket connected");
     qDebug() << "WebSocket connected, preparing to send data...";
     m_reconnectAttempts = 0;
+    m_intentionalDisconnect = false; // сброс флага при успешном подключении
 }
 
 bool TriangleClient::isConnected() const {
     return m_webSocket->isValid() && m_webSocket->state() == QAbstractSocket::ConnectedState;
 }
 
+void TriangleClient::disconnectFromServer() {
+    if (m_webSocket->isValid()) {
+        m_intentionalDisconnect = true;
+        m_webSocket->close();
+        m_isAuthorized = false;
+    } else {
+        emit logMessage("WebSocket is not connected.");
+    }
+    m_intentionalDisconnect = false; // сброс флага
+}
+
 // Обработчик события отключения от сервера
 void TriangleClient::onDisconnected() {
     emit logMessage("WebSocket disconnected");
-    qDebug() << "WebSocket disconnected, attempting to reconnect...";
-    attemptReconnect();
+    if (!m_intentionalDisconnect) { // добавлено
+        qDebug() << "WebSocket disconnected, attempting to reconnect...";
+        attemptReconnect();
+    } else {
+        qDebug() << "WebSocket intentionally disconnected.";
+    }
 }
 
 // Обработчик ошибок соединения
