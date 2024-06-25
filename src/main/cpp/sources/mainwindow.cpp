@@ -151,41 +151,106 @@ void MainWindow::loadModel() {
 }
 
 void MainWindow::displayResults(const QJsonObject &results) {
+    // Преобразование JSON-объекта в JSON-документ для дальнейшего использования
     QJsonDocument doc(results);
+
+    // Преобразование JSON-документа в отформатированную строку для отображения
     QString resultsString = doc.toJson(QJsonDocument::Indented);
+
+    // Отображение строки с результатами в виджете resultDisplay
     resultDisplay->setText(resultsString);
 
-    // Извлечение данных absEout из JSON-объекта
+    // Извлечение массива absEout из JSON-объекта результатов
     QJsonArray absEoutArray = results["absEout"].toArray();
+
+    // Очистка текущего содержимого вектора absEout
     absEout.clear();
 
-    for (const QJsonValue &value : absEoutArray) {
-        QJsonArray innerArray = value.toArray();
-        if (!innerArray.isEmpty()) {
-            double val = innerArray[0].toArray()[0].toDouble();
-            absEout.append(val);
-        } else {
-            qDebug() << "Inner array is empty or not found";
+    // Получение текущего выбранного типа портрета из интерфейса пользователя
+    QString portraitTypeText = inputPortraitType->currentText();
+
+    // Обработка данных absEout в зависимости от типа портрета
+    if (portraitTypeText == "Угломестный") {
+        // Обработка угломестного портрета
+        for (const QJsonValue &value : absEoutArray) {
+            QJsonArray innerArray = value.toArray();
+            if (!innerArray.isEmpty()) {
+                // Извлечение значения из внутреннего массива
+                double val = innerArray[0].toArray()[0].toDouble();
+                absEout.append(val);
+            } else {
+                qDebug() << "Внутренний массив пуст или не найден";
+            }
         }
+    } else if (portraitTypeText == "Азимутальный") {
+        // Обработка азимутального портрета
+        for (const QJsonValue &value : absEoutArray) {
+            QJsonArray innerArray = value.toArray();
+            if (!innerArray.isEmpty()) {
+                QJsonArray innermostArray = innerArray[0].toArray();
+                for (const QJsonValue &innermostValue : innermostArray) {
+                    double val = innermostValue.toDouble();
+                    absEout.append(val);
+                }
+            } else {
+                qDebug() << "Внутренний массив пуст или не найден";
+            }
+        }
+    } else if (portraitTypeText == "Дальностный") {
+        // Обработка дальностного портрета
+        for (const QJsonValue &value : absEoutArray) {
+            QJsonArray innerArray = value.toArray();
+            for (const QJsonValue &innermostValue : innerArray) {
+                double val = innermostValue.toArray()[0].toDouble();
+                absEout.append(val);
+            }
+        }
+    } else {
+        // Обработка неизвестного типа портрета
+        qDebug() << "Неизвестный тип портрета";
     }
 
-    // Извлечение данных normEout из JSON-объекта
+    // Извлечение массива normEout из JSON-объекта результатов
     QJsonArray normEoutArray = results["normEout"].toArray();
+
+    // Очистка текущего содержимого вектора normEout
     normEout.clear();
 
-    for (const QJsonValue &value : normEoutArray) {
-        QJsonArray innerArray = value.toArray();
-        if (!innerArray.isEmpty()) {
-            double val = innerArray[0].toArray()[0].toDouble();
-            normEout.append(val);
-        } else {
-            qDebug() << "Inner array is empty or not found";
+    // Обработка данных normEout в зависимости от типа портрета
+    if (portraitTypeText == "Угломестный") {
+        for (const QJsonValue &value : normEoutArray) {
+            QJsonArray innerArray = value.toArray();
+            if (!innerArray.isEmpty()) {
+                double val = innerArray[0].toArray()[0].toDouble();
+                normEout.append(val);
+            } else {
+                qDebug() << "Внутренний массив пуст или не найден";
+            }
         }
+    } else if (portraitTypeText == "Азимутальный") {
+        for (const QJsonValue &value : normEoutArray) {
+            QJsonArray innerArray = value.toArray();
+            if (!innerArray.isEmpty()) {
+                QJsonArray innermostArray = innerArray[0].toArray();
+                for (const QJsonValue &innermostValue : innermostArray) {
+                    double val = innermostValue.toDouble();
+                    normEout.append(val);
+                }
+            } else {
+                qDebug() << "Внутренний массив пуст или не найден";
+            }
+        }
+    } else if (portraitTypeText == "Дальностный") {
+        for (const QJsonValue &value : normEoutArray) {
+            QJsonArray innerArray = value.toArray();
+            for (const QJsonValue &innermostValue : innerArray) {
+                double val = innermostValue.toArray()[0].toDouble();
+                normEout.append(val);
+            }
+        }
+    } else {
+        qDebug() << "Неизвестный тип портрета";
     }
-
-    // Выводим данные для отладки
-    qDebug() << "absEout extracted from JSON:" << absEout;
-    qDebug() << "normEout extracted from JSON:" << normEout;
 }
 
 void MainWindow::applyRotation() {
@@ -213,7 +278,7 @@ void MainWindow::authorizeClient() {
 
 void MainWindow::sendDataAfterAuthorization(std::function<void()> sendDataFunc) {
     if (!triangleClient || !triangleClient->isConnected()) {
-        resultDisplay->setText("Not connected to the server. Please connect first.");
+        resultDisplay->setText("Для начала подключитесь к серверу.");
         return;
     }
 
@@ -223,7 +288,7 @@ void MainWindow::sendDataAfterAuthorization(std::function<void()> sendDataFunc) 
             if (triangleClient->isConnected() && triangleClient->isAuthorized()) {
                 sendDataFunc();  // Отправляем данные после успешной авторизации
             } else {
-                resultDisplay->setText("Authorization failed or connection lost.");
+                resultDisplay->setText("Ошибка авторизации.");
             }
         });
     } else {
