@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/">
+        <file>icon.png</file>
+        <file>load.png</file>
+        <file>calculator.png</file>
+        <file>connect.png</file>
+        <file>disconnect.png</file>
+    </qresource>
+</RCC>

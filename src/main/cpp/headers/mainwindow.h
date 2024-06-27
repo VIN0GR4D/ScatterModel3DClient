@@ -16,6 +16,8 @@
 #include <QDoubleSpinBox>
 #include <QComboBox>
 #include <QVector>
+#include <QListWidget>
+#include <QCheckBox>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -41,7 +43,6 @@ private slots:
     void logMessage(const QString& message);
     void updateResultsDisplay(const QJsonObject& results);
     void authorizeClient();
-    void displayResults(const QJsonObject &results);
     void sendDataAfterAuthorization(std::function<void()> sendDataFunc);
     void openGraphWindow();
     void disconnectFromServer();
@@ -58,12 +59,13 @@ private:
     QTextEdit *resultDisplay, *logDisplay;
     QDoubleSpinBox *inputWavelength, *inputResolution;
     QDoubleSpinBox *inputRotationX, *inputRotationY, *inputRotationZ;
-    QComboBox *inputPolarization, *inputPortraitType;
+    QComboBox *inputPolarization;
     QWidget *controlWidget;
     QFormLayout *formLayout;
     bool serverEnabled;
-    // QVector<double> absEout;
     QJsonObject vectorToJson(const QSharedPointer<const rVect>& vector);
+    void extractValues(const QJsonArray &array, QVector<double> &container, int depth);
+    void displayResults(const QJsonObject &results);
 };
 
 #endif // MAINWINDOW_H

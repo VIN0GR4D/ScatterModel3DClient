@@ -2,7 +2,6 @@
 #include "ui_mainwindow.h"
 #include "parser.h"
 #include "raytracer.h"
-#include "qcustomplot.h"
 #include "graphwindow.h"
 #include <QFileDialog>
 #include <QFormLayout>
@@ -17,6 +16,9 @@
 
 QVector<double> absEout;
 QVector<double> normEout;
+QCheckBox *anglePortraitCheckBox;
+QCheckBox *azimuthPortraitCheckBox;
+QCheckBox *rangePortraitCheckBox;
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -38,7 +40,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Элементы пользовательского интерфейса для загрузки модели
     lineEditFilePath = new QLineEdit(controlWidget);
-    buttonLoadModel = new QPushButton("Загрузить объект", controlWidget);
+    buttonLoadModel = new QPushButton(QIcon(":/load.png"), "Загрузить объект", controlWidget);
     formLayout->addRow(new QLabel("Файл объекта:"), lineEditFilePath);
     formLayout->addRow(buttonLoadModel);
 
@@ -46,23 +48,33 @@ MainWindow::MainWindow(QWidget *parent)
     inputWavelength = new QDoubleSpinBox(controlWidget);
     inputResolution = new QDoubleSpinBox(controlWidget);
     inputPolarization = new QComboBox(controlWidget);
-    inputPortraitType = new QComboBox(controlWidget);
-    buttonPerformCalculation = new QPushButton("Выполнить расчет", controlWidget);
+    buttonPerformCalculation = new QPushButton(QIcon(":/calculator.png"),"Выполнить расчет", controlWidget);
 
+    QGroupBox *portraitTypeGroupBox = new QGroupBox("Портретные типы", controlWidget);
+    QVBoxLayout *portraitTypeLayout = new QVBoxLayout(portraitTypeGroupBox);
+
+    azimuthPortraitCheckBox = new QCheckBox("Азимутальный", portraitTypeGroupBox);
+    anglePortraitCheckBox = new QCheckBox("Угломестный", portraitTypeGroupBox);
+    rangePortraitCheckBox = new QCheckBox("Дальностный", portraitTypeGroupBox);
     inputPolarization->addItems({"Горизонтальный", "Вертикальный", "Круговой"});
-    inputPortraitType->addItems({"Угломестный", "Азимутальный", "Дальностный"});
+
+    portraitTypeLayout->addWidget(anglePortraitCheckBox);
+    portraitTypeLayout->addWidget(azimuthPortraitCheckBox);
+    portraitTypeLayout->addWidget(rangePortraitCheckBox);
+
+    portraitTypeGroupBox->setLayout(portraitTypeLayout);
+    formLayout->addRow(portraitTypeGroupBox);
 
     formLayout->addRow(new QLabel("Длина волны (nm):"), inputWavelength);
     formLayout->addRow(new QLabel("Разрешение (m):"), inputResolution);
     formLayout->addRow(new QLabel("Поляризация:"), inputPolarization);
-    formLayout->addRow(new QLabel("Портретный тип:"), inputPortraitType);
     formLayout->addRow(buttonPerformCalculation);
 
     // Элементы для подключения к серверу
     serverAddressInput = new QLineEdit(controlWidget);
     serverAddressInput->setPlaceholderText("ws://yourserveraddress:port");
-    connectButton = new QPushButton("Connect", controlWidget);
-    QPushButton *disconnectButton = new QPushButton("Disconnect", controlWidget);
+    connectButton = new QPushButton(QIcon(":/connect.png"),"Connect", controlWidget);
+    QPushButton *disconnectButton = new QPushButton(QIcon(":/disconnect.png"),"Disconnect", controlWidget);
     formLayout->addRow(new QLabel("Server Address:"), serverAddressInput);
     formLayout->addRow(connectButton);
     formLayout->addRow(disconnectButton);
@@ -147,109 +159,84 @@ void MainWindow::loadModel() {
         }
     } else {
         logMessage("Ошибка: файл не был выбран.");
+        return;
     }
 }
 
+// Вспомогательная функция для извлечения значений из вложенных массивов
+void MainWindow::extractValues(const QJsonArray &array, QVector<double> &container, int depth) {
+    for (int i = 0; i < array.size(); ++i) {
+        const QJsonValue &value = array.at(i);
+        QJsonArray innerArray = value.toArray();
+        if (depth == 1) {
+            if (!innerArray.isEmpty()) {
+                double val = innerArray.at(0).toDouble();
+                container.append(val);
+            } else {
+                qDebug() << "Inner array is empty or not found";
+            }
+        } else if (depth == 2) {
+            for (int j = 0; j < innerArray.size(); ++j) {
+                double val = innerArray.at(j).toDouble();
+                container.append(val);
+            }
+        } else if (depth == 3) {
+            for (int j = 0; j < innerArray.size(); ++j) {
+                const QJsonValue &innerValue = innerArray.at(j);
+                QJsonArray innermostArray = innerValue.toArray();
+                for (int k = 0; k < innermostArray.size(); ++k) {
+                    double val = innermostArray.at(k).toDouble();
+                    container.append(val);
+                }
+            }
+        } else if (depth == 4) {
+            for (int j = 0; j < innerArray.size(); ++j) {
+                const QJsonValue &innerValue = innerArray.at(j);
+                QJsonArray innermostArray = innerValue.toArray();
+                for (int k = 0; k < innermostArray.size(); ++k) {
+                    const QJsonValue &innermostInnerValue = innermostArray.at(k);
+                    if (innermostInnerValue.isArray() && !innermostInnerValue.toArray().isEmpty()) {
+                        double val = innermostInnerValue.toArray().at(0).toDouble();
+                        container.append(val);
+                    }
+                }
+            }
+        } else {
+            qDebug() << "Unsupported array depth";
+        }
+    }
+}
+
+// Функция для отображения результатов
 void MainWindow::displayResults(const QJsonObject &results) {
     // Преобразование JSON-объекта в JSON-документ для дальнейшего использования
     QJsonDocument doc(results);
-
-    // Преобразование JSON-документа в отформатированную строку для отображения
     QString resultsString = doc.toJson(QJsonDocument::Indented);
-
-    // Отображение строки с результатами в виджете resultDisplay
     resultDisplay->setText(resultsString);
 
-    // Извлечение массива absEout из JSON-объекта результатов
+    // Извлечение массивов absEout и normEout из JSON-объекта результатов
     QJsonArray absEoutArray = results["absEout"].toArray();
-
-    // Очистка текущего содержимого вектора absEout
-    absEout.clear();
-
-    // Получение текущего выбранного типа портрета из интерфейса пользователя
-    QString portraitTypeText = inputPortraitType->currentText();
-
-    // Обработка данных absEout в зависимости от типа портрета
-    if (portraitTypeText == "Угломестный") {
-        // Обработка угломестного портрета
-        for (const QJsonValue &value : absEoutArray) {
-            QJsonArray innerArray = value.toArray();
-            if (!innerArray.isEmpty()) {
-                // Извлечение значения из внутреннего массива
-                double val = innerArray[0].toArray()[0].toDouble();
-                absEout.append(val);
-            } else {
-                qDebug() << "Внутренний массив пуст или не найден";
-            }
-        }
-    } else if (portraitTypeText == "Азимутальный") {
-        // Обработка азимутального портрета
-        for (const QJsonValue &value : absEoutArray) {
-            QJsonArray innerArray = value.toArray();
-            if (!innerArray.isEmpty()) {
-                QJsonArray innermostArray = innerArray[0].toArray();
-                for (const QJsonValue &innermostValue : innermostArray) {
-                    double val = innermostValue.toDouble();
-                    absEout.append(val);
-                }
-            } else {
-                qDebug() << "Внутренний массив пуст или не найден";
-            }
-        }
-    } else if (portraitTypeText == "Дальностный") {
-        // Обработка дальностного портрета
-        for (const QJsonValue &value : absEoutArray) {
-            QJsonArray innerArray = value.toArray();
-            for (const QJsonValue &innermostValue : innerArray) {
-                double val = innermostValue.toArray()[0].toDouble();
-                absEout.append(val);
-            }
-        }
-    } else {
-        // Обработка неизвестного типа портрета
-        qDebug() << "Неизвестный тип портрета";
-    }
-
-    // Извлечение массива normEout из JSON-объекта результатов
     QJsonArray normEoutArray = results["normEout"].toArray();
 
-    // Очистка текущего содержимого вектора normEout
+    // Очистка текущего содержимого векторов absEout и normEout
+    absEout.clear();
     normEout.clear();
 
-    // Обработка данных normEout в зависимости от типа портрета
-    if (portraitTypeText == "Угломестный") {
-        for (const QJsonValue &value : normEoutArray) {
-            QJsonArray innerArray = value.toArray();
-            if (!innerArray.isEmpty()) {
-                double val = innerArray[0].toArray()[0].toDouble();
-                normEout.append(val);
-            } else {
-                qDebug() << "Внутренний массив пуст или не найден";
-            }
-        }
-    } else if (portraitTypeText == "Азимутальный") {
-        for (const QJsonValue &value : normEoutArray) {
-            QJsonArray innerArray = value.toArray();
-            if (!innerArray.isEmpty()) {
-                QJsonArray innermostArray = innerArray[0].toArray();
-                for (const QJsonValue &innermostValue : innermostArray) {
-                    double val = innermostValue.toDouble();
-                    normEout.append(val);
-                }
-            } else {
-                qDebug() << "Внутренний массив пуст или не найден";
-            }
-        }
-    } else if (portraitTypeText == "Дальностный") {
-        for (const QJsonValue &value : normEoutArray) {
-            QJsonArray innerArray = value.toArray();
-            for (const QJsonValue &innermostValue : innerArray) {
-                double val = innermostValue.toArray()[0].toDouble();
-                normEout.append(val);
-            }
-        }
-    } else {
-        qDebug() << "Неизвестный тип портрета";
+    // Проверка, какие чекбоксы отмечены и установка соответствующей глубины вложенности
+    if (anglePortraitCheckBox->isChecked()) {
+        // Для угломестного типа также используется двойная вложенность
+        extractValues(absEoutArray, absEout, 3);
+        extractValues(normEoutArray, normEout, 3);
+    }
+    if (azimuthPortraitCheckBox->isChecked()) {
+        // Для азимутального типа используется двойная вложенность
+        extractValues(absEoutArray, absEout, 3);
+        extractValues(normEoutArray, normEout, 3);
+    }
+    if (rangePortraitCheckBox->isChecked()) {
+        // Для дальностного типа требуется тройная вложенность
+        extractValues(absEoutArray, absEout, 3);
+        extractValues(normEoutArray, normEout, 3);
     }
 }
 
@@ -306,7 +293,6 @@ QJsonObject MainWindow::vectorToJson(const QSharedPointer<const rVect>& vector) 
 
 // Функция для выполнения расчета
 void MainWindow::performCalculation() {
-    // Проверка, загружен ли объект
     if (lineEditFilePath->text().isEmpty()) {
         logMessage("Ошибка: объект не загружен. Пожалуйста, загрузите объект перед выполнением расчета.");
         return;
@@ -318,13 +304,17 @@ void MainWindow::performCalculation() {
         return;
     }
 
+    if (!anglePortraitCheckBox->isChecked() && !azimuthPortraitCheckBox->isChecked() && !rangePortraitCheckBox->isChecked()) {
+        logMessage("Ошибка: тип радиопортрета не задан. Пожалуйста, выберите хотя бы один тип радиопортрета.");
+        return;
+    }
+
     double wavelength = inputWavelength->value();
     double resolution = inputResolution->value();
     QString polarizationText = inputPolarization->currentText();
-    QString portraitTypeText = inputPortraitType->currentText();
 
-    int polarRadiation = 0; // Вертикальная поляризация по умолчанию
-    int polarRecive = 0;    // Вертикальная поляризация по умолчанию
+    int polarRadiation = 0;
+    int polarRecive = 0;
     if (polarizationText == "Горизонтальный") {
         polarRadiation = 1;
         polarRecive = 1;
@@ -333,9 +323,9 @@ void MainWindow::performCalculation() {
         polarRecive = 2;
     }
 
-    bool typeAngle = (portraitTypeText == "Угломестный");
-    bool typeAzimut = (portraitTypeText == "Азимутальный");
-    bool typeLength = (portraitTypeText == "Дальностный");
+    bool typeAngle = anglePortraitCheckBox->isChecked();
+    bool typeAzimut = azimuthPortraitCheckBox->isChecked();
+    bool typeLength = rangePortraitCheckBox->isChecked();
 
     QJsonObject dataObject;
     QJsonArray visibleTrianglesArray;
@@ -365,7 +355,7 @@ void MainWindow::performCalculation() {
     QJsonObject modelData;
     modelData["data"] = dataObject;
     modelData["visbleTriangles"] = visibleTrianglesArray;
-    modelData["freqBand"] = 5;  // Пример диапазона частот
+    modelData["freqBand"] = 5;
     modelData["polarRadiation"] = polarRadiation;
     modelData["polarRecive"] = polarRecive;
     modelData["typeAngle"] = typeAngle;
@@ -376,7 +366,6 @@ void MainWindow::performCalculation() {
     modelData["resolution"] = resolution;
     modelData["wavelength"] = wavelength;
 
-    // Добавим отладочное сообщение для проверки данных перед отправкой
     QJsonDocument doc(modelData);
     qDebug() << "Model data to be sent to server:" << doc.toJson(QJsonDocument::Indented);
 
@@ -435,7 +424,7 @@ void MainWindow::disconnectFromServer() {
 }
 
 void MainWindow::logMessage(const QString& message) {
-    logDisplay->append(message);
+    logDisplay->append(QTime::currentTime().toString("HH:mm:ss") + " - " + message);
 }
 
 void MainWindow::updateResultsDisplay(const QJsonObject& results) {

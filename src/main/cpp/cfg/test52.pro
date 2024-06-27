@@ -50,13 +50,17 @@ DISTFILES += \
     HollowCylinder.obj \
     Sph.obj \
     bmw.obj \
+    calculator.png \
     cat.obj \
     chair.obj \
+    connect.png \
     disc.obj \
+    disconnect.png \
     footballPlayer.obj \
     heart.obj \
     helicopter.obj \
     icon.png \
+    load.png \
     m4a1.obj \
     plane.obj \
     simple_triangle.obj \
