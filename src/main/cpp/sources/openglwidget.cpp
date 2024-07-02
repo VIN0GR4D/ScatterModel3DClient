@@ -170,6 +170,8 @@ void OpenGLWidget::resizeGL(int w, int h) {
     glMatrixMode(GL_PROJECTION);
     glLoadMatrixf(projection.constData());
     glMatrixMode(GL_MODELVIEW);
+
+    calculatePixelOccupation();
 }
 
 // Отрисовка сцены
@@ -217,6 +219,8 @@ void OpenGLWidget::paintGL() {
         glVertex3f(v3->getX(), v3->getY(), v3->getZ());
         glEnd();
     }
+
+    calculatePixelOccupation();
 }
 
 // Очистка сцены
@@ -267,4 +271,54 @@ void OpenGLWidget::wheelEvent(QWheelEvent *event) {
     float factor = delta > 0 ? (1 + zoomSensitivity) : (1 - zoomSensitivity);
     scale *= factor;
     update();
+}
+
+// Функции для подсчёта пиксилей в изображении объекта
+void OpenGLWidget::calculatePixelOccupation() {
+    // Получение текущих ModelView и Projection матриц
+    QMatrix4x4 modelViewMatrix;
+    QMatrix4x4 projectionMatrix;
+    glGetFloatv(GL_MODELVIEW_MATRIX, modelViewMatrix.data());
+    glGetFloatv(GL_PROJECTION_MATRIX, projectionMatrix.data());
+
+    qDebug() << "ModelView Matrix:" << modelViewMatrix;
+    qDebug() << "Projection Matrix:" << projectionMatrix;
+
+    int windowWidth = this->width();
+    int windowHeight = this->height();
+
+    QVector<QVector3D> screenCoords;
+    for (const QVector3D& vertex : vertices) {
+        QVector3D screenCoord = projectToScreen(vertex, modelViewMatrix, projectionMatrix, windowWidth, windowHeight);
+        screenCoords.append(screenCoord);
+        qDebug() << "World Coord:" << vertex << "Screen Coord:" << screenCoord;
+    }
+
+    // Найти минимальные и максимальные координаты
+    float minX = windowWidth, minY = windowHeight, maxX = 0, maxY = 0;
+    for (const QVector3D& coord : screenCoords) {
+        minX = qMin(minX, coord.x());
+        minY = qMin(minY, coord.y());
+        maxX = qMax(maxX, coord.x());
+        maxY = qMax(maxY, coord.y());
+    }
+
+    // Площадь в пикселях
+    int pixelWidth = maxX - minX;
+    int pixelHeight = maxY - minY;
+    int pixelArea = pixelWidth * pixelHeight;
+
+    qDebug() << "Object occupies" << pixelArea << "pixels (" << pixelWidth << "x" << pixelHeight << ")";
+}
+
+QVector3D OpenGLWidget::projectToScreen(const QVector3D& worldCoord, const QMatrix4x4& modelView, const QMatrix4x4& projection, int windowWidth, int windowHeight) {
+    QVector4D clipSpaceCoord = projection * modelView * QVector4D(worldCoord, 1.0);
+    if (clipSpaceCoord.w() != 0.0) {
+        clipSpaceCoord /= clipSpaceCoord.w();
+    }
+    QVector3D ndcCoord = clipSpaceCoord.toVector3D();
+
+    float x = (ndcCoord.x() + 1.0) * 0.5 * windowWidth;
+    float y = (1.0 - ndcCoord.y()) * 0.5 * windowHeight;
+    return QVector3D(x, y, ndcCoord.z());
 }

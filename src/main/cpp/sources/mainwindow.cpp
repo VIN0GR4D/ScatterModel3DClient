@@ -117,6 +117,17 @@ MainWindow::MainWindow(QWidget *parent)
     formLayout->addRow(buttonOpenGraphWindow);
     connect(buttonOpenGraphWindow, &QPushButton::clicked, this, &MainWindow::openGraphWindow);
 
+    // Создание нового виджета для двумерного портрета
+    portraitWidget = new PortraitWidget(this);
+    QDockWidget *portraitDockWidget = new QDockWidget("2D Portrait", this);
+    portraitDockWidget->setWidget(portraitWidget);
+    addDockWidget(Qt::RightDockWidgetArea, portraitDockWidget);
+
+    // Кнопка для отображения двумерного портрета
+    QPushButton *buttonShowPortrait = new QPushButton("Показать 2D портрет", controlWidget);
+    formLayout->addRow(buttonShowPortrait);
+    connect(buttonShowPortrait, &QPushButton::clicked, this, &MainWindow::showPortrait);
+
     this->resize(1280, 720);
 
     // Соединения
@@ -238,6 +249,23 @@ void MainWindow::displayResults(const QJsonObject &results) {
         extractValues(absEoutArray, absEout, 3);
         extractValues(normEoutArray, normEout, 3);
     }
+
+    // Подготовка данных для двумерного портрета
+    QVector<double> xData, yData, zData;
+    int totalSteps = static_cast<int>(sqrt(absEout.size())); // Предполагаем, что данные квадратные
+    for (int i = 0; i < absEout.size(); ++i) {
+        int angleIndex = i % totalSteps; // Индекс угла
+        int azimuthIndex = i / totalSteps; // Индекс азимута
+        double angle = calculateAngle(angleIndex, totalSteps);
+        double azimuth = calculateAzimuth(azimuthIndex, totalSteps);
+        double eoutValue = absEout[i];
+        xData.append(angle);
+        yData.append(azimuth);
+        zData.append(eoutValue);
+    }
+
+    portraitWidget->setData(xData, yData, zData);
+    qDebug() << "2D Portrait data prepared";
 }
 
 void MainWindow::applyRotation() {
@@ -460,4 +488,34 @@ void MainWindow::openGraphWindow() {
     graphWindow->setData(x, absEout, normEout);
     graphWindow->setAttribute(Qt::WA_DeleteOnClose);
     graphWindow->show();
+}
+
+double MainWindow::calculateAngle(int index, int totalSteps) {
+    double angleRange = 180.0; // Диапазон углов в градусах
+    double stepSize = angleRange / (totalSteps - 1); // Шаг угла
+    return index * stepSize;
+}
+
+double MainWindow::calculateAzimuth(int index, int totalSteps) {
+    double azimuthRange = 360.0; // Диапазон азимутов в градусах
+    double stepSize = azimuthRange / (totalSteps - 1); // Шаг азимута
+    return index * stepSize;
+}
+
+void MainWindow::showPortrait() {
+    QVector<double> xData, yData, zData;
+    int totalSteps = static_cast<int>(sqrt(absEout.size())); // Предполагаем, что данные квадратные
+    for (int i = 0; i < absEout.size(); ++i) {
+        int angleIndex = i % totalSteps;
+        int azimuthIndex = i / totalSteps;
+        double angle = calculateAngle(angleIndex, totalSteps);
+        double azimuth = calculateAzimuth(azimuthIndex, totalSteps);
+        double eoutValue = absEout[i];
+        xData.append(angle);
+        yData.append(azimuth);
+        zData.append(eoutValue);
+    }
+
+    portraitWidget->setData(xData, yData, zData);
+    qDebug() << "2D Portrait data set";
 }

@@ -13,6 +13,7 @@
 #include "parser.h"
 #include "raytracer.h"
 #include "triangleclient.h"
+#include "portraitwidget.h"
 #include <QDoubleSpinBox>
 #include <QComboBox>
 #include <QVector>
@@ -46,6 +47,7 @@ private slots:
     void sendDataAfterAuthorization(std::function<void()> sendDataFunc);
     void openGraphWindow();
     void disconnectFromServer();
+    void showPortrait();
 
 private:
     Ui::MainWindow *ui;
@@ -66,6 +68,9 @@ private:
     QJsonObject vectorToJson(const QSharedPointer<const rVect>& vector);
     void extractValues(const QJsonArray &array, QVector<double> &container, int depth);
     void displayResults(const QJsonObject &results);
+    PortraitWidget *portraitWidget;
+    double calculateAngle(int index, int totalSteps);
+    double calculateAzimuth(int index, int totalSteps);
 };
 
 #endif // MAINWINDOW_H

@@ -62,6 +62,9 @@ private:
     void updateVisibility();
     void resetCamera();
 
+    void calculatePixelOccupation();
+    QVector3D projectToScreen(const QVector3D& worldCoord, const QMatrix4x4& modelView, const QMatrix4x4& projection, int windowWidth, int windowHeight);
+
 protected:
     void initializeGL() override;
     void resizeGL(int w, int h) override;

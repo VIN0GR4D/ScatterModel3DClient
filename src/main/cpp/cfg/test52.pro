@@ -16,6 +16,7 @@ SOURCES += \
     mainwindow.cpp \
     openglwidget.cpp \
     parser.cpp \
+    portraitwidget.cpp \
     qcustomplot.cpp \
     raytracer.cpp \
     triangleclient.cpp
@@ -29,6 +30,7 @@ HEADERS += \
     mainwindow.h \
     openglwidget.h \
     parser.h \
+    portraitwidget.h \
     qcustomplot.h \
     rVect.h \
     raytracer.h \
