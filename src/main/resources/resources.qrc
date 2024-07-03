@@ -5,5 +5,9 @@
         <file>calculator.png</file>
         <file>connect.png</file>
         <file>disconnect.png</file>
+        <file>darktheme.qss</file>
+        <file>styles.css</file>
+        <file>light-theme.png</file>
+        <file>dark-theme.png</file>
     </qresource>
 </RCC>

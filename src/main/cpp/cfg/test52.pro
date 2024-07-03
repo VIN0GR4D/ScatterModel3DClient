@@ -56,16 +56,20 @@ DISTFILES += \
     cat.obj \
     chair.obj \
     connect.png \
+    dark-theme.png \
+    darktheme.qss \
     disc.obj \
     disconnect.png \
     footballPlayer.obj \
     heart.obj \
     helicopter.obj \
     icon.png \
+    light-theme.png \
     load.png \
     m4a1.obj \
     plane.obj \
     simple_triangle.obj \
+    styles.css \
     t34.obj \
     test.obj
 

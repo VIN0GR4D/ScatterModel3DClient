@@ -48,6 +48,7 @@ private slots:
     void openGraphWindow();
     void disconnectFromServer();
     void showPortrait();
+    void toggleTheme(int state);
 
 private:
     Ui::MainWindow *ui;
@@ -63,6 +64,7 @@ private:
     QDoubleSpinBox *inputRotationX, *inputRotationY, *inputRotationZ;
     QComboBox *inputPolarization;
     QWidget *controlWidget;
+    QWidget* createThemeSwitch();
     QFormLayout *formLayout;
     bool serverEnabled;
     QJsonObject vectorToJson(const QSharedPointer<const rVect>& vector);

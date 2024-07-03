@@ -3,16 +3,21 @@
 #include "parser.h"
 #include "raytracer.h"
 #include "graphwindow.h"
+#include <QFile>
 #include <QFileDialog>
 #include <QFormLayout>
 #include <QLabel>
 #include <QDoubleSpinBox>
 #include <QComboBox>
+#include <QCheckBox>
+#include <QHBoxLayout>
+#include <QPixmap>
 #include <QTextEdit>
 #include <QPushButton>
 #include <QProgressDialog>
 #include <QtConcurrent/QtConcurrent>
 #include <QFutureWatcher>
+#include <QScrollArea>
 
 QVector<double> absEout;
 QVector<double> normEout;
@@ -31,18 +36,36 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
     setCentralWidget(openGLWidget);
 
+    // Загрузка и применение темной темы
+    QFile darkThemeFile(":/darktheme.qss");
+    if (darkThemeFile.open(QFile::ReadOnly)) {
+        QString styleSheet = QLatin1String(darkThemeFile.readAll());
+        qApp->setStyleSheet(styleSheet);
+        darkThemeFile.close();
+    }
+
     // Настройка компонентов пользовательского интерфейса
     QDockWidget *dockWidget = new QDockWidget("Control Panel", this);
     addDockWidget(Qt::LeftDockWidgetArea, dockWidget);
-    controlWidget = new QWidget(dockWidget);
+
+    // Создание QScrollArea
+    QScrollArea *scrollArea = new QScrollArea(dockWidget);
+    scrollArea->setWidgetResizable(true);
+    dockWidget->setWidget(scrollArea);
+
+    controlWidget = new QWidget();
+    scrollArea->setWidget(controlWidget);
     formLayout = new QFormLayout(controlWidget);
-    dockWidget->setWidget(controlWidget);
 
     // Элементы пользовательского интерфейса для загрузки модели
+    QHBoxLayout *fileLayout = new QHBoxLayout();
     lineEditFilePath = new QLineEdit(controlWidget);
     buttonLoadModel = new QPushButton(QIcon(":/load.png"), "Загрузить объект", controlWidget);
-    formLayout->addRow(new QLabel("Файл объекта:"), lineEditFilePath);
-    formLayout->addRow(buttonLoadModel);
+    fileLayout->addWidget(lineEditFilePath);
+    fileLayout->addWidget(buttonLoadModel);
+    QWidget *fileLayoutContainer = new QWidget();
+    fileLayoutContainer->setLayout(fileLayout);
+    formLayout->addRow(new QLabel("Файл объекта:"), fileLayoutContainer);
 
     // Элементы пользовательского интерфейса для ввода параметров
     inputWavelength = new QDoubleSpinBox(controlWidget);
@@ -71,13 +94,17 @@ MainWindow::MainWindow(QWidget *parent)
     formLayout->addRow(buttonPerformCalculation);
 
     // Элементы для подключения к серверу
+    QHBoxLayout *serverLayout = new QHBoxLayout();
     serverAddressInput = new QLineEdit(controlWidget);
     serverAddressInput->setPlaceholderText("ws://yourserveraddress:port");
-    connectButton = new QPushButton(QIcon(":/connect.png"),"Connect", controlWidget);
-    QPushButton *disconnectButton = new QPushButton(QIcon(":/disconnect.png"),"Disconnect", controlWidget);
-    formLayout->addRow(new QLabel("Server Address:"), serverAddressInput);
-    formLayout->addRow(connectButton);
-    formLayout->addRow(disconnectButton);
+    connectButton = new QPushButton(QIcon(":/connect.png"), "Connect", controlWidget);
+    QPushButton *disconnectButton = new QPushButton(QIcon(":/disconnect.png"), "Disconnect", controlWidget);
+    serverLayout->addWidget(serverAddressInput);
+    serverLayout->addWidget(connectButton);
+    serverLayout->addWidget(disconnectButton);
+    QWidget *serverLayoutContainer = new QWidget();
+    serverLayoutContainer->setLayout(serverLayout);
+    formLayout->addRow(new QLabel("Server Address:"), serverLayoutContainer);
 
     logDisplay = new QTextEdit(controlWidget);
     logDisplay->setReadOnly(true);
@@ -128,6 +155,9 @@ MainWindow::MainWindow(QWidget *parent)
     formLayout->addRow(buttonShowPortrait);
     connect(buttonShowPortrait, &QPushButton::clicked, this, &MainWindow::showPortrait);
 
+    QWidget *themeSwitchWidget = createThemeSwitch();
+    formLayout->addRow(new QLabel("Theme:"), themeSwitchWidget);
+
     this->resize(1280, 720);
 
     // Соединения
@@ -146,6 +176,46 @@ MainWindow::MainWindow(QWidget *parent)
         rayTracer->determineVisibility(tri, observerPosition);
         openGLWidget->setGeometry(v, t, tri);
     });
+
+    lineEditFilePath->setFixedSize(200, 30);  // Файл объекта
+
+    portraitTypeGroupBox->setFixedSize(200, 150);
+    azimuthPortraitCheckBox->setFixedSize(180, 30);
+    anglePortraitCheckBox->setFixedSize(180, 30);
+    rangePortraitCheckBox->setFixedSize(180, 30);
+
+    inputResolution->setFixedSize(100, 30);
+    inputWavelength->setFixedSize(100, 30);
+    inputPolarization->setFixedSize(100, 30);
+
+    // Элементы пользовательского интерфейса для загрузки модели
+    buttonLoadModel->setFixedSize(150, 30);
+
+    // Элементы пользовательского интерфейса для ввода параметров
+    buttonPerformCalculation->setFixedSize(150, 30);
+
+    // Элементы для подключения к серверу
+    serverAddressInput->setFixedSize(200, 30);
+    connectButton->setFixedSize(100, 30);
+    disconnectButton->setFixedSize(100, 30);
+
+    // Элементы пользовательского интерфейса для отображения результатов
+    logDisplay->setFixedSize(300, 50);
+    resultDisplay->setFixedSize(300,50);
+    buttonSaveResults->setFixedSize(150, 30);
+
+    // Элементы для ввода углов поворота
+    inputRotationX->setFixedSize(80, 30);
+    inputRotationY->setFixedSize(80, 30);
+    inputRotationZ->setFixedSize(80, 30);
+    buttonApplyRotation->setFixedSize(150, 30);
+    buttonResetRotation->setFixedSize(150, 30);
+
+    // Кнопка для отображения двумерного портрета
+    buttonShowPortrait->setFixedSize(150, 30);
+
+    // Кнопка для открытия окна графика
+    buttonOpenGraphWindow->setFixedSize(150, 30);
 }
 
 MainWindow::~MainWindow() {
@@ -518,4 +588,53 @@ void MainWindow::showPortrait() {
 
     portraitWidget->setData(xData, yData, zData);
     qDebug() << "2D Portrait data set";
+}
+
+// Метод для переключения темы
+void MainWindow::toggleTheme(int state) {
+    if (state == Qt::Checked) {
+        QFile file(":/darktheme.qss");
+        if (file.open(QFile::ReadOnly)) {
+            QString styleSheet = QLatin1String(file.readAll());
+            qApp->setStyleSheet(styleSheet);
+            file.close();
+        }
+    } else {
+        qApp->setStyleSheet("");  // Установка светлой темы (по умолчанию)
+    }
+}
+
+QWidget* MainWindow::createThemeSwitch() {
+    QWidget *themeSwitchWidget = new QWidget();
+    QHBoxLayout *layout = new QHBoxLayout(themeSwitchWidget);
+
+    QLabel *themeImage = new QLabel();
+    themeImage->setPixmap(QPixmap(":/light-theme.png").scaled(40, 40, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+
+    QCheckBox *themeSwitch = new QCheckBox();
+    themeSwitch->setStyleSheet("QCheckBox { spacing: 10px; }");
+
+    layout->addWidget(themeImage);
+    layout->addWidget(themeSwitch);
+
+    connect(themeSwitch, &QCheckBox::stateChanged, [this, themeImage, themeSwitch](int state) {
+        if (state == Qt::Checked) {
+            themeImage->setPixmap(QPixmap(":/dark-theme.png").scaled(40, 40, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+            QFile file(":/darktheme.qss");
+            if (file.open(QFile::ReadOnly)) {
+                QString styleSheet = QLatin1String(file.readAll());
+                qApp->setStyleSheet(styleSheet);
+                file.close();
+            }
+        } else {
+            themeImage->setPixmap(QPixmap(":/light-theme.png").scaled(40, 40, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+            qApp->setStyleSheet("");  // Установка светлой темы (по умолчанию)
+        }
+    });
+
+    // Установить начальное состояние чекбокса и применить тему
+    themeSwitch->setChecked(true);
+    toggleTheme(Qt::Checked);
+
+    return themeSwitchWidget;
 }
