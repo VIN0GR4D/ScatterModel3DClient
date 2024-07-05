@@ -18,6 +18,8 @@
 #include <QtConcurrent/QtConcurrent>
 #include <QFutureWatcher>
 #include <QScrollArea>
+#include <QMenuBar>
+#include <QMessageBox>
 
 QVector<double> absEout;
 QVector<double> normEout;
@@ -36,6 +38,44 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
     setCentralWidget(openGLWidget);
 
+    // Создание меню-бара
+    QMenuBar *menuBar = new QMenuBar(this);
+    QMenu *fileMenu = new QMenu("Файл", this);
+
+    QAction *openAction = new QAction(QIcon(":/load.png"), "Открыть", this);
+    QAction *saveAction = new QAction(QIcon(":/download.png"), "Сохранить", this);
+    QAction *exitAction = new QAction("Выход", this);
+
+    fileMenu->addAction(openAction);
+    fileMenu->addAction(saveAction);
+    fileMenu->addSeparator();
+    fileMenu->addAction(exitAction);
+
+    menuBar->addMenu(fileMenu);
+    setMenuBar(menuBar);
+
+    connect(openAction, &QAction::triggered, this, &MainWindow::loadModel);
+    connect(saveAction, &QAction::triggered, this, &MainWindow::saveFile);
+    connect(exitAction, &QAction::triggered, this, &MainWindow::close);
+
+    // Создание нового меню "Выполнить"
+    QMenu *executeMenu = new QMenu("Выполнить", this);
+    QAction *performCalculationAction = new QAction(QIcon(":/calculator.png"), "Выполнить расчёт", this);
+
+    executeMenu->addAction(performCalculationAction);
+    menuBar->addMenu(executeMenu);
+
+    connect(performCalculationAction, &QAction::triggered, this, &MainWindow::performCalculation);
+
+    // Создание нового меню "Результаты"
+    QMenu *resultsMenu = new QMenu("Результаты", this);
+    QAction *openGraphAction = new QAction("Открыть график", this);
+
+    resultsMenu->addAction(openGraphAction);
+    menuBar->addMenu(resultsMenu);
+
+    connect(openGraphAction, &QAction::triggered, this, &MainWindow::openGraphWindow);
+
     // Загрузка и применение темной темы
     QFile darkThemeFile(":/darktheme.qss");
     if (darkThemeFile.open(QFile::ReadOnly)) {
@@ -45,7 +85,7 @@ MainWindow::MainWindow(QWidget *parent)
     }
 
     // Настройка компонентов пользовательского интерфейса
-    QDockWidget *dockWidget = new QDockWidget("Control Panel", this);
+    QDockWidget *dockWidget = new QDockWidget("Панель управления", this);
     addDockWidget(Qt::LeftDockWidgetArea, dockWidget);
 
     // Создание QScrollArea
@@ -57,21 +97,21 @@ MainWindow::MainWindow(QWidget *parent)
     scrollArea->setWidget(controlWidget);
     formLayout = new QFormLayout(controlWidget);
 
-    // Элементы пользовательского интерфейса для загрузки модели
-    QHBoxLayout *fileLayout = new QHBoxLayout();
-    lineEditFilePath = new QLineEdit(controlWidget);
-    buttonLoadModel = new QPushButton(QIcon(":/load.png"), "Загрузить объект", controlWidget);
-    fileLayout->addWidget(lineEditFilePath);
-    fileLayout->addWidget(buttonLoadModel);
-    QWidget *fileLayoutContainer = new QWidget();
-    fileLayoutContainer->setLayout(fileLayout);
-    formLayout->addRow(new QLabel("Файл объекта:"), fileLayoutContainer);
+    // // Элементы пользовательского интерфейса для загрузки модели
+    // QHBoxLayout *fileLayout = new QHBoxLayout();
+    // lineEditFilePath = new QLineEdit(controlWidget);
+    // buttonLoadModel = new QPushButton(QIcon(":/load.png"), "Загрузить объект", controlWidget);
+    // fileLayout->addWidget(lineEditFilePath);
+    // fileLayout->addWidget(buttonLoadModel);
+    // QWidget *fileLayoutContainer = new QWidget();
+    // fileLayoutContainer->setLayout(fileLayout);
+    // formLayout->addRow(new QLabel("Файл объекта:"), fileLayoutContainer);
 
     // Элементы пользовательского интерфейса для ввода параметров
     inputWavelength = new QDoubleSpinBox(controlWidget);
     inputResolution = new QDoubleSpinBox(controlWidget);
     inputPolarization = new QComboBox(controlWidget);
-    buttonPerformCalculation = new QPushButton(QIcon(":/calculator.png"),"Выполнить расчет", controlWidget);
+    // buttonPerformCalculation = new QPushButton(QIcon(":/calculator.png"),"Выполнить расчет", controlWidget);
 
     QGroupBox *portraitTypeGroupBox = new QGroupBox("Портретные типы", controlWidget);
     QVBoxLayout *portraitTypeLayout = new QVBoxLayout(portraitTypeGroupBox);
@@ -91,7 +131,7 @@ MainWindow::MainWindow(QWidget *parent)
     formLayout->addRow(new QLabel("Длина волны (nm):"), inputWavelength);
     formLayout->addRow(new QLabel("Разрешение (m):"), inputResolution);
     formLayout->addRow(new QLabel("Поляризация:"), inputPolarization);
-    formLayout->addRow(buttonPerformCalculation);
+    // formLayout->addRow(buttonPerformCalculation);
 
     // Элементы для подключения к серверу
     QHBoxLayout *serverLayout = new QHBoxLayout();
@@ -140,10 +180,6 @@ MainWindow::MainWindow(QWidget *parent)
     formLayout->addRow(buttonApplyRotation);
     formLayout->addRow(buttonResetRotation);
 
-    QPushButton *buttonOpenGraphWindow = new QPushButton("Открыть окно графика", controlWidget);
-    formLayout->addRow(buttonOpenGraphWindow);
-    connect(buttonOpenGraphWindow, &QPushButton::clicked, this, &MainWindow::openGraphWindow);
-
     // Создание нового виджета для двумерного портрета
     portraitWidget = new PortraitWidget(this);
     QDockWidget *portraitDockWidget = new QDockWidget("2D Portrait", this);
@@ -164,8 +200,8 @@ MainWindow::MainWindow(QWidget *parent)
     // Соединения
     connect(buttonApplyRotation, &QPushButton::clicked, this, &MainWindow::applyRotation);
     connect(buttonResetRotation, &QPushButton::clicked, this, &MainWindow::resetRotation);
-    connect(buttonLoadModel, &QPushButton::clicked, this, &MainWindow::loadModel);
-    connect(buttonPerformCalculation, &QPushButton::clicked, this, &MainWindow::performCalculation);
+    // connect(buttonLoadModel, &QPushButton::clicked, this, &MainWindow::loadModel);
+    // connect(buttonPerformCalculation, &QPushButton::clicked, this, &MainWindow::performCalculation);
     connect(connectButton, &QPushButton::clicked, this, &MainWindow::connectToServer);
     connect(disconnectButton, &QPushButton::clicked, this, &MainWindow::disconnectFromServer);
     connect(buttonSaveResults, &QPushButton::clicked, this, &MainWindow::saveResults);
@@ -178,7 +214,7 @@ MainWindow::MainWindow(QWidget *parent)
         openGLWidget->setGeometry(v, t, tri);
     });
 
-    lineEditFilePath->setFixedSize(200, 30);  // Файл объекта
+    // lineEditFilePath->setFixedSize(200, 30);  // Файл объекта
 
     portraitTypeGroupBox->setFixedSize(200, 150);
     azimuthPortraitCheckBox->setFixedSize(180, 30);
@@ -190,10 +226,10 @@ MainWindow::MainWindow(QWidget *parent)
     inputPolarization->setFixedSize(100, 30);
 
     // Элементы пользовательского интерфейса для загрузки модели
-    buttonLoadModel->setFixedSize(150, 30);
+    // buttonLoadModel->setFixedSize(150, 30);
 
     // Элементы пользовательского интерфейса для ввода параметров
-    buttonPerformCalculation->setFixedSize(150, 30);
+    // buttonPerformCalculation->setFixedSize(150, 30);
 
     // Элементы для подключения к серверу
     serverAddressInput->setFixedSize(200, 30);
@@ -216,7 +252,7 @@ MainWindow::MainWindow(QWidget *parent)
     buttonShowPortrait->setFixedSize(150, 30);
 
     // Кнопка для открытия окна графика
-    buttonOpenGraphWindow->setFixedSize(150, 30);
+    // buttonOpenGraphWindow->setFixedSize(150, 30);
 }
 
 MainWindow::~MainWindow() {
@@ -227,7 +263,7 @@ MainWindow::~MainWindow() {
 void MainWindow::loadModel() {
     QString fileName = QFileDialog::getOpenFileName(this, "Open 3D model", "", "OBJ Files (*.obj)");
     if (!fileName.isEmpty()) {
-        lineEditFilePath->setText(fileName);
+        // lineEditFilePath->setText(fileName);
         openGLWidget->clearScene();
         parser->clearData();
         parser->readFromObjFile(fileName);
@@ -235,7 +271,7 @@ void MainWindow::loadModel() {
         // Проверка наличия треугольников после загрузки файла
         if (openGLWidget->getTriangles().isEmpty()) {
             logMessage("Ошибка: файл не содержит корректных данных объекта. Пожалуйста, загрузите корректный файл.");
-            lineEditFilePath->clear();
+            // lineEditFilePath->clear();
         } else {
             logMessage("Файл успешно загружен.");
         }
@@ -395,10 +431,10 @@ QJsonObject MainWindow::vectorToJson(const QSharedPointer<const rVect>& vector) 
 
 // Функция для выполнения расчета
 void MainWindow::performCalculation() {
-    if (lineEditFilePath->text().isEmpty()) {
-        logMessage("Ошибка: объект не загружен. Пожалуйста, загрузите объект перед выполнением расчета.");
-        return;
-    }
+    // if (lineEditFilePath->text().isEmpty()) {
+    //     logMessage("Ошибка: объект не загружен. Пожалуйста, загрузите объект перед выполнением расчета.");
+    //     return;
+    // }
 
     QVector<QSharedPointer<triangle>> triangles = openGLWidget->getTriangles();
     if (triangles.isEmpty()) {
@@ -646,4 +682,12 @@ QWidget* MainWindow::createThemeSwitchButton() {
     themeSwitchButton->setIcon(QIcon(":/dark-theme.png"));
 
     return themeSwitchWidget;
+}
+
+void MainWindow::saveFile() {
+    QString fileName = QFileDialog::getSaveFileName(this, "Сохранить файл", "", "Все файлы (*.*);;Текстовые файлы (*.txt)");
+    if (!fileName.isEmpty()) {
+        // Ваш код для обработки сохранения файла
+        logMessage("Файл сохранен: " + fileName);
+    }
 }

@@ -49,6 +49,7 @@ private slots:
     void disconnectFromServer();
     void showPortrait();
     void toggleTheme(int state);
+    void saveFile();
 
 private:
     Ui::MainWindow *ui;
@@ -57,8 +58,8 @@ private:
     RayTracer *rayTracer;
     TriangleClient *triangleClient;
 
-    QLineEdit *lineEditFilePath, *serverAddressInput;
-    QPushButton *buttonLoadModel, *buttonSaveResults, *buttonPerformCalculation, *connectButton, *buttonApplyRotation, *buttonResetRotation;
+    QLineEdit *serverAddressInput;
+    QPushButton *buttonSaveResults, *buttonPerformCalculation, *connectButton, *buttonApplyRotation, *buttonResetRotation;
     QTextEdit *resultDisplay, *logDisplay;
     QDoubleSpinBox *inputWavelength, *inputResolution;
     QDoubleSpinBox *inputRotationX, *inputRotationY, *inputRotationZ;

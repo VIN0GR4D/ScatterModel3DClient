@@ -60,6 +60,7 @@ DISTFILES += \
     darktheme.qss \
     disc.obj \
     disconnect.png \
+    download.png \
     footballPlayer.obj \
     heart.obj \
     helicopter.obj \
