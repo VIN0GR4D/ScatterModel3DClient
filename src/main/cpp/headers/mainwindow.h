@@ -64,7 +64,7 @@ private:
     QDoubleSpinBox *inputRotationX, *inputRotationY, *inputRotationZ;
     QComboBox *inputPolarization;
     QWidget *controlWidget;
-    QWidget* createThemeSwitch();
+    QWidget* createThemeSwitchButton();
     QFormLayout *formLayout;
     bool serverEnabled;
     QJsonObject vectorToJson(const QSharedPointer<const rVect>& vector);

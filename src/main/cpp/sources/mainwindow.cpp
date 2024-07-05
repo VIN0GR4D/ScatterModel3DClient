@@ -155,8 +155,9 @@ MainWindow::MainWindow(QWidget *parent)
     formLayout->addRow(buttonShowPortrait);
     connect(buttonShowPortrait, &QPushButton::clicked, this, &MainWindow::showPortrait);
 
-    QWidget *themeSwitchWidget = createThemeSwitch();
-    formLayout->addRow(new QLabel("Theme:"), themeSwitchWidget);
+    // Добавление кнопки переключения темы
+    QWidget *themeSwitchWidget = createThemeSwitchButton();
+    formLayout->addRow(themeSwitchWidget);
 
     this->resize(1280, 720);
 
@@ -604,22 +605,21 @@ void MainWindow::toggleTheme(int state) {
     }
 }
 
-QWidget* MainWindow::createThemeSwitch() {
+QWidget* MainWindow::createThemeSwitchButton() {
     QWidget *themeSwitchWidget = new QWidget();
     QHBoxLayout *layout = new QHBoxLayout(themeSwitchWidget);
 
-    QLabel *themeImage = new QLabel();
-    themeImage->setPixmap(QPixmap(":/light-theme.png").scaled(40, 40, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    QPushButton *themeSwitchButton = new QPushButton();
+    themeSwitchButton->setIcon(QIcon(":/light-theme.png"));
+    themeSwitchButton->setIconSize(QSize(40, 40));
+    themeSwitchButton->setFlat(true); // Убирает рамку кнопки
 
-    QCheckBox *themeSwitch = new QCheckBox();
-    themeSwitch->setStyleSheet("QCheckBox { spacing: 10px; }");
+    layout->addWidget(themeSwitchButton);
 
-    layout->addWidget(themeImage);
-    layout->addWidget(themeSwitch);
-
-    connect(themeSwitch, &QCheckBox::stateChanged, [this, themeImage, themeSwitch](int state) {
-        if (state == Qt::Checked) {
-            themeImage->setPixmap(QPixmap(":/dark-theme.png").scaled(40, 40, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    connect(themeSwitchButton, &QPushButton::clicked, [this, themeSwitchButton]() {
+        static bool isDarkTheme = true;
+        if (isDarkTheme) {
+            themeSwitchButton->setIcon(QIcon(":/dark-theme.png"));
             QFile file(":/darktheme.qss");
             if (file.open(QFile::ReadOnly)) {
                 QString styleSheet = QLatin1String(file.readAll());
@@ -627,14 +627,20 @@ QWidget* MainWindow::createThemeSwitch() {
                 file.close();
             }
         } else {
-            themeImage->setPixmap(QPixmap(":/light-theme.png").scaled(40, 40, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+            themeSwitchButton->setIcon(QIcon(":/light-theme.png"));
             qApp->setStyleSheet("");  // Установка светлой темы (по умолчанию)
         }
+        isDarkTheme = !isDarkTheme;
     });
 
-    // Установить начальное состояние чекбокса и применить тему
-    themeSwitch->setChecked(true);
-    toggleTheme(Qt::Checked);
+    // Установка начального состояния
+    QFile file(":/darktheme.qss");
+    if (file.open(QFile::ReadOnly)) {
+        QString styleSheet = QLatin1String(file.readAll());
+        qApp->setStyleSheet(styleSheet);
+        file.close();
+    }
+    themeSwitchButton->setIcon(QIcon(":/dark-theme.png"));
 
     return themeSwitchWidget;
 }
