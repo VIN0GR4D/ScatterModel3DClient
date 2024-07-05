@@ -248,43 +248,46 @@ void MainWindow::loadModel() {
 // Вспомогательная функция для извлечения значений из вложенных массивов
 void MainWindow::extractValues(const QJsonArray &array, QVector<double> &container, int depth) {
     for (int i = 0; i < array.size(); ++i) {
-        const QJsonValue &value = array.at(i);
-        QJsonArray innerArray = value.toArray();
-        if (depth == 1) {
+        QJsonArray innerArray = array.at(i).toArray();
+
+        switch (depth) {
+        case 1:
             if (!innerArray.isEmpty()) {
-                double val = innerArray.at(0).toDouble();
-                container.append(val);
+                container.append(innerArray.at(0).toDouble());
             } else {
                 qDebug() << "Inner array is empty or not found";
             }
-        } else if (depth == 2) {
-            for (int j = 0; j < innerArray.size(); ++j) {
-                double val = innerArray.at(j).toDouble();
-                container.append(val);
+            break;
+
+        case 2:
+            for (const QJsonValue &val : innerArray) {
+                container.append(val.toDouble());
             }
-        } else if (depth == 3) {
-            for (int j = 0; j < innerArray.size(); ++j) {
-                const QJsonValue &innerValue = innerArray.at(j);
+            break;
+
+        case 3:
+            for (const QJsonValue &innerValue : innerArray) {
                 QJsonArray innermostArray = innerValue.toArray();
-                for (int k = 0; k < innermostArray.size(); ++k) {
-                    double val = innermostArray.at(k).toDouble();
-                    container.append(val);
+                for (const QJsonValue &val : innermostArray) {
+                    container.append(val.toDouble());
                 }
             }
-        } else if (depth == 4) {
-            for (int j = 0; j < innerArray.size(); ++j) {
-                const QJsonValue &innerValue = innerArray.at(j);
+            break;
+
+        case 4:
+            for (const QJsonValue &innerValue : innerArray) {
                 QJsonArray innermostArray = innerValue.toArray();
-                for (int k = 0; k < innermostArray.size(); ++k) {
-                    const QJsonValue &innermostInnerValue = innermostArray.at(k);
+                for (const QJsonValue &innermostInnerValue : innermostArray) {
                     if (innermostInnerValue.isArray() && !innermostInnerValue.toArray().isEmpty()) {
-                        double val = innermostInnerValue.toArray().at(0).toDouble();
-                        container.append(val);
+                        container.append(innermostInnerValue.toArray().at(0).toDouble());
                     }
                 }
             }
-        } else {
+            break;
+
+        default:
             qDebug() << "Unsupported array depth";
+            break;
         }
     }
 }
