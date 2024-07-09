@@ -12,6 +12,7 @@ CONFIG += c++17
 
 SOURCES += \
     graphwindow.cpp \
+    logindialog.cpp \
     main.cpp \
     mainwindow.cpp \
     openglwidget.cpp \

@@ -1,26 +1,38 @@
 #include "resultsdialog.h"
+#include <QFileDialog>
+#include <QFile>
+#include <QTextStream>
 #include <QVBoxLayout>
-#include <QDebug>
 
 ResultsDialog::ResultsDialog(QWidget *parent) : QDialog(parent) {
-    qDebug() << "ResultsDialog constructor started"; // Логирование начала конструктора
-
-    QTextEdit *resultsTextEdit = new QTextEdit(this); // Локальная переменная
+    resultsTextEdit = new QTextEdit(this);
     resultsTextEdit->setReadOnly(true);
+
+    saveResultsButton = new QPushButton("Сохранить результаты", this);
+    connect(saveResultsButton, &QPushButton::clicked, this, &ResultsDialog::saveResults);
 
     QVBoxLayout *layout = new QVBoxLayout(this);
     layout->addWidget(resultsTextEdit);
+    layout->addWidget(saveResultsButton);
     setLayout(layout);
 
-    setWindowTitle("Results");
-    this->resize(800, 600);
+    setWindowTitle("Числовые значения");
 
-    qDebug() << "ResultsDialog constructor finished"; // Логирование окончания конструктора
+    // Задаем размер окна
+    this->resize(800, 600);
 }
 
 void ResultsDialog::setResults(const QString &results) {
-    QTextEdit *resultsTextEdit = findChild<QTextEdit *>();
-    if (resultsTextEdit) {
-        resultsTextEdit->setText(results);
+    resultsTextEdit->setText(results);
+}
+
+void ResultsDialog::saveResults() {
+    QString fileName = QFileDialog::getSaveFileName(this, "Числовые значения", "", "Text Files (*.txt)");
+    if (!fileName.isEmpty()) {
+        QFile file(fileName);
+        if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            QTextStream out(&file);
+            out << resultsTextEdit->toPlainText();
+        }
     }
 }
