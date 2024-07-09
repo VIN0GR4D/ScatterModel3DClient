@@ -13,6 +13,7 @@
 #include "parser.h"
 #include "raytracer.h"
 #include "triangleclient.h"
+// #include "resultsdialog.h"
 #include "portraitwidget.h"
 #include <QDoubleSpinBox>
 #include <QComboBox>
@@ -37,19 +38,19 @@ private slots:
     void applyRotation();
     void resetRotation();
     void performCalculation();
-    void updateResultsDisplay(const QString& results);
     void saveResults();
     void connectToServer();
     void onConnectedToServer();
     void logMessage(const QString& message);
-    void updateResultsDisplay(const QJsonObject& results);
     void authorizeClient();
     void sendDataAfterAuthorization(std::function<void()> sendDataFunc);
     void openGraphWindow();
     void disconnectFromServer();
     void showPortrait();
-    void toggleTheme(int state);
+    void toggleTheme();
     void saveFile();
+    void loadTheme(const QString &themePath, const QString &iconPath, QAction *action);
+    void openResultsWindow();
 
 private:
     Ui::MainWindow *ui;
@@ -57,15 +58,14 @@ private:
     Parser *parser;
     RayTracer *rayTracer;
     TriangleClient *triangleClient;
-
     QLineEdit *serverAddressInput;
-    QPushButton *buttonSaveResults, *buttonPerformCalculation, *connectButton, *buttonApplyRotation, *buttonResetRotation;
-    QTextEdit *resultDisplay, *logDisplay;
+    QPushButton *buttonSaveResults, *connectButton, *buttonApplyRotation, *buttonResetRotation;
+    QTextEdit *logDisplay;
+    // QString storedResults;
     QDoubleSpinBox *inputWavelength, *inputResolution;
     QDoubleSpinBox *inputRotationX, *inputRotationY, *inputRotationZ;
     QComboBox *inputPolarization;
     QWidget *controlWidget;
-    QWidget* createThemeSwitchButton();
     QFormLayout *formLayout;
     bool serverEnabled;
     QJsonObject vectorToJson(const QSharedPointer<const rVect>& vector);
@@ -74,6 +74,8 @@ private:
     PortraitWidget *portraitWidget;
     double calculateAngle(int index, int totalSteps);
     double calculateAzimuth(int index, int totalSteps);
+    bool isDarkTheme;
+    // ResultsDialog *resultsDialog;
 };
 
 #endif // MAINWINDOW_H

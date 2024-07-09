@@ -281,8 +281,8 @@ void OpenGLWidget::calculatePixelOccupation() {
     glGetFloatv(GL_MODELVIEW_MATRIX, modelViewMatrix.data());
     glGetFloatv(GL_PROJECTION_MATRIX, projectionMatrix.data());
 
-    qDebug() << "ModelView Matrix:" << modelViewMatrix;
-    qDebug() << "Projection Matrix:" << projectionMatrix;
+    // qDebug() << "ModelView Matrix:" << modelViewMatrix;
+    // qDebug() << "Projection Matrix:" << projectionMatrix;
 
     int windowWidth = this->width();
     int windowHeight = this->height();
@@ -291,7 +291,7 @@ void OpenGLWidget::calculatePixelOccupation() {
     for (const QVector3D& vertex : vertices) {
         QVector3D screenCoord = projectToScreen(vertex, modelViewMatrix, projectionMatrix, windowWidth, windowHeight);
         screenCoords.append(screenCoord);
-        qDebug() << "World Coord:" << vertex << "Screen Coord:" << screenCoord;
+        // qDebug() << "World Coord:" << vertex << "Screen Coord:" << screenCoord;
     }
 
     // Найти минимальные и максимальные координаты
@@ -308,7 +308,7 @@ void OpenGLWidget::calculatePixelOccupation() {
     int pixelHeight = maxY - minY;
     int pixelArea = pixelWidth * pixelHeight;
 
-    qDebug() << "Object occupies" << pixelArea << "pixels (" << pixelWidth << "x" << pixelHeight << ")";
+    // qDebug() << "Object occupies" << pixelArea << "pixels (" << pixelWidth << "x" << pixelHeight << ")";
 }
 
 QVector3D OpenGLWidget::projectToScreen(const QVector3D& worldCoord, const QMatrix4x4& modelView, const QMatrix4x4& projection, int windowWidth, int windowHeight) {

@@ -9,5 +9,6 @@
         <file>styles.css</file>
         <file>light-theme.png</file>
         <file>dark-theme.png</file>
+        <file>download.png</file>
     </qresource>
 </RCC>

@@ -2,7 +2,9 @@
 #include "ui_mainwindow.h"
 #include "parser.h"
 #include "raytracer.h"
+#include "resultsdialog.h"
 #include "graphwindow.h"
+#include "logindialog.h"
 #include <QFile>
 #include <QFileDialog>
 #include <QFormLayout>
@@ -20,12 +22,14 @@
 #include <QScrollArea>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QScopedPointer>
 
 QVector<double> absEout;
 QVector<double> normEout;
 QCheckBox *anglePortraitCheckBox;
 QCheckBox *azimuthPortraitCheckBox;
 QCheckBox *rangePortraitCheckBox;
+QString storedResults;
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -34,6 +38,7 @@ MainWindow::MainWindow(QWidget *parent)
     , parser(new Parser(this))
     , rayTracer(new RayTracer())
     , serverEnabled(false)
+    , isDarkTheme(true)
 {
     ui->setupUi(this);
     setCentralWidget(openGLWidget);
@@ -69,6 +74,15 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Создание нового меню "Результаты"
     QMenu *resultsMenu = new QMenu("Результаты", this);
+
+    // Пункт меню "Открыть числовые значения"
+    QAction *openResultsAction = new QAction("Открыть числовые значения", this);
+    resultsMenu->addAction(openResultsAction);
+
+    // Подключаем слот для нового пункта меню
+    connect(openResultsAction, &QAction::triggered, this, &MainWindow::openResultsWindow);
+
+    // Пункт меню "Открыть график"
     QAction *openGraphAction = new QAction("Открыть график", this);
 
     resultsMenu->addAction(openGraphAction);
@@ -76,12 +90,37 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(openGraphAction, &QAction::triggered, this, &MainWindow::openGraphWindow);
 
+    // Создание нового меню "Помощь"
+    QMenu *helpMenu = new QMenu("Помощь", this);
+    QAction *aboutAction = new QAction("О программе", this);
+
+    helpMenu->addAction(aboutAction);
+    menuBar->addMenu(helpMenu);
+
+    // connect(aboutAction, &QAction::triggered, this, &MainWindow::showAboutDialog);
+
+    // Создание нового меню "Настройки"
+    QMenu *settingsMenu = new QMenu("Настройки", this);
+    QAction *changeThemeAction = new QAction("Сменить тему", this);
+
+    settingsMenu->addAction(changeThemeAction);
+    menuBar->addMenu(settingsMenu);
+
+    connect(changeThemeAction, &QAction::triggered, this, &MainWindow::toggleTheme);
+
+    loadTheme(":/darktheme.qss", ":/dark-theme.png", changeThemeAction);
+
     // Загрузка и применение темной темы
     QFile darkThemeFile(":/darktheme.qss");
     if (darkThemeFile.open(QFile::ReadOnly)) {
         QString styleSheet = QLatin1String(darkThemeFile.readAll());
         qApp->setStyleSheet(styleSheet);
         darkThemeFile.close();
+        isDarkTheme = true;  // Устанавливаем начальное состояние
+        changeThemeAction->setIcon(QIcon(":/dark-theme.png"));
+    } else {
+        isDarkTheme = false;
+        changeThemeAction->setIcon(QIcon(":/light-theme.png"));
     }
 
     // Настройка компонентов пользовательского интерфейса
@@ -97,21 +136,36 @@ MainWindow::MainWindow(QWidget *parent)
     scrollArea->setWidget(controlWidget);
     formLayout = new QFormLayout(controlWidget);
 
-    // // Элементы пользовательского интерфейса для загрузки модели
-    // QHBoxLayout *fileLayout = new QHBoxLayout();
-    // lineEditFilePath = new QLineEdit(controlWidget);
-    // buttonLoadModel = new QPushButton(QIcon(":/load.png"), "Загрузить объект", controlWidget);
-    // fileLayout->addWidget(lineEditFilePath);
-    // fileLayout->addWidget(buttonLoadModel);
-    // QWidget *fileLayoutContainer = new QWidget();
-    // fileLayoutContainer->setLayout(fileLayout);
-    // formLayout->addRow(new QLabel("Файл объекта:"), fileLayoutContainer);
+    // Элементы для подключения к серверу
+    QGroupBox *serverConnectionGroupBox = new QGroupBox("Подключение к серверу", controlWidget);
+    QVBoxLayout *serverConnectionLayout = new QVBoxLayout(serverConnectionGroupBox);
+
+    QHBoxLayout *serverLayout = new QHBoxLayout();
+    serverAddressInput = new QLineEdit(serverConnectionGroupBox);
+    serverAddressInput->setPlaceholderText("ws://serveraddress:port");
+    serverAddressInput->setAlignment(Qt::AlignCenter);
+    connectButton = new QPushButton(QIcon(":/connect.png"), "Подключиться", serverConnectionGroupBox);
+    QPushButton *disconnectButton = new QPushButton(QIcon(":/disconnect.png"), "Отключиться", serverConnectionGroupBox);
+
+    serverLayout->addWidget(serverAddressInput);
+    serverLayout->addWidget(connectButton);
+    serverLayout->addWidget(disconnectButton);
+
+    serverConnectionLayout->addLayout(serverLayout);
+    serverConnectionGroupBox->setLayout(serverConnectionLayout);
+
+    // Размеры элементов для подключения к серверу
+    serverAddressInput->setFixedSize(150, 30);
+    connectButton->setFixedSize(110, 30);
+    disconnectButton->setFixedSize(110, 30);
+    serverConnectionGroupBox->setFixedSize(400, 75);
+
+    formLayout->addRow(serverConnectionGroupBox);
 
     // Элементы пользовательского интерфейса для ввода параметров
     inputWavelength = new QDoubleSpinBox(controlWidget);
     inputResolution = new QDoubleSpinBox(controlWidget);
     inputPolarization = new QComboBox(controlWidget);
-    // buttonPerformCalculation = new QPushButton(QIcon(":/calculator.png"),"Выполнить расчет", controlWidget);
 
     QGroupBox *portraitTypeGroupBox = new QGroupBox("Портретные типы", controlWidget);
     QVBoxLayout *portraitTypeLayout = new QVBoxLayout(portraitTypeGroupBox);
@@ -125,36 +179,24 @@ MainWindow::MainWindow(QWidget *parent)
     portraitTypeLayout->addWidget(azimuthPortraitCheckBox);
     portraitTypeLayout->addWidget(rangePortraitCheckBox);
 
+    portraitTypeGroupBox->setFixedSize(125, 150);
+    azimuthPortraitCheckBox->setFixedSize(180, 30);
+    anglePortraitCheckBox->setFixedSize(180, 30);
+    rangePortraitCheckBox->setFixedSize(180, 30);
+
     portraitTypeGroupBox->setLayout(portraitTypeLayout);
     formLayout->addRow(portraitTypeGroupBox);
 
     formLayout->addRow(new QLabel("Длина волны (nm):"), inputWavelength);
     formLayout->addRow(new QLabel("Разрешение (m):"), inputResolution);
     formLayout->addRow(new QLabel("Поляризация:"), inputPolarization);
-    // formLayout->addRow(buttonPerformCalculation);
-
-    // Элементы для подключения к серверу
-    QHBoxLayout *serverLayout = new QHBoxLayout();
-    serverAddressInput = new QLineEdit(controlWidget);
-    serverAddressInput->setPlaceholderText("ws://yourserveraddress:port");
-    connectButton = new QPushButton(QIcon(":/connect.png"), "Connect", controlWidget);
-    QPushButton *disconnectButton = new QPushButton(QIcon(":/disconnect.png"), "Disconnect", controlWidget);
-    serverLayout->addWidget(serverAddressInput);
-    serverLayout->addWidget(connectButton);
-    serverLayout->addWidget(disconnectButton);
-    QWidget *serverLayoutContainer = new QWidget();
-    serverLayoutContainer->setLayout(serverLayout);
-    formLayout->addRow(new QLabel("Server Address:"), serverLayoutContainer);
 
     logDisplay = new QTextEdit(controlWidget);
     logDisplay->setReadOnly(true);
     formLayout->addRow(new QLabel("Log:"), logDisplay);
 
     // Элементы пользовательского интерфейса для отображения результатов
-    resultDisplay = new QTextEdit(controlWidget);
-    resultDisplay->setReadOnly(true);
     buttonSaveResults = new QPushButton("Save Results", controlWidget);
-    formLayout->addRow(new QLabel("Results:"), resultDisplay);
     formLayout->addRow(buttonSaveResults);
     buttonSaveResults->hide();
 
@@ -191,17 +233,12 @@ MainWindow::MainWindow(QWidget *parent)
     formLayout->addRow(buttonShowPortrait);
     connect(buttonShowPortrait, &QPushButton::clicked, this, &MainWindow::showPortrait);
 
-    // Добавление кнопки переключения темы
-    QWidget *themeSwitchWidget = createThemeSwitchButton();
-    formLayout->addRow(themeSwitchWidget);
-
+    // this->resize(1920, 1080);
     this->resize(1280, 720);
 
     // Соединения
     connect(buttonApplyRotation, &QPushButton::clicked, this, &MainWindow::applyRotation);
     connect(buttonResetRotation, &QPushButton::clicked, this, &MainWindow::resetRotation);
-    // connect(buttonLoadModel, &QPushButton::clicked, this, &MainWindow::loadModel);
-    // connect(buttonPerformCalculation, &QPushButton::clicked, this, &MainWindow::performCalculation);
     connect(connectButton, &QPushButton::clicked, this, &MainWindow::connectToServer);
     connect(disconnectButton, &QPushButton::clicked, this, &MainWindow::disconnectFromServer);
     connect(buttonSaveResults, &QPushButton::clicked, this, &MainWindow::saveResults);
@@ -214,31 +251,12 @@ MainWindow::MainWindow(QWidget *parent)
         openGLWidget->setGeometry(v, t, tri);
     });
 
-    // lineEditFilePath->setFixedSize(200, 30);  // Файл объекта
-
-    portraitTypeGroupBox->setFixedSize(200, 150);
-    azimuthPortraitCheckBox->setFixedSize(180, 30);
-    anglePortraitCheckBox->setFixedSize(180, 30);
-    rangePortraitCheckBox->setFixedSize(180, 30);
-
     inputResolution->setFixedSize(100, 30);
     inputWavelength->setFixedSize(100, 30);
     inputPolarization->setFixedSize(100, 30);
 
-    // Элементы пользовательского интерфейса для загрузки модели
-    // buttonLoadModel->setFixedSize(150, 30);
-
-    // Элементы пользовательского интерфейса для ввода параметров
-    // buttonPerformCalculation->setFixedSize(150, 30);
-
-    // Элементы для подключения к серверу
-    serverAddressInput->setFixedSize(200, 30);
-    connectButton->setFixedSize(100, 30);
-    disconnectButton->setFixedSize(100, 30);
-
     // Элементы пользовательского интерфейса для отображения результатов
-    logDisplay->setFixedSize(300, 50);
-    resultDisplay->setFixedSize(300,50);
+    logDisplay->setFixedSize(200, 50);
     buttonSaveResults->setFixedSize(150, 30);
 
     // Элементы для ввода углов поворота
@@ -251,8 +269,6 @@ MainWindow::MainWindow(QWidget *parent)
     // Кнопка для отображения двумерного портрета
     buttonShowPortrait->setFixedSize(150, 30);
 
-    // Кнопка для открытия окна графика
-    // buttonOpenGraphWindow->setFixedSize(150, 30);
 }
 
 MainWindow::~MainWindow() {
@@ -332,8 +348,8 @@ void MainWindow::extractValues(const QJsonArray &array, QVector<double> &contain
 void MainWindow::displayResults(const QJsonObject &results) {
     // Преобразование JSON-объекта в JSON-документ для дальнейшего использования
     QJsonDocument doc(results);
-    QString resultsString = doc.toJson(QJsonDocument::Indented);
-    resultDisplay->setText(resultsString);
+    storedResults = doc.toJson(QJsonDocument::Indented); // Сохранение результатов
+    logMessage("Числовые значения с сервера получены и сохранены.");
 
     // Извлечение массивов absEout и normEout из JSON-объекта результатов
     QJsonArray absEoutArray = results["absEout"].toArray();
@@ -396,14 +412,23 @@ void MainWindow::resetRotation() {
 
 // Метод для авторизации
 void MainWindow::authorizeClient() {
-    QString username = "user";  // Логин
-    QString password = "user";  // Пароль
-    triangleClient->authorize(username, password);
+    // Создаем диалоговое окно для ввода логина и пароля
+    LoginDialog dialog(this);
+
+    // Показываем диалоговое окно и ждем, пока пользователь не введет данные и не нажмет "Login"
+    if (dialog.exec() == QDialog::Accepted) {
+        // Получаем введенные пользователем логин и пароль
+        QString username = dialog.getUsername();
+        QString password = dialog.getPassword();
+
+        // Вызываем метод authorize у triangleClient с введенными данными
+        triangleClient->authorize(username, password);
+    }
 }
 
 void MainWindow::sendDataAfterAuthorization(std::function<void()> sendDataFunc) {
     if (!triangleClient || !triangleClient->isConnected()) {
-        resultDisplay->setText("Для начала подключитесь к серверу.");
+        logDisplay->setText("Для начала подключитесь к серверу.");
         return;
     }
 
@@ -413,7 +438,7 @@ void MainWindow::sendDataAfterAuthorization(std::function<void()> sendDataFunc) 
             if (triangleClient->isConnected() && triangleClient->isAuthorized()) {
                 sendDataFunc();  // Отправляем данные после успешной авторизации
             } else {
-                resultDisplay->setText("Ошибка авторизации.");
+                logDisplay->setText("Ошибка авторизации.");
             }
         });
     } else {
@@ -431,11 +456,6 @@ QJsonObject MainWindow::vectorToJson(const QSharedPointer<const rVect>& vector) 
 
 // Функция для выполнения расчета
 void MainWindow::performCalculation() {
-    // if (lineEditFilePath->text().isEmpty()) {
-    //     logMessage("Ошибка: объект не загружен. Пожалуйста, загрузите объект перед выполнением расчета.");
-    //     return;
-    // }
-
     QVector<QSharedPointer<triangle>> triangles = openGLWidget->getTriangles();
     if (triangles.isEmpty()) {
         logMessage("Ошибка: загруженный файл не содержит корректных данных объекта.");
@@ -514,11 +534,6 @@ void MainWindow::performCalculation() {
     buttonSaveResults->show();
 }
 
-// Функция для обновления отображения результатов
-void MainWindow::updateResultsDisplay(const QString& results) {
-    resultDisplay->setText(results);
-}
-
 // Функция для подключения к серверу с обработкой результатов
 void MainWindow::connectToServer() {
     QString serverAddress = serverAddressInput->text().trimmed();
@@ -565,12 +580,6 @@ void MainWindow::logMessage(const QString& message) {
     logDisplay->append(QTime::currentTime().toString("HH:mm:ss") + " - " + message);
 }
 
-void MainWindow::updateResultsDisplay(const QJsonObject& results) {
-    QJsonDocument doc(results);
-    QString resultsString = doc.toJson(QJsonDocument::Indented);
-    resultDisplay->setText(resultsString);
-}
-
 // Функция для сохранения результатов
 void MainWindow::saveResults() {
     QString fileName = QFileDialog::getSaveFileName(this, "Save Results", "", "Text Files (*.txt)");
@@ -578,9 +587,20 @@ void MainWindow::saveResults() {
         QFile file(fileName);
         if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
             QTextStream out(&file);
-            out << resultDisplay->toPlainText();
+            out << logDisplay->toPlainText();
         }
     }
+}
+
+void MainWindow::openResultsWindow() {
+    if (storedResults.isEmpty()) {
+        logMessage("Нет доступных числовых значений.");
+        return;
+    }
+
+    QScopedPointer<ResultsDialog> resultsDialog(new ResultsDialog(this));
+    resultsDialog->setResults(storedResults);
+    resultsDialog->exec();
 }
 
 void MainWindow::openGraphWindow() {
@@ -631,57 +651,27 @@ void MainWindow::showPortrait() {
 }
 
 // Метод для переключения темы
-void MainWindow::toggleTheme(int state) {
-    if (state == Qt::Checked) {
-        QFile file(":/darktheme.qss");
-        if (file.open(QFile::ReadOnly)) {
-            QString styleSheet = QLatin1String(file.readAll());
-            qApp->setStyleSheet(styleSheet);
-            file.close();
-        }
+void MainWindow::toggleTheme() {
+    if (isDarkTheme) {
+        loadTheme(":/lighttheme.qss", ":/light-theme.png", qobject_cast<QAction *>(sender()));
     } else {
-        qApp->setStyleSheet("");  // Установка светлой темы (по умолчанию)
+        loadTheme(":/darktheme.qss", ":/dark-theme.png", qobject_cast<QAction *>(sender()));
     }
+    isDarkTheme = !isDarkTheme;  // Переключение состояния темы
 }
 
-QWidget* MainWindow::createThemeSwitchButton() {
-    QWidget *themeSwitchWidget = new QWidget();
-    QHBoxLayout *layout = new QHBoxLayout(themeSwitchWidget);
-
-    QPushButton *themeSwitchButton = new QPushButton();
-    themeSwitchButton->setIcon(QIcon(":/light-theme.png"));
-    themeSwitchButton->setIconSize(QSize(40, 40));
-    themeSwitchButton->setFlat(true); // Убирает рамку кнопки
-
-    layout->addWidget(themeSwitchButton);
-
-    connect(themeSwitchButton, &QPushButton::clicked, [this, themeSwitchButton]() {
-        static bool isDarkTheme = true;
-        if (isDarkTheme) {
-            themeSwitchButton->setIcon(QIcon(":/dark-theme.png"));
-            QFile file(":/darktheme.qss");
-            if (file.open(QFile::ReadOnly)) {
-                QString styleSheet = QLatin1String(file.readAll());
-                qApp->setStyleSheet(styleSheet);
-                file.close();
-            }
-        } else {
-            themeSwitchButton->setIcon(QIcon(":/light-theme.png"));
-            qApp->setStyleSheet("");  // Установка светлой темы (по умолчанию)
-        }
-        isDarkTheme = !isDarkTheme;
-    });
-
-    // Установка начального состояния
-    QFile file(":/darktheme.qss");
+void MainWindow::loadTheme(const QString &themePath, const QString &iconPath, QAction *action) {
+    QFile file(themePath);
     if (file.open(QFile::ReadOnly)) {
         QString styleSheet = QLatin1String(file.readAll());
         qApp->setStyleSheet(styleSheet);
         file.close();
+    } else {
+        qApp->setStyleSheet("");
     }
-    themeSwitchButton->setIcon(QIcon(":/dark-theme.png"));
-
-    return themeSwitchWidget;
+    if (action) {
+        action->setIcon(QIcon(iconPath));
+    }
 }
 
 void MainWindow::saveFile() {
