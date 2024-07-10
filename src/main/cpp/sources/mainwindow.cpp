@@ -3,6 +3,7 @@
 #include "parser.h"
 #include "raytracer.h"
 #include "resultsdialog.h"
+#include "aboutdialog.h"
 #include "graphwindow.h"
 #include "logindialog.h"
 #include <QFile>
@@ -106,7 +107,7 @@ MainWindow::MainWindow(QWidget *parent)
     helpMenu->addAction(aboutAction);
     menuBar->addMenu(helpMenu);
 
-    // connect(aboutAction, &QAction::triggered, this, &MainWindow::showAboutDialog);
+    connect(aboutAction, &QAction::triggered, this, &MainWindow::showAboutDialog);
 
     // Создание нового меню "Настройки"
     QMenu *settingsMenu = new QMenu("Настройки", this);
@@ -170,10 +171,6 @@ MainWindow::MainWindow(QWidget *parent)
     serverConnectionGroupBox->setFixedSize(400, 75);
 
     formLayout->addRow(serverConnectionGroupBox);
-
-    // // Добавляем вертикальный разделитель
-    // QSpacerItem *verticalSpacer = new QSpacerItem(0, 5, QSizePolicy::Minimum, QSizePolicy::Fixed);
-    // formLayout->addItem(verticalSpacer);
 
     // Элементы пользовательского интерфейса для ввода параметров
     inputWavelength = new QDoubleSpinBox(controlWidget);
@@ -731,4 +728,9 @@ void MainWindow::saveLog() {
             out << logDisplay->toPlainText();
         }
     }
+}
+
+void MainWindow::showAboutDialog() {
+    QScopedPointer<AboutDialog> aboutDialog(new AboutDialog(this));
+    aboutDialog->exec();
 }

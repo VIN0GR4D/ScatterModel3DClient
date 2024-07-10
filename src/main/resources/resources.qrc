@@ -10,5 +10,6 @@
         <file>light-theme.png</file>
         <file>dark-theme.png</file>
         <file>download.png</file>
+        <file>login-icon.png</file>
     </qresource>
 </RCC>

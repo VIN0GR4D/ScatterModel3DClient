@@ -11,6 +11,7 @@ CONFIG += c++17
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    aboutdialog.cpp \
     graphwindow.cpp \
     logindialog.cpp \
     main.cpp \
@@ -27,6 +28,7 @@ HEADERS += \
     ConstAndVar.h \
     Node.h \
     Triangle.h \
+    aboutdialog.h \
     cVect.h \
     graphwindow.h \
     logindialog.h \
@@ -71,6 +73,7 @@ DISTFILES += \
     icon.png \
     light-theme.png \
     load.png \
+    login-icon.png \
     m4a1.obj \
     plane.obj \
     simple_triangle.obj \

@@ -3,6 +3,11 @@
 LoginDialog::LoginDialog(QWidget *parent) : QDialog(parent) {
     QVBoxLayout *layout = new QVBoxLayout(this);
 
+    QLabel *logoLabel = new QLabel(this);
+    QPixmap logoPixmap(":/icon.png");
+    logoLabel->setPixmap(logoPixmap);
+    logoLabel->setAlignment(Qt::AlignCenter);
+
     QLabel *labelUsername = new QLabel("Логин:", this);
     editUsername = new QLineEdit(this);
 
@@ -11,6 +16,7 @@ LoginDialog::LoginDialog(QWidget *parent) : QDialog(parent) {
     editPassword->setEchoMode(QLineEdit::Password);
 
     QPushButton *buttonLogin = new QPushButton("Авторизоваться", this);
+    buttonLogin->setIcon(QIcon(":/login-icon.png"));
     connect(buttonLogin, &QPushButton::clicked, this, &LoginDialog::accept);
 
     layout->addWidget(labelUsername);

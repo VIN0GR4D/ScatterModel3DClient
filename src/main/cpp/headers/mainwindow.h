@@ -51,6 +51,7 @@ private slots:
     void loadTheme(const QString &themePath, const QString &iconPath, QAction *action);
     void openResultsWindow();
     void saveLog();
+    void showAboutDialog();
 
 private:
     Ui::MainWindow *ui;
