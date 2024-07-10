@@ -27,7 +27,8 @@ void ResultsDialog::setResults(const QString &results) {
 }
 
 void ResultsDialog::saveResults() {
-    QString fileName = QFileDialog::getSaveFileName(this, "Числовые значения", "", "Text Files (*.txt)");
+    QString defaultFileName = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss") + "_results.txt";
+    QString fileName = QFileDialog::getSaveFileName(this, "Числовые значения", defaultFileName, "Text Files (*.txt)");
     if (!fileName.isEmpty()) {
         QFile file(fileName);
         if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {

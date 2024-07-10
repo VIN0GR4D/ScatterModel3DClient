@@ -90,6 +90,15 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(openGraphAction, &QAction::triggered, this, &MainWindow::openGraphWindow);
 
+    // Пункт меню "Показать 2D портрет"
+    QAction *showPortraitAction = new QAction("Показать 2D портрет", this);
+    resultsMenu->addAction(showPortraitAction);
+
+    // Подключаем слот для нового пункта меню
+    connect(showPortraitAction, &QAction::triggered, this, &MainWindow::showPortrait);
+
+    menuBar->addMenu(resultsMenu);
+
     // Создание нового меню "Помощь"
     QMenu *helpMenu = new QMenu("Помощь", this);
     QAction *aboutAction = new QAction("О программе", this);
@@ -162,18 +171,36 @@ MainWindow::MainWindow(QWidget *parent)
 
     formLayout->addRow(serverConnectionGroupBox);
 
+    // // Добавляем вертикальный разделитель
+    // QSpacerItem *verticalSpacer = new QSpacerItem(0, 5, QSizePolicy::Minimum, QSizePolicy::Fixed);
+    // formLayout->addItem(verticalSpacer);
+
     // Элементы пользовательского интерфейса для ввода параметров
     inputWavelength = new QDoubleSpinBox(controlWidget);
     inputResolution = new QDoubleSpinBox(controlWidget);
     inputPolarization = new QComboBox(controlWidget);
+    inputPolarization->addItems({"Горизонтальный", "Вертикальный", "Круговой"});
 
+    QGroupBox *parametersGroupBox = new QGroupBox("Параметры", controlWidget);
+    QFormLayout *parametersLayout = new QFormLayout(parametersGroupBox);
+    parametersLayout->addRow(new QLabel("Длина волны (nm):"), inputWavelength);
+    parametersLayout->addRow(new QLabel("Разрешение (m):"), inputResolution);
+    parametersLayout->addRow(new QLabel("Поляризация:"), inputPolarization);
+    parametersGroupBox->setLayout(parametersLayout);
+
+    // Настройка размеров элементов параметров
+    inputWavelength->setFixedSize(125, 30);
+    inputResolution->setFixedSize(125, 30);
+    inputPolarization->setFixedSize(125, 30);
+    parametersGroupBox->setFixedSize(250, 150);
+
+    // Группа для портретных типов
     QGroupBox *portraitTypeGroupBox = new QGroupBox("Портретные типы", controlWidget);
     QVBoxLayout *portraitTypeLayout = new QVBoxLayout(portraitTypeGroupBox);
 
     azimuthPortraitCheckBox = new QCheckBox("Азимутальный", portraitTypeGroupBox);
     anglePortraitCheckBox = new QCheckBox("Угломестный", portraitTypeGroupBox);
     rangePortraitCheckBox = new QCheckBox("Дальностный", portraitTypeGroupBox);
-    inputPolarization->addItems({"Горизонтальный", "Вертикальный", "Круговой"});
 
     portraitTypeLayout->addWidget(anglePortraitCheckBox);
     portraitTypeLayout->addWidget(azimuthPortraitCheckBox);
@@ -185,20 +212,15 @@ MainWindow::MainWindow(QWidget *parent)
     rangePortraitCheckBox->setFixedSize(180, 30);
 
     portraitTypeGroupBox->setLayout(portraitTypeLayout);
-    formLayout->addRow(portraitTypeGroupBox);
 
-    formLayout->addRow(new QLabel("Длина волны (nm):"), inputWavelength);
-    formLayout->addRow(new QLabel("Разрешение (m):"), inputResolution);
-    formLayout->addRow(new QLabel("Поляризация:"), inputPolarization);
+    // Компоновка параметров и портретных типов в одну строку
+    QHBoxLayout *parametersAndPortraitLayout = new QHBoxLayout();
+    parametersAndPortraitLayout->addWidget(portraitTypeGroupBox);
+    parametersAndPortraitLayout->addWidget(parametersGroupBox);
 
-    logDisplay = new QTextEdit(controlWidget);
-    logDisplay->setReadOnly(true);
-    formLayout->addRow(new QLabel("Log:"), logDisplay);
-
-    // Элементы пользовательского интерфейса для отображения результатов
-    buttonSaveResults = new QPushButton("Save Results", controlWidget);
-    formLayout->addRow(buttonSaveResults);
-    buttonSaveResults->hide();
+    QWidget *parametersAndPortraitWidget = new QWidget();
+    parametersAndPortraitWidget->setLayout(parametersAndPortraitLayout);
+    formLayout->addRow(parametersAndPortraitWidget);
 
     // Элементы для ввода углов поворота
     inputRotationX = new QDoubleSpinBox(controlWidget);
@@ -216,24 +238,62 @@ MainWindow::MainWindow(QWidget *parent)
     buttonApplyRotation = new QPushButton("Применить поворот", controlWidget);
     buttonResetRotation = new QPushButton("Сбросить поворот", controlWidget);
 
-    formLayout->addRow(new QLabel("Поворот по X:"), inputRotationX);
-    formLayout->addRow(new QLabel("Поворот по Y:"), inputRotationY);
-    formLayout->addRow(new QLabel("Поворот по Z:"), inputRotationZ);
-    formLayout->addRow(buttonApplyRotation);
-    formLayout->addRow(buttonResetRotation);
+    QGroupBox *rotationGroupBox = new QGroupBox("Поворот", controlWidget);
+    QHBoxLayout *rotationMainLayout = new QHBoxLayout(rotationGroupBox);
+
+    // Создаем QGridLayout для меток и ввода поворота
+    QGridLayout *rotationGridLayout = new QGridLayout();
+    rotationGridLayout->addWidget(new QLabel("Поворот по X:"), 0, 0);
+    rotationGridLayout->addWidget(inputRotationX, 0, 1);
+    rotationGridLayout->addWidget(new QLabel("Поворот по Y:"), 1, 0);
+    rotationGridLayout->addWidget(inputRotationY, 1, 1);
+    rotationGridLayout->addWidget(new QLabel("Поворот по Z:"), 2, 0);
+    rotationGridLayout->addWidget(inputRotationZ, 2, 1);
+
+    // Создаем QVBoxLayout для кнопок
+    QVBoxLayout *buttonLayout = new QVBoxLayout();
+    buttonLayout->addStretch(); // Добавляем растягивающий элемент сверху
+    buttonLayout->addWidget(buttonApplyRotation);
+    buttonLayout->addWidget(buttonResetRotation);
+    buttonLayout->addStretch(); // Добавляем растягивающий элемент снизу
+
+    // Добавляем оба layout в rotationMainLayout
+    rotationMainLayout->addLayout(rotationGridLayout);
+    rotationMainLayout->addSpacing(10); // Добавляем расстояние между столбцами
+    rotationMainLayout->addLayout(buttonLayout);
+
+    // Устанавливаем layout для группы
+    rotationGroupBox->setLayout(rotationMainLayout);
+    formLayout->addRow(rotationGroupBox);
+
+    rotationGroupBox->setFixedSize(400, 125);
+
+    // Журнал действий
+    QGroupBox *logGroupBox = new QGroupBox("Журнал действий", controlWidget);
+    QVBoxLayout *logLayout = new QVBoxLayout(logGroupBox);
+    logDisplay = new QTextEdit(logGroupBox);
+    logDisplay->setReadOnly(true);
+    logLayout->addWidget(logDisplay);
+
+    // Кнопка для сохранения журнала действий
+    QPushButton *saveLogButton = new QPushButton("Сохранить журнал действий", logGroupBox);
+    logLayout->addWidget(saveLogButton);
+    connect(saveLogButton, &QPushButton::clicked, this, &MainWindow::saveLog);
+
+    logGroupBox->setLayout(logLayout);
+    formLayout->addRow(logGroupBox);
+    logGroupBox->setFixedSize(400, 230);
+    logDisplay->setFixedSize(380, 150);
+    saveLogButton->setFixedSize(380, 30);
 
     // Создание нового виджета для двумерного портрета
     portraitWidget = new PortraitWidget(this);
-    QDockWidget *portraitDockWidget = new QDockWidget("2D Portrait", this);
+    QDockWidget *portraitDockWidget = new QDockWidget("Двумерный портрет", this);
     portraitDockWidget->setWidget(portraitWidget);
     addDockWidget(Qt::RightDockWidgetArea, portraitDockWidget);
 
-    // Кнопка для отображения двумерного портрета
-    QPushButton *buttonShowPortrait = new QPushButton("Показать 2D портрет", controlWidget);
-    formLayout->addRow(buttonShowPortrait);
-    connect(buttonShowPortrait, &QPushButton::clicked, this, &MainWindow::showPortrait);
+    setWindowTitle("ScatterModel3DClient");
 
-    // this->resize(1920, 1080);
     this->resize(1280, 720);
 
     // Соединения
@@ -241,7 +301,6 @@ MainWindow::MainWindow(QWidget *parent)
     connect(buttonResetRotation, &QPushButton::clicked, this, &MainWindow::resetRotation);
     connect(connectButton, &QPushButton::clicked, this, &MainWindow::connectToServer);
     connect(disconnectButton, &QPushButton::clicked, this, &MainWindow::disconnectFromServer);
-    connect(buttonSaveResults, &QPushButton::clicked, this, &MainWindow::saveResults);
     connect(triangleClient, &TriangleClient::resultsReceived, this, QOverload<const QJsonObject &>::of(&MainWindow::displayResults));
     connect(parser, &Parser::fileParsed, this, [&](const QVector<QVector3D> &v, const QVector<QVector<int>> &t, const QVector<QSharedPointer<triangle>> &tri) {
         QVector3D observerPositionQVector = openGLWidget->getCameraPosition();
@@ -250,24 +309,6 @@ MainWindow::MainWindow(QWidget *parent)
         rayTracer->determineVisibility(tri, observerPosition);
         openGLWidget->setGeometry(v, t, tri);
     });
-
-    inputResolution->setFixedSize(100, 30);
-    inputWavelength->setFixedSize(100, 30);
-    inputPolarization->setFixedSize(100, 30);
-
-    // Элементы пользовательского интерфейса для отображения результатов
-    logDisplay->setFixedSize(200, 50);
-    buttonSaveResults->setFixedSize(150, 30);
-
-    // Элементы для ввода углов поворота
-    inputRotationX->setFixedSize(80, 30);
-    inputRotationY->setFixedSize(80, 30);
-    inputRotationZ->setFixedSize(80, 30);
-    buttonApplyRotation->setFixedSize(150, 30);
-    buttonResetRotation->setFixedSize(150, 30);
-
-    // Кнопка для отображения двумерного портрета
-    buttonShowPortrait->setFixedSize(150, 30);
 
 }
 
@@ -530,8 +571,6 @@ void MainWindow::performCalculation() {
     sendDataAfterAuthorization([this, modelData]() {
         triangleClient->sendModelData(modelData);
     });
-
-    buttonSaveResults->show();
 }
 
 // Функция для подключения к серверу с обработкой результатов
@@ -679,5 +718,17 @@ void MainWindow::saveFile() {
     if (!fileName.isEmpty()) {
         // Ваш код для обработки сохранения файла
         logMessage("Файл сохранен: " + fileName);
+    }
+}
+
+void MainWindow::saveLog() {
+    QString defaultFileName = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss") + "_log.txt";
+    QString fileName = QFileDialog::getSaveFileName(this, "Сохранить журнал действий", defaultFileName, "Text Files (*.txt)");
+    if (!fileName.isEmpty()) {
+        QFile file(fileName);
+        if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            QTextStream out(&file);
+            out << logDisplay->toPlainText();
+        }
     }
 }

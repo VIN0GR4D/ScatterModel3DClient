@@ -43,6 +43,8 @@ GraphWindow::GraphWindow(QWidget *parent) : QDialog(parent) {
     connect(resetZoomButton, &QPushButton::clicked, this, &GraphWindow::resetZoom);
     layout->addWidget(resetZoomButton);
 
+    setWindowTitle("Одномерный график");
+
     // Задаем размер окна
     this->resize(800, 600);
 }

@@ -13,7 +13,6 @@
 #include "parser.h"
 #include "raytracer.h"
 #include "triangleclient.h"
-// #include "resultsdialog.h"
 #include "portraitwidget.h"
 #include <QDoubleSpinBox>
 #include <QComboBox>
@@ -51,6 +50,7 @@ private slots:
     void saveFile();
     void loadTheme(const QString &themePath, const QString &iconPath, QAction *action);
     void openResultsWindow();
+    void saveLog();
 
 private:
     Ui::MainWindow *ui;
@@ -59,9 +59,8 @@ private:
     RayTracer *rayTracer;
     TriangleClient *triangleClient;
     QLineEdit *serverAddressInput;
-    QPushButton *buttonSaveResults, *connectButton, *buttonApplyRotation, *buttonResetRotation;
+    QPushButton *connectButton, *buttonApplyRotation, *buttonResetRotation;
     QTextEdit *logDisplay;
-    // QString storedResults;
     QDoubleSpinBox *inputWavelength, *inputResolution;
     QDoubleSpinBox *inputRotationX, *inputRotationY, *inputRotationZ;
     QComboBox *inputPolarization;
@@ -75,7 +74,6 @@ private:
     double calculateAngle(int index, int totalSteps);
     double calculateAzimuth(int index, int totalSteps);
     bool isDarkTheme;
-    // ResultsDialog *resultsDialog;
 };
 
 #endif // MAINWINDOW_H
