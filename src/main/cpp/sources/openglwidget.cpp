@@ -79,7 +79,7 @@ void OpenGLWidget::updateCameraPosition(const QVector3D& center, float radius) {
     // Обновление позиции источника света, прикрепленного к камере
     lightPosition = cameraPosition + QVector3D(0.0f, 0.0f, 10.0f);
 
-    qDebug() << "Camera position updated:" << cameraPosition;
+    // qDebug() << "Camera position updated:" << cameraPosition;
     update();
 }
 

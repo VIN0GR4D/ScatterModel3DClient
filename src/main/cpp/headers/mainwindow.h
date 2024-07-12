@@ -1,6 +1,11 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include "openglwidget.h"
+#include "parser.h"
+#include "raytracer.h"
+#include "triangleclient.h"
+#include "portraitwidget.h"
 #include <QMainWindow>
 #include <QPushButton>
 #include <QLineEdit>
@@ -9,11 +14,6 @@
 #include <QFormLayout>
 #include <QDockWidget>
 #include <QTextEdit>
-#include "openglwidget.h"
-#include "parser.h"
-#include "raytracer.h"
-#include "triangleclient.h"
-#include "portraitwidget.h"
 #include <QDoubleSpinBox>
 #include <QComboBox>
 #include <QVector>
@@ -57,7 +57,7 @@ private:
     Ui::MainWindow *ui;
     OpenGLWidget *openGLWidget;
     Parser *parser;
-    RayTracer *rayTracer;
+    std::unique_ptr<RayTracer> rayTracer;
     TriangleClient *triangleClient;
     QLineEdit *serverAddressInput;
     QPushButton *connectButton, *buttonApplyRotation, *buttonResetRotation;

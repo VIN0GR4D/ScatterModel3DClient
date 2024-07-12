@@ -14,16 +14,15 @@
 #include <QComboBox>
 #include <QCheckBox>
 #include <QHBoxLayout>
-#include <QPixmap>
 #include <QTextEdit>
 #include <QPushButton>
-#include <QProgressDialog>
 #include <QtConcurrent/QtConcurrent>
 #include <QFutureWatcher>
 #include <QScrollArea>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QScopedPointer>
+#include <memory>
 
 QVector<double> absEout;
 QVector<double> normEout;
@@ -37,7 +36,7 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
     , openGLWidget(new OpenGLWidget(this))
     , parser(new Parser(this))
-    , rayTracer(new RayTracer())
+    , rayTracer(std::make_unique<RayTracer>())
     , serverEnabled(false)
     , isDarkTheme(true)
 {
@@ -203,10 +202,10 @@ MainWindow::MainWindow(QWidget *parent)
     portraitTypeLayout->addWidget(azimuthPortraitCheckBox);
     portraitTypeLayout->addWidget(rangePortraitCheckBox);
 
-    portraitTypeGroupBox->setFixedSize(125, 150);
     azimuthPortraitCheckBox->setFixedSize(180, 30);
     anglePortraitCheckBox->setFixedSize(180, 30);
     rangePortraitCheckBox->setFixedSize(180, 30);
+    portraitTypeGroupBox->setFixedSize(125, 150);
 
     portraitTypeGroupBox->setLayout(portraitTypeLayout);
 
@@ -315,23 +314,54 @@ MainWindow::~MainWindow() {
 
 // Функция для загрузки модели
 void MainWindow::loadModel() {
-    QString fileName = QFileDialog::getOpenFileName(this, "Open 3D model", "", "OBJ Files (*.obj)");
+    // Открываем диалоговое окно для выбора файла с 3D моделью формата OBJ
+    QString fileName = QFileDialog::getOpenFileName(this, "Открыть 3D модель", "", "OBJ Files (*.obj)");
     if (!fileName.isEmpty()) {
-        // lineEditFilePath->setText(fileName);
-        openGLWidget->clearScene();
-        parser->clearData();
-        parser->readFromObjFile(fileName);
+        // Выводим сообщение в лог о начале загрузки файла
+        logMessage("Начата загрузка файла: " + fileName);
 
-        // Проверка наличия треугольников после загрузки файла
-        if (openGLWidget->getTriangles().isEmpty()) {
-            logMessage("Ошибка: файл не содержит корректных данных объекта. Пожалуйста, загрузите корректный файл.");
-            // lineEditFilePath->clear();
-        } else {
-            logMessage("Файл успешно загружен.");
-        }
+        // Создаем объект QFutureWatcher для отслеживания завершения асинхронной задачи
+        QFutureWatcher<void> *watcher = new QFutureWatcher<void>(this);
+        // Соединяем сигнал finished объекта QFutureWatcher с лямбда-функцией для обработки завершения задачи
+        connect(watcher, &QFutureWatcher<void>::finished, this, [=]() {
+            // Освобождаем память, удаляя объект QFutureWatcher
+            watcher->deleteLater();
+        });
+
+        // Запускаем асинхронную задачу с использованием QtConcurrent::run
+        QFuture<void> future = QtConcurrent::run([=]() {
+            QFile file(fileName);
+            // Пытаемся открыть файл для чтения, если не удалось - выводим сообщение об ошибке в лог
+            if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                QMetaObject::invokeMethod(this, [=]() {
+                        logMessage("Ошибка: не удалось открыть файл.");
+                    }, Qt::QueuedConnection);
+                return;
+            }
+
+            // Читаем содержимое файла
+            QTextStream in(&file);
+            // Очищаем текущую сцену и данные парсера
+            openGLWidget->clearScene();
+            parser->clearData();
+            // Парсим содержимое файла и загружаем данные в OpenGL виджет
+            parser->readFromObjFile(fileName);
+
+            // Проверка наличия треугольников
+            QMetaObject::invokeMethod(this, [=]() {
+                    if (openGLWidget->getTriangles().isEmpty()) {
+                        logMessage("Ошибка: файл не содержит корректных данных объекта. Пожалуйста, загрузите корректный файл.");
+                    } else {
+                        logMessage("Файл успешно загружен.");
+                    }
+                }, Qt::QueuedConnection);
+        });
+
+        // Связываем QFutureWatcher с асинхронной задачей
+        watcher->setFuture(future);
     } else {
+        // Если файл не был выбран, выводим сообщение об ошибке в лог
         logMessage("Ошибка: файл не был выбран.");
-        return;
     }
 }
 
@@ -415,11 +445,16 @@ void MainWindow::displayResults(const QJsonObject &results) {
     }
 
     // Подготовка данных для двумерного портрета
+    int totalSteps = static_cast<int>(sqrt(absEout.size()));
+    if (totalSteps * totalSteps != absEout.size()) {
+        logMessage("Ошибка: данные absEout не квадратные.");
+        return;
+    }
+
     QVector<double> xData, yData, zData;
-    int totalSteps = static_cast<int>(sqrt(absEout.size())); // Предполагаем, что данные квадратные
     for (int i = 0; i < absEout.size(); ++i) {
-        int angleIndex = i % totalSteps; // Индекс угла
-        int azimuthIndex = i / totalSteps; // Индекс азимута
+        int angleIndex = i % totalSteps;
+        int azimuthIndex = i / totalSteps;
         double angle = calculateAngle(angleIndex, totalSteps);
         double azimuth = calculateAzimuth(azimuthIndex, totalSteps);
         double eoutValue = absEout[i];
@@ -563,7 +598,7 @@ void MainWindow::performCalculation() {
     modelData["wavelength"] = wavelength;
 
     QJsonDocument doc(modelData);
-    qDebug() << "Model data to be sent to server:" << doc.toJson(QJsonDocument::Indented);
+    // qDebug() << "Model data to be sent to server:" << doc.toJson(QJsonDocument::Indented);
 
     sendDataAfterAuthorization([this, modelData]() {
         triangleClient->sendModelData(modelData);
