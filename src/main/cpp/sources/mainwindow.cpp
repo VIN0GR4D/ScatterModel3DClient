@@ -30,6 +30,8 @@ QCheckBox *anglePortraitCheckBox;
 QCheckBox *azimuthPortraitCheckBox;
 QCheckBox *rangePortraitCheckBox;
 QString storedResults;
+QComboBox *freqBandComboBox;
+QCheckBox *pplaneCheckBox;
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -217,6 +219,27 @@ MainWindow::MainWindow(QWidget *parent)
     QWidget *parametersAndPortraitWidget = new QWidget();
     parametersAndPortraitWidget->setLayout(parametersAndPortraitLayout);
     formLayout->addRow(parametersAndPortraitWidget);
+
+    // Элементы для выбора диапазона частот
+    freqBandComboBox = new QComboBox(controlWidget);
+    freqBandComboBox->addItem("Низкие частоты (до 1 ГГц)", 0);
+    freqBandComboBox->addItem("Средние частоты (1-10 ГГц)", 1);
+    freqBandComboBox->addItem("Высокие частоты (10-100 ГГц)", 2);
+    freqBandComboBox->addItem("Очень высокие частоты (5-10 ГГц)", 3);
+    freqBandComboBox->addItem("Сверхвысокие частоты (9-10 ГГц)", 4);
+    freqBandComboBox->addItem("Ультравысокие частоты (36.5-38.5 ГГц)", 5);
+
+    // Элемент для выбора подстилающей поверхности
+    pplaneCheckBox = new QCheckBox("Включить подстилающую поверхность", controlWidget);
+
+    QGroupBox *additionalParametersGroupBox = new QGroupBox("Дополнительные параметры", controlWidget);
+    QFormLayout *additionalParametersLayout = new QFormLayout(additionalParametersGroupBox);
+    additionalParametersLayout->addRow(new QLabel("Диапазон частот:"), freqBandComboBox);
+    additionalParametersLayout->addRow(pplaneCheckBox);
+    additionalParametersGroupBox->setLayout(additionalParametersLayout);
+
+    // Добавляем в форму
+    formLayout->addRow(additionalParametersGroupBox);
 
     // Элементы для ввода углов поворота
     inputRotationX = new QDoubleSpinBox(controlWidget);
@@ -446,10 +469,10 @@ void MainWindow::displayResults(const QJsonObject &results) {
 
     // Подготовка данных для двумерного портрета
     int totalSteps = static_cast<int>(sqrt(absEout.size()));
-    if (totalSteps * totalSteps != absEout.size()) {
-        logMessage("Ошибка: данные absEout не квадратные.");
-        return;
-    }
+    // if (totalSteps * totalSteps != absEout.size()) {
+    //     logMessage("Ошибка: данные absEout не квадратные.");
+    //     return;
+    // }
 
     QVector<double> xData, yData, zData;
     for (int i = 0; i < absEout.size(); ++i) {
@@ -558,6 +581,12 @@ void MainWindow::performCalculation() {
     bool typeAzimut = azimuthPortraitCheckBox->isChecked();
     bool typeLength = rangePortraitCheckBox->isChecked();
 
+    // Получение значения диапазона частот
+    int freqBand = freqBandComboBox->currentData().toInt();
+
+    // Получение значения подстилающей поверхности
+    bool pplane = pplaneCheckBox->isChecked();
+
     QJsonObject dataObject;
     QJsonArray visibleTrianglesArray;
 
@@ -586,18 +615,18 @@ void MainWindow::performCalculation() {
     QJsonObject modelData;
     modelData["data"] = dataObject;
     modelData["visbleTriangles"] = visibleTrianglesArray;
-    modelData["freqBand"] = 5;
+    modelData["freqBand"] = freqBand;
     modelData["polarRadiation"] = polarRadiation;
     modelData["polarRecive"] = polarRecive;
     modelData["typeAngle"] = typeAngle;
     modelData["typeAzimut"] = typeAzimut;
     modelData["typeLength"] = typeLength;
-    modelData["pplane"] = false;
+    modelData["pplane"] = pplane;
     modelData["directVector"] = vectorToJson(QSharedPointer<rVect>::create(directVector));
     modelData["resolution"] = resolution;
     modelData["wavelength"] = wavelength;
 
-    QJsonDocument doc(modelData);
+    // QJsonDocument doc(modelData);
     // qDebug() << "Model data to be sent to server:" << doc.toJson(QJsonDocument::Indented);
 
     sendDataAfterAuthorization([this, modelData]() {
