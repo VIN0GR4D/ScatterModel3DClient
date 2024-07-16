@@ -1,0 +1,70 @@
+Параметр data в QJsonObject содержит координаты вершин треугольников геометрической модели. Каждый треугольник определяется тремя вершинами, каждая из которых представлена тремя координатами (x, y, z). Это массив значений, который сериализуется в объект JSON и отправляется на сервер.
+
+Значения могут быть любыми числами с плавающей точкой, представляющими позиции в 3D-пространстве.
+
+Обработка сервером:
+1. Извлечение координат:
+if (jsonObject.contains("data")) {
+    coord = jsonObject.value("data").toObject();
+    n = coord.count();
+    assert(n > 0);
+    for (int i = 0; i < n; i++) {
+        QString ii = QString::number(i);
+        if (coord.contains(ii)) {
+            n_coord.push_back(coord.value(ii).toDouble());
+        }
+    }
+} else {
+    return 1; // ошибка
+}
+
+
+2. Формирование треугольников:
+std::vector<std::vector<std::vector<double>>> tri;
+if (n_coord.size() % 9 == 0) tri.resize(n_coord.size() / 9);
+assert(n_coord.size() % 9 == 0);
+int jj = 0;
+for (int i = 0; i < (int)tri.size(); i++) {
+    tri[i].resize(3);
+    for (int j = 0; j < 3; j++) {
+        tri[i][j].resize(3);
+        for (int k = 0; k < 3; k++) {
+            tri[i][j][k] = n_coord[jj];
+            jj++;
+        }
+    }
+}
+
+3. Формирование узлов и ребер:
+for (int i = 0; i < (int)tri.size(); i++) {
+    for (int j = 0; j < 3; j++) {
+        int k = j + 1;
+        if (k == 3) k = 0;
+        double x1 = tri[i][j][0];
+        double y1 = tri[i][j][1];
+        double z1 = tri[i][j][2];
+        double x2 = tri[i][k][0];
+        double y2 = tri[i][k][1];
+        double z2 = tri[i][k][2];
+        QJsonObject obj1, obj2;
+        obj1.insert("x1", x1); obj1.insert("y1", y1); obj1.insert("z1", z1);
+        uint hash1 = qHash(obj1);
+        obj2.insert("x1", x2); obj2.insert("y1", y2); obj2.insert("z1", z2);
+        uint hash2 = qHash(obj2);
+        node tempNode1(x1, y1, z1, true);
+        Node.insert(hash1, tempNode1);
+        node tempNode2(x2, y2, z2, true);
+        Node.insert(hash2, tempNode2);
+        edge tempEdge1, tempEdge2;
+        tempEdge1.setV1(&Node[hash1]);
+        tempEdge1.setV2(&Node[hash2]);
+        tempEdge2.setV1(&Node[hash2]);
+        tempEdge2.setV2(&Node[hash1]);
+        obj1.insert("x2", x2); obj1.insert("y2", y2); obj1.insert("z2", z2);
+        obj2.insert("x2", x1); obj2.insert("y2", y1); obj2.insert("z2", z1);
+        hash1 = qHash(obj1);
+        hash2 = qHash(obj2);
+        Edge.insert(hash1, tempEdge1);
+        Edge.insert(hash2, tempEdge2);
+    }
+}

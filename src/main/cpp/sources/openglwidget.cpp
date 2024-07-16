@@ -303,10 +303,10 @@ void OpenGLWidget::calculatePixelOccupation() {
         maxY = qMax(maxY, coord.y());
     }
 
-    // Площадь в пикселях
-    int pixelWidth = maxX - minX;
-    int pixelHeight = maxY - minY;
-    int pixelArea = pixelWidth * pixelHeight;
+    // // Площадь в пикселях
+    // int pixelWidth = maxX - minX;
+    // int pixelHeight = maxY - minY;
+    // int pixelArea = pixelWidth * pixelHeight;
 
     // qDebug() << "Object occupies" << pixelArea << "pixels (" << pixelWidth << "x" << pixelHeight << ")";
 }

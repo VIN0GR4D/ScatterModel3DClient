@@ -1,0 +1,95 @@
+visibleTriangles представляет собой массив значений, который указывает, видимы ли треугольники модели при расчете. Каждый элемент массива соответствует одному треугольнику и имеет булево значение: true означает, что треугольник видим, а false — что не видим.
+
+Обработка на сервере:
+1. Извлечение данных:
+QJsonArray qvisible;
+std::vector<bool> n_visible;
+int n_vis = 0;
+if (jsonObject.contains("visbleTriangles")) {
+    qvisible = jsonObject.value("visbleTriangles").toArray();
+    n_vis = qvisible.count();
+    for (int i = 0; i < n_vis; i++){
+        n_visible.push_back(qvisible.at(i).toBool());
+    }
+}
+else {
+    return 2; // ошибка
+}
+
+2. Создание массива треугольников и установка видимости:
+assert(tri.size() == n_visible.size()); // проверка на совпадение размеров массивов
+size = (int)tri.size();
+triangles.resize(size);
+for (int i = 0; i < size; i++) {
+    triangles.at(i).setVisible(n_visible.at(i));
+    for (int j = 0; j < 3; j++) {
+        double x = tri[i][j][0];
+        double y = tri[i][j][1];
+        double z = tri[i][j][2];
+        QJsonObject obj;
+        obj.insert("x1",x); obj.insert("y1",y); obj.insert("z1",z);
+        uint hash = qHash(obj);
+        if(Node.contains(hash)) {
+            node *tempNode = &Node[hash];
+            tempNode->setVisible(triangles.at(i).getVisible());
+            if (j == 0) {
+                triangles.at(i).setV1(tempNode);
+            }
+            else if (j == 1) {
+                triangles.at(i).setV2(tempNode);
+            }
+            else if (j == 2) {
+                triangles.at(i).setV3(tempNode);
+            }
+        }
+    }
+}
+
+3. Формирование векторов смежных треугольников (для каждой грани):
+for (int i = 0; i < size; i++) {
+    for (int j = 0; j < 3; j++) {
+        int k = j + 1;
+        if (k == 3) k = 0;
+
+        double x1 = tri[i][j][0];
+        double y1 = tri[i][j][1];
+        double z1 = tri[i][j][2];
+        double x2 = tri[i][k][0];
+        double y2 = tri[i][k][1];
+        double z2 = tri[i][k][2];
+        QJsonObject obj1, obj2;
+        obj1.insert("x1",x1); obj1.insert("y1",y1); obj1.insert("z1",z1);
+        obj2.insert("x1",x2); obj2.insert("y1",y2); obj2.insert("z1",z2);
+        obj1.insert("x2",x2); obj1.insert("y2",y2); obj1.insert("z2",z2);
+        obj2.insert("x2",x1); obj2.insert("y2",y1); obj2.insert("z2",z1);
+        uint hash1, hash2;
+        hash1 = qHash(obj1);
+        hash2 = qHash(obj2);
+        edge * t_e;
+        if (Edge.contains(hash1)) {
+           t_e = &Edge[hash1];
+           t_e->push_triangle(&triangles[i]);
+           t_e->setVisible(triangles[i].getVisible());
+        }
+        if (Edge.contains(hash2)) {
+           t_e = &Edge[hash2];
+           t_e->push_triangle(&triangles[i]);
+           t_e->setVisible(triangles[i].getVisible());
+        }
+    }
+}
+
+
+На что влияет на сервере:
+
+Фильтрация видимых треугольников: Сервер использует информацию о видимости треугольников для вычислений. Только видимые треугольники (true в массиве) участвуют в расчете рассеяния и других операций.
+Обработка дифракции: Во время вычислений сервер проверяет видимость каждого треугольника. Если треугольник видим, он участвует в расчете дифракции:
+if (triangles[iTr].getVisible()) {
+    vEout[iz][iy][ix] = vEout[iz][iy][ix] + triangles[iTr].PolarDifraction(Nin, Nout, Ein, wave - (1. * iy - 0.5 * (countY - 1)) * stepW);
+}
+
+Как работает:
+
+Извлечение видимости: Клиент передает массив visibleTriangles, который извлекается на сервере.
+Установка видимости треугольников: На сервере каждый треугольник получает значение видимости из переданного массива.
+Вычисления: Во время выполнения расчета сервер проверяет видимость каждого треугольника и учитывает только видимые треугольники в вычислениях.

@@ -1,17 +1,12 @@
 #include "logindialog.h"
 
 LoginDialog::LoginDialog(QWidget *parent) : QDialog(parent) {
-    QVBoxLayout *layout = new QVBoxLayout(this);
+    QVBoxLayout *mainLayout = new QVBoxLayout(this);
 
-    QLabel *logoLabel = new QLabel(this);
-    QPixmap logoPixmap(":/icon.png");
-    logoLabel->setPixmap(logoPixmap);
-    logoLabel->setAlignment(Qt::AlignCenter);
-
-    QLabel *labelUsername = new QLabel("Логин:", this);
+    QLabel *labelUsername = new QLabel("Логин", this);
     editUsername = new QLineEdit(this);
 
-    QLabel *labelPassword = new QLabel("Пароль:", this);
+    QLabel *labelPassword = new QLabel("Пароль", this);
     editPassword = new QLineEdit(this);
     editPassword->setEchoMode(QLineEdit::Password);
 
@@ -19,17 +14,27 @@ LoginDialog::LoginDialog(QWidget *parent) : QDialog(parent) {
     buttonLogin->setIcon(QIcon(":/login-icon.png"));
     connect(buttonLogin, &QPushButton::clicked, this, &LoginDialog::accept);
 
-    layout->addWidget(labelUsername);
-    layout->addWidget(editUsername);
-    layout->addWidget(labelPassword);
-    layout->addWidget(editPassword);
-    layout->addWidget(buttonLogin);
+    // Добавление виджетов в компоновку
+    mainLayout->addWidget(labelUsername);
+    mainLayout->addWidget(editUsername);
+    mainLayout->addSpacing(10);
+    mainLayout->addWidget(labelPassword);
+    mainLayout->addWidget(editPassword);
+    mainLayout->addSpacing(20);
+    mainLayout->addWidget(buttonLogin);
 
-    setLayout(layout);
+    // Настройка размеров полей и кнопки
+    labelUsername->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    labelPassword->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    editUsername->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    editPassword->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    buttonLogin->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+
+    setLayout(mainLayout);
     setWindowTitle("Авторизация");
 
-    // Задаем размер окна
-    this->resize(300, 150);
+    // Задаем минимальный размер окна
+    this->setMinimumSize(250, 150);
 }
 
 QString LoginDialog::getUsername() const {
