@@ -1,0 +1,99 @@
+Параметры typeAngle, typeAzimut, typeLength - эти параметры определяют тип радиопортрета, который будет рассчитываться. Радиопортрет - это визуализация отраженного сигнала, показывающая, как объект отражает радиоволны в зависимости от угла падения и частоты.
+
+Значения параметров:
+typeAngle:
+
+Тип: bool
+Значение: true или false
+Описание: Указывает, включать ли угломестный радиопортрет в расчет. Угломестный радиопортрет показывает распределение отраженного сигнала по углам места.
+typeAzimut:
+
+Тип: bool
+Значение: true или false
+Описание: Указывает, включать ли азимутальный радиопортрет в расчет. Азимутальный радиопортрет показывает распределение отраженного сигнала по азимутальным углам.
+typeLength:
+
+Тип: bool
+Значение: true или false
+Описание: Указывает, включать ли дальностной радиопортрет в расчет. Дальностной радиопортрет показывает распределение отраженного сигнала по дальности.
+
+Обработка на сервере:
+Получение значений из JSON:
+bool azimuth_radar_image, elevation_radar_image, range_radar_image;
+if (jsonObject.contains("typeAngle")) {
+    elevation_radar_image = jsonObject.value("typeAngle").toBool();
+}
+if (jsonObject.contains("typeAzimut")) {
+    azimuth_radar_image = jsonObject.value("typeAzimut").toBool();
+}
+if (jsonObject.contains("typeLength")) {
+    range_radar_image = jsonObject.value("typeLength").toBool();
+}
+if (!(elevation_radar_image +
+      azimuth_radar_image + range_radar_image)) {
+    return 5;
+}
+else {
+    set_boolXYZ(azimuth_radar_image, range_radar_image, elevation_radar_image);
+    set_stepXYZ(wave1.getStepX(), wave1.getStepY(), wave1.getStepZ());
+}
+
+
+Настройка шагов дискретизации и типа радиопортрета:
+
+Параметры typeAngle, typeAzimut, и typeLength задают, какие радиопортреты будут рассчитываться.
+Если ни один из параметров не установлен, сервер возвращает ошибку (return 5).
+Функция set_boolXYZ устанавливает флаги для каждого типа радиопортрета.
+Функция set_stepXYZ устанавливает шаги дискретизации для каждого измерения.
+
+Функции set_boolXYZ и set_stepXYZ:
+set_boolXYZ:
+void culcradar::set_boolXYZ(bool X, bool Y, bool Z) 
+{ 
+    boolX = X;
+    if (!boolX) stepX = 0;
+    boolY = Y;
+    if (!boolY) stepY = 0;
+    boolZ = Z;
+    if (!boolZ) stepZ = 0;
+    culc_count();
+}
+
+set_stepXYZ:
+void culcradar::set_stepXYZ(double x, double y, double z)
+{
+    if (!boolX)
+        stepX = 0;
+    else
+        stepX = x;
+
+    if (!boolY)
+        stepY = 0;
+    else
+        stepY = y;
+
+    if (!boolZ)
+        stepZ = 0;
+    else
+        stepZ = z;
+
+    culc_count();
+}
+
+
+Функция culc_count:
+Эта функция вычисляет размерности массива данных (countX, countY, countZ) на основе заданных шагов дискретизации (stepX, stepY, stepZ). Если шаг равен нулю, размерность устанавливается равной 1.
+
+Создание массива данных:
+Функция setSizeEout создает трехмерный массив vEout, который будет содержать результаты расчетов.
+
+Влияние на сервере
+Тип радиопортрета:
+Параметры typeAngle, typeAzimut, и typeLength определяют, какие измерения (угломестные, азимутальные, дальностные) будут включены в расчеты радиопортрета.
+
+Шаги дискретизации:
+Шаги дискретизации (stepX, stepY, stepZ) определяют разрешающую способность расчетов. Меньшие шаги обеспечивают более высокое разрешение, но требуют больше вычислительных ресурсов.
+
+Размеры массивов данных:
+Размеры массивов данных зависят от выбранных шагов дискретизации и типа радиопортрета.
+

@@ -174,22 +174,27 @@ MainWindow::MainWindow(QWidget *parent)
     formLayout->addRow(serverConnectionGroupBox);
 
     // Элементы пользовательского интерфейса для ввода параметров
-    inputWavelength = new QDoubleSpinBox(controlWidget);
-    inputResolution = new QDoubleSpinBox(controlWidget);
     inputPolarization = new QComboBox(controlWidget);
     inputPolarization->addItems({"Горизонтальный", "Вертикальный", "Круговой"});
 
+    // Группа для диапазона частот и подстилающей поверхности
+    freqBandComboBox = new QComboBox(controlWidget);
+    freqBandComboBox->addItems({"P-диапазон (400-450 МГц)", "L-диапазон (1-1.5 ГГц)", "S-диапазон (2.75-3.15 ГГц)", "C-диапазон (5-5.5 ГГц)", "X-диапазон (9-10 ГГц)", "Ka-диапазон (36.5-38.5 ГГц)"});
+
+    pplaneCheckBox = new QCheckBox("Включить подстилающую поверхность", controlWidget);
+
+    // Группа параметров
     QGroupBox *parametersGroupBox = new QGroupBox("Параметры", controlWidget);
     QFormLayout *parametersLayout = new QFormLayout(parametersGroupBox);
-    parametersLayout->addRow(new QLabel("Длина волны (nm):"), inputWavelength);
-    parametersLayout->addRow(new QLabel("Разрешение (m):"), inputResolution);
     parametersLayout->addRow(new QLabel("Поляризация:"), inputPolarization);
+    parametersLayout->addRow(new QLabel("Диапазон:"), freqBandComboBox);
+    parametersLayout->addRow(pplaneCheckBox);
     parametersGroupBox->setLayout(parametersLayout);
 
     // Настройка размеров элементов параметров
-    inputWavelength->setFixedSize(125, 30);
-    inputResolution->setFixedSize(125, 30);
-    inputPolarization->setFixedSize(125, 30);
+    inputPolarization->setFixedSize(150, 30);
+    freqBandComboBox->setFixedSize(150, 30);
+    pplaneCheckBox->setFixedSize(235, 30);
     parametersGroupBox->setFixedSize(250, 150);
 
     // Группа для портретных типов
@@ -219,27 +224,6 @@ MainWindow::MainWindow(QWidget *parent)
     QWidget *parametersAndPortraitWidget = new QWidget();
     parametersAndPortraitWidget->setLayout(parametersAndPortraitLayout);
     formLayout->addRow(parametersAndPortraitWidget);
-
-    // Элементы для выбора диапазона частот
-    freqBandComboBox = new QComboBox(controlWidget);
-    freqBandComboBox->addItem("Низкие частоты (до 1 ГГц)", 0);
-    freqBandComboBox->addItem("Средние частоты (1-10 ГГц)", 1);
-    freqBandComboBox->addItem("Высокие частоты (10-100 ГГц)", 2);
-    freqBandComboBox->addItem("Очень высокие частоты (5-10 ГГц)", 3);
-    freqBandComboBox->addItem("Сверхвысокие частоты (9-10 ГГц)", 4);
-    freqBandComboBox->addItem("Ультравысокие частоты (36.5-38.5 ГГц)", 5);
-
-    // Элемент для выбора подстилающей поверхности
-    pplaneCheckBox = new QCheckBox("Включить подстилающую поверхность", controlWidget);
-
-    QGroupBox *additionalParametersGroupBox = new QGroupBox("Дополнительные параметры", controlWidget);
-    QFormLayout *additionalParametersLayout = new QFormLayout(additionalParametersGroupBox);
-    additionalParametersLayout->addRow(new QLabel("Диапазон частот:"), freqBandComboBox);
-    additionalParametersLayout->addRow(pplaneCheckBox);
-    additionalParametersGroupBox->setLayout(additionalParametersLayout);
-
-    // Добавляем в форму
-    formLayout->addRow(additionalParametersGroupBox);
 
     // Элементы для ввода углов поворота
     inputRotationX = new QDoubleSpinBox(controlWidget);
@@ -563,8 +547,6 @@ void MainWindow::performCalculation() {
         return;
     }
 
-    double wavelength = inputWavelength->value();
-    double resolution = inputResolution->value();
     QString polarizationText = inputPolarization->currentText();
 
     int polarRadiation = 0;
@@ -610,7 +592,7 @@ void MainWindow::performCalculation() {
     }
 
     QVector3D cameraPosition = openGLWidget->getCameraPosition();
-    rVect directVector = openGLWidget->QVector3DToRVect(cameraPosition);
+    rVect directVector = openGLWidget->QVector3DToRVect(-cameraPosition);
 
     QJsonObject modelData;
     modelData["data"] = dataObject;
@@ -623,8 +605,6 @@ void MainWindow::performCalculation() {
     modelData["typeLength"] = typeLength;
     modelData["pplane"] = pplane;
     modelData["directVector"] = vectorToJson(QSharedPointer<rVect>::create(directVector));
-    modelData["resolution"] = resolution;
-    modelData["wavelength"] = wavelength;
 
     // QJsonDocument doc(modelData);
     // qDebug() << "Model data to be sent to server:" << doc.toJson(QJsonDocument::Indented);

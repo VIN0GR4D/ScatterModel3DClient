@@ -1,0 +1,66 @@
+directVector представляет собой вектор, который указывает направление падения электромагнитной волны на объект. Этот вектор описывает, откуда приходит волна относительно модели объекта.
+
+Диапазон значений:
+directVector состоит из трех компонент: x, y и z, которые представляют собой координаты вектора в трехмерном пространстве. Каждая компонента может быть любым вещественным числом, обычно нормализованным (т.е. длина вектора равна 1).
+
+Как обрабатывается сервером:
+1. Извлечение значения:
+if (jsonObject.contains("directVector")) {
+    QJsonObject qdirectv = jsonObject.value("directVector").toObject();
+    double x = qdirectv.value("x").toDouble();
+    double y = qdirectv.value("y").toDouble();
+    double z = qdirectv.value("z").toDouble();
+    rVect In(x, y, z);
+    Nin = In;
+    rVect Ref(Nin.getX(), Nin.getY(), -Nin.getZ());
+    NinRef = Ref;
+    rVect Out(-Nin.getX(), -Nin.getY(), -Nin.getZ());
+    rVect OutRef(-Nin.getX(), -Nin.getY(), Nin.getZ());
+    Nout = Out; 
+    NoutRef = OutRef;
+} else {
+    return 3; // ошибка, если directVector не задан
+}
+
+2. Использование для построения матрицы перехода:
+Для перехода к системе координат локатора используется направление падения волны:
+double cosangle = acos(Nin * rVectY);
+rVect aAxis = Nin ^ rVectY;
+rMatrix SO2, invSO2;
+if (aAxis.norm() > 1e-6) {
+    aAxis = 1. / aAxis.length() * aAxis;
+    SO2.CreateRotationMatrix(aAxis, cosangle);
+}
+invSO2 = transpon(SO2);
+
+3. Использование в расчете рассеянного поля:
+Направление падения волны (Nin) используется для вычисления рассеянного поля. Вектор Nout представляет собой направление выхода волны:
+for (size_t iz = 0; iz < size3; iz++) {
+    for (size_t iy = 0; iy < size2; iy++) {
+        for (size_t ix = 0; ix < size1; ix++) {
+            Nout.fromSphera(1.0,
+                0.5 * Pi + (1.0 * ix - 0.5 * (countX - 1)) * dAngleX,
+                0.5 * Pi + (1.0 * iz - 0.5 * (countZ - 1)) * dAngleZ);
+            Nout = -1.0 * (SO2 * Nout);
+            if (ref) {
+                NoutRef = Nout; 
+                NoutRef.setZ(-Nout.getZ());
+            }
+            for (int iTr = 0; iTr < (int)triangles.size(); iTr++) {
+                if (triangles[iTr].getVisible()) {
+                    vEout[iz][iy][ix] = vEout[iz][iy][ix] + triangles[iTr].PolarDifraction(Nin, Nout, Ein, wave - (1.0 * iy - 0.5 * (countY - 1)) * stepW);
+                    if (ref) {
+                        vEout[iz][iy][ix] = vEout[iz][iy][ix] + triangles[iTr].PolarDifraction(Nin, NoutRef, Ein, wave - (1.0 * iy - 0.5 * (countY - 1)) * stepW);
+                        vEout[iz][iy][ix] = vEout[iz][iy][ix] + triangles[iTr].PolarDifraction(NinRef, Nout, Ein, wave - (1.0 * iy - 0.5 * (countY - 1)) * stepW);
+                        vEout[iz][iy][ix] = vEout[iz][iy][ix] + triangles[iTr].PolarDifraction(NinRef, NoutRef, Ein, wave - (1.0 * iy - 0.5 * (countY - 1)) * stepW);
+                    }
+                }
+            }
+        }
+    }
+}
+
+Влияние на сервере:
+Определение угла падения волны: Значение directVector напрямую влияет на угол падения волны на объект. Это критично для моделирования рассеяния, так как угол падения влияет на характеристики рассеянного поля.
+Расчет направления выхода волны: Nout и NoutRef зависят от directVector и определяют направление, в котором волна рассеивается.
+Отраженные волны: Если параметр ref (учет подстилающей поверхности) установлен в true, directVector также влияет на расчеты отраженных волн от подстилающей поверхности.

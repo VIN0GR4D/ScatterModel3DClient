@@ -1,0 +1,64 @@
+pplane - это параметр, который определяет, учитывать ли подстилающую поверхность при расчетах рассеяния радиоволн. Подстилающая поверхность может быть землей, водой или другой отражающей поверхностью, которая находится под объектом.
+
+Диапазон значений:
+true: Учитывать подстилающую поверхность.
+false: Игнорировать подстилающую поверхность.
+
+Как обрабатывается на сервере:
+1. Извлечение признака подстилающей поверхности:
+if (jsonObject.contains("pplane")) {
+   set_ref(jsonObject.value("pplane").toBool()); // установка Aref
+}
+
+2. Функция set_ref:
+void set_ref(bool Ref) { ref = Ref; } // установка признака подстилающей поверхности
+
+3. Обработка в расчетах:
+В функции culc_Eout, если ref установлено в true, выполняются дополнительные расчеты с учетом подстилающей поверхности. Это влияет на вычисление направления и амплитуды отраженных волн:
+if (ref) {
+    for (size_t iz = 0; iz < size3; iz++) {
+        for (size_t iy = 0; iy < size2; iy++) {
+            for (size_t ix = 0; ix < size1; ix++) {
+                Nout.fromSphera(1.0,
+                    0.5 * Pi + (1.0 * ix - 0.5 * (countX - 1)) * dAngleX,
+                    0.5 * Pi + (1.0 * iz - 0.5 * (countZ - 1)) * dAngleZ);
+                Nout = -1.0 * (SO2 * Nout);
+                NoutRef = Nout;  NoutRef.setZ(-Nout.getZ());
+                for (int iTr = 0; iTr < (int)triangles.size(); iTr++) {
+                    if (triangles[iTr].getVisible()) {
+                        vEout[iz][iy][ix] = vEout[iz][iy][ix] + triangles[iTr].PolarDifraction(Nin,
+                            Nout, Ein, wave - (1.0 * iy - 0.5 * (countY - 1)) * stepW);
+                        vEout[iz][iy][ix] = vEout[iz][iy][ix] + triangles[iTr].PolarDifraction(Nin,
+                            NoutRef, Ein, wave - (1.0 * iy - 0.5 * (countY - 1)) * stepW);
+                        vEout[iz][iy][ix] = vEout[iz][iy][ix] + triangles[iTr].PolarDifraction(NinRef,
+                            Nout, Ein, wave - (1.0 * iy - 0.5 * (countY - 1)) * stepW);
+                        vEout[iz][iy][ix] = vEout[iz][iy][ix] + triangles[iTr].PolarDifraction(NinRef,
+                            NoutRef, Ein, wave - (1.0 * iy - 0.5 * (countY - 1)) * stepW);
+                    }
+                }
+            }
+        }
+    }
+} else {
+    for (size_t iz = 0; iz < size3; iz++) {
+        for (size_t iy = 0; iy < size2; iy++) {
+            for (size_t ix = 0; ix < size1; ix++) {
+                Nout.fromSphera(1.0,
+                    0.5 * Pi + (1.0 * ix - 0.5 * (countX - 1)) * dAngleX,
+                    0.5 * Pi + (1.0 * iz - 0.5 * (countZ - 1)) * dAngleZ);
+                Nout = -1.0 * (SO2 * Nout);
+                for (int iTr = 0; iTr < (int)triangles.size(); iTr++) {
+                    if (triangles[iTr].getVisible())
+                        vEout[iz][iy][ix] = vEout[iz][iy][ix] + triangles[iTr].PolarDifraction(Nin,
+                            Nout, Ein, wave - (1.0 * iy - 0.5 * (countY - 1)) * stepW);
+                }
+            }
+        }
+    }
+}
+
+
+Влияние на сервере:
+При pplane = true, учитываются дополнительные отражения от подстилающей поверхности, что увеличивает сложность и точность расчетов.
+При pplane = false, такие отражения не учитываются, и расчеты выполняются только для прямого рассеяния.
+
