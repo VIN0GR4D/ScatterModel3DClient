@@ -72,7 +72,7 @@ private:
     QTextEdit *logDisplay;
     QDoubleSpinBox *inputWavelength, *inputResolution;
     QDoubleSpinBox *inputRotationX, *inputRotationY, *inputRotationZ;
-    QComboBox *inputPolarization;
+    QComboBox *inputPolarizationRadiation, *inputPolarizationReceive;
     QWidget *controlWidget;
     QFormLayout *formLayout;
     bool serverEnabled;

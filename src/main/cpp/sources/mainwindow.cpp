@@ -24,6 +24,7 @@
 #include <QMessageBox>
 #include <QScopedPointer>
 #include <memory>
+#include <QSlider>
 
 QVector<double> absEout;
 QVector<double> normEout;
@@ -176,8 +177,39 @@ MainWindow::MainWindow(QWidget *parent)
     formLayout->addRow(serverConnectionGroupBox);
 
     // Элементы пользовательского интерфейса для ввода параметров
-    inputPolarization = new QComboBox(controlWidget);
-    inputPolarization->addItems({"Горизонтальный", "Вертикальный", "Круговой"});
+    QGroupBox *radiationPolarizationGroupBox = new QGroupBox("Излучения", controlWidget);
+    QVBoxLayout *radiationPolarizationLayout = new QVBoxLayout(radiationPolarizationGroupBox);
+    QRadioButton *radiationHorizontal = new QRadioButton("Горизонтальный");
+    QRadioButton *radiationVertical = new QRadioButton("Вертикальный");
+    QRadioButton *radiationCircular = new QRadioButton("Круговой");
+    radiationPolarizationLayout->addWidget(radiationHorizontal);
+    radiationPolarizationLayout->addWidget(radiationVertical);
+    radiationPolarizationLayout->addWidget(radiationCircular);
+    radiationPolarizationGroupBox->setLayout(radiationPolarizationLayout);
+
+    QGroupBox *receivePolarizationGroupBox = new QGroupBox("Приёма", controlWidget);
+    QVBoxLayout *receivePolarizationLayout = new QVBoxLayout(receivePolarizationGroupBox);
+    QRadioButton *receiveHorizontal = new QRadioButton("Горизонтальный");
+    QRadioButton *receiveVertical = new QRadioButton("Вертикальный");
+    QRadioButton *receiveCircular = new QRadioButton("Круговой");
+    receivePolarizationLayout->addWidget(receiveHorizontal);
+    receivePolarizationLayout->addWidget(receiveVertical);
+    receivePolarizationLayout->addWidget(receiveCircular);
+    receivePolarizationGroupBox->setLayout(receivePolarizationLayout);
+
+    // Компоновка поляризации излучения и приёма на одном уровне
+    QHBoxLayout *polarizationLayout = new QHBoxLayout();
+    polarizationLayout->addWidget(radiationPolarizationGroupBox);
+    polarizationLayout->addWidget(receivePolarizationGroupBox);
+
+    QGroupBox *polarizationGroupBox = new QGroupBox("Поляризация", controlWidget);
+    polarizationGroupBox->setLayout(polarizationLayout);
+
+    // Получаем рекомендованный размер по оси X
+    int recommendedWidth = polarizationGroupBox->sizeHint().width();
+
+    // Устанавливаем фиксированный размер по оси Y и оставляем рекомендованный размер по оси X
+    polarizationGroupBox->setFixedSize(recommendedWidth, 150);
 
     // Группа для диапазона частот и подстилающей поверхности
     freqBandComboBox = new QComboBox(controlWidget);
@@ -185,19 +217,16 @@ MainWindow::MainWindow(QWidget *parent)
 
     pplaneCheckBox = new QCheckBox("Включить подстилающую поверхность", controlWidget);
 
-    // Группа параметров
-    QGroupBox *parametersGroupBox = new QGroupBox("Параметры", controlWidget);
-    QFormLayout *parametersLayout = new QFormLayout(parametersGroupBox);
-    parametersLayout->addRow(new QLabel("Поляризация:"), inputPolarization);
-    parametersLayout->addRow(new QLabel("Диапазон:"), freqBandComboBox);
-    parametersLayout->addRow(pplaneCheckBox);
-    parametersGroupBox->setLayout(parametersLayout);
+    QGroupBox *frequencyAndPlaneGroupBox = new QGroupBox("Параметры", controlWidget);
+    QFormLayout *frequencyAndPlaneLayout = new QFormLayout(frequencyAndPlaneGroupBox);
+    frequencyAndPlaneLayout->addRow(new QLabel("Диапазон частот:"), freqBandComboBox);
+    frequencyAndPlaneLayout->addRow(pplaneCheckBox);
+    frequencyAndPlaneGroupBox->setLayout(frequencyAndPlaneLayout);
 
-    // Настройка размеров элементов параметров
-    inputPolarization->setFixedSize(150, 30);
-    freqBandComboBox->setFixedSize(150, 30);
+    // Настройка размеров элементов для диапазона частот и подстилающей поверхности
+    freqBandComboBox->setFixedSize(250, 30);
     pplaneCheckBox->setFixedSize(235, 30);
-    parametersGroupBox->setFixedSize(250, 150);
+    frequencyAndPlaneGroupBox->setFixedSize(400, 100);
 
     // Группа для портретных типов
     QGroupBox *portraitTypeGroupBox = new QGroupBox("Портретные типы", controlWidget);
@@ -221,11 +250,17 @@ MainWindow::MainWindow(QWidget *parent)
     // Компоновка параметров и портретных типов в одну строку
     QHBoxLayout *parametersAndPortraitLayout = new QHBoxLayout();
     parametersAndPortraitLayout->addWidget(portraitTypeGroupBox);
-    parametersAndPortraitLayout->addWidget(parametersGroupBox);
+    parametersAndPortraitLayout->addWidget(polarizationGroupBox);
 
     QWidget *parametersAndPortraitWidget = new QWidget();
     parametersAndPortraitWidget->setLayout(parametersAndPortraitLayout);
+
+    // Устанавливаем фиксированный размер для parametersAndPortraitWidget
+    parametersAndPortraitWidget->setFixedSize(parametersAndPortraitLayout->sizeHint());
     formLayout->addRow(parametersAndPortraitWidget);
+
+    // Добавляем группу для диапазона частот и подстилающей поверхности в основной макет
+    formLayout->addRow(frequencyAndPlaneGroupBox);
 
     // Элементы для ввода углов поворота
     inputRotationX = new QDoubleSpinBox(controlWidget);
@@ -523,16 +558,26 @@ void MainWindow::performCalculation() {
         return;
     }
 
-    QString polarizationText = inputPolarization->currentText();
+    QString polarizationRadiationText = inputPolarizationRadiation->currentText();
+    QString polarizationReceiveText = inputPolarizationReceive->currentText();
 
     int polarRadiation = 0;
     int polarRecive = 0;
-    if (polarizationText == "Горизонтальный") {
+
+    if (polarizationRadiationText == "Горизонтальный") {
         polarRadiation = 1;
-        polarRecive = 1;
-    } else if (polarizationText == "Круговой") {
+    } else if (polarizationRadiationText == "Круговой") {
         polarRadiation = 2;
+    } else if (polarizationRadiationText == "Вертикальный") {
+        polarRadiation = 0;
+    }
+
+    if (polarizationReceiveText == "Горизонтальный") {
+        polarRecive = 1;
+    } else if (polarizationReceiveText == "Круговой") {
         polarRecive = 2;
+    } else if (polarizationReceiveText == "Вертикальный") {
+        polarRecive = 0;
     }
 
     bool typeAngle = anglePortraitCheckBox->isChecked();
