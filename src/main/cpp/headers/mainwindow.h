@@ -5,7 +5,7 @@
 #include "parser.h"
 #include "raytracer.h"
 #include "triangleclient.h"
-#include "portraitwidget.h"
+#include "portraitwindow.h"
 #include <QMainWindow>
 #include <QPushButton>
 #include <QLineEdit>
@@ -19,6 +19,14 @@
 #include <QVector>
 #include <QListWidget>
 #include <QCheckBox>
+#include <QJsonObject>
+#include <QJsonArray>
+
+class OpenGLWidget;
+class Parser;
+class RayTracer;
+class TriangleClient;
+class PortraitWindow;
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -71,7 +79,7 @@ private:
     QJsonObject vectorToJson(const QSharedPointer<const rVect>& vector);
     void extractValues(const QJsonArray &array, QVector<double> &container, int depth);
     void displayResults(const QJsonObject &results);
-    PortraitWidget *portraitWidget;
+    PortraitWindow *portraitWindow;
     double calculateAngle(int index, int totalSteps);
     double calculateAzimuth(int index, int totalSteps);
     bool isDarkTheme;

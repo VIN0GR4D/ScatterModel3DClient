@@ -6,6 +6,7 @@
 #include "aboutdialog.h"
 #include "graphwindow.h"
 #include "logindialog.h"
+#include "portraitwindow.h"
 #include <QFile>
 #include <QFileDialog>
 #include <QFormLayout>
@@ -40,6 +41,7 @@ MainWindow::MainWindow(QWidget *parent)
     , parser(new Parser(this))
     , rayTracer(std::make_unique<RayTracer>())
     , serverEnabled(false)
+    , portraitWindow(new PortraitWindow(this))
     , isDarkTheme(true)
 {
     ui->setupUi(this);
@@ -289,12 +291,6 @@ MainWindow::MainWindow(QWidget *parent)
     logDisplay->setFixedSize(380, 150);
     saveLogButton->setFixedSize(380, 30);
 
-    // Создание нового виджета для двумерного портрета
-    portraitWidget = new PortraitWidget(this);
-    QDockWidget *portraitDockWidget = new QDockWidget("Двумерный портрет", this);
-    portraitDockWidget->setWidget(portraitWidget);
-    addDockWidget(Qt::RightDockWidgetArea, portraitDockWidget);
-
     setWindowTitle("ScatterModel3DClient");
 
     this->resize(1280, 720);
@@ -451,27 +447,7 @@ void MainWindow::displayResults(const QJsonObject &results) {
         extractValues(normEoutArray, normEout, 3);
     }
 
-    // Подготовка данных для двумерного портрета
-    int totalSteps = static_cast<int>(sqrt(absEout.size()));
-    // if (totalSteps * totalSteps != absEout.size()) {
-    //     logMessage("Ошибка: данные absEout не квадратные.");
-    //     return;
-    // }
-
-    QVector<double> xData, yData, zData;
-    for (int i = 0; i < absEout.size(); ++i) {
-        int angleIndex = i % totalSteps;
-        int azimuthIndex = i / totalSteps;
-        double angle = calculateAngle(angleIndex, totalSteps);
-        double azimuth = calculateAzimuth(azimuthIndex, totalSteps);
-        double eoutValue = absEout[i];
-        xData.append(angle);
-        yData.append(azimuth);
-        zData.append(eoutValue);
-    }
-
-    portraitWidget->setData(xData, yData, zData);
-    qDebug() << "2D Portrait data prepared";
+    portraitWindow->setData(absEout, normEout); // Обновление данных в окне
 }
 
 void MainWindow::applyRotation() {
@@ -712,22 +688,19 @@ double MainWindow::calculateAzimuth(int index, int totalSteps) {
     return index * stepSize;
 }
 
-void MainWindow::showPortrait() {
-    QVector<double> xData, yData, zData;
-    int totalSteps = static_cast<int>(sqrt(absEout.size())); // Предполагаем, что данные квадратные
-    for (int i = 0; i < absEout.size(); ++i) {
-        int angleIndex = i % totalSteps;
-        int azimuthIndex = i / totalSteps;
-        double angle = calculateAngle(angleIndex, totalSteps);
-        double azimuth = calculateAzimuth(azimuthIndex, totalSteps);
-        double eoutValue = absEout[i];
-        xData.append(angle);
-        yData.append(azimuth);
-        zData.append(eoutValue);
+void MainWindow::showPortrait()
+{
+    if (absEout.isEmpty() || normEout.isEmpty()) {
+        logMessage("Ошибка: отсутствуют данные для построения 2D портрета.");
+        return;
     }
 
-    portraitWidget->setData(xData, yData, zData);
-    qDebug() << "2D Portrait data set";
+    // Отладочный вывод
+    qDebug() << "Showing Portrait with absEout:" << absEout << "normEout:" << normEout;
+
+    portraitWindow->setData(absEout, normEout);
+    portraitWindow->show();
+    logMessage("2D портрет отображён.");
 }
 
 // Метод для переключения темы
