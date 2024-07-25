@@ -35,6 +35,9 @@ QString storedResults;
 QComboBox *freqBandComboBox;
 QCheckBox *pplaneCheckBox;
 
+QComboBox *radiationPolarizationComboBox;
+QComboBox *receivePolarizationComboBox;
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
@@ -176,25 +179,105 @@ MainWindow::MainWindow(QWidget *parent)
 
     formLayout->addRow(serverConnectionGroupBox);
 
+    // // Элементы пользовательского интерфейса для ввода параметров
+    // QGroupBox *radiationPolarizationGroupBox = new QGroupBox("Излучения", controlWidget);
+    // QVBoxLayout *radiationPolarizationLayout = new QVBoxLayout(radiationPolarizationGroupBox);
+    // QRadioButton *radiationHorizontal = new QRadioButton("Горизонтальный");
+    // QRadioButton *radiationVertical = new QRadioButton("Вертикальный");
+    // QRadioButton *radiationCircular = new QRadioButton("Круговой");
+    // radiationPolarizationLayout->addWidget(radiationHorizontal);
+    // radiationPolarizationLayout->addWidget(radiationVertical);
+    // radiationPolarizationLayout->addWidget(radiationCircular);
+    // radiationPolarizationGroupBox->setLayout(radiationPolarizationLayout);
+
+    // QGroupBox *receivePolarizationGroupBox = new QGroupBox("Приёма", controlWidget);
+    // QVBoxLayout *receivePolarizationLayout = new QVBoxLayout(receivePolarizationGroupBox);
+    // QRadioButton *receiveHorizontal = new QRadioButton("Горизонтальный");
+    // QRadioButton *receiveVertical = new QRadioButton("Вертикальный");
+    // QRadioButton *receiveCircular = new QRadioButton("Круговой");
+    // receivePolarizationLayout->addWidget(receiveHorizontal);
+    // receivePolarizationLayout->addWidget(receiveVertical);
+    // receivePolarizationLayout->addWidget(receiveCircular);
+    // receivePolarizationGroupBox->setLayout(receivePolarizationLayout);
+
+    // // Компоновка поляризации излучения и приёма на одном уровне
+    // QHBoxLayout *polarizationLayout = new QHBoxLayout();
+    // polarizationLayout->addWidget(radiationPolarizationGroupBox);
+    // polarizationLayout->addWidget(receivePolarizationGroupBox);
+
+    // QGroupBox *polarizationGroupBox = new QGroupBox("Поляризация", controlWidget);
+    // polarizationGroupBox->setLayout(polarizationLayout);
+
+    // // Получаем рекомендованный размер по оси X
+    // int recommendedWidth = polarizationGroupBox->sizeHint().width();
+
+    // // Устанавливаем фиксированный размер по оси Y и оставляем рекомендованный размер по оси X
+    // polarizationGroupBox->setFixedSize(recommendedWidth, 150);
+
+    // // Группа для диапазона частот и подстилающей поверхности
+    // freqBandComboBox = new QComboBox(controlWidget);
+    // freqBandComboBox->addItems({"P-диапазон (400-450 МГц)", "L-диапазон (1-1.5 ГГц)", "S-диапазон (2.75-3.15 ГГц)", "C-диапазон (5-5.5 ГГц)", "X-диапазон (9-10 ГГц)", "Ka-диапазон (36.5-38.5 ГГц)"});
+
+    // pplaneCheckBox = new QCheckBox("Включить подстилающую поверхность", controlWidget);
+
+    // QGroupBox *frequencyAndPlaneGroupBox = new QGroupBox("Параметры", controlWidget);
+    // QFormLayout *frequencyAndPlaneLayout = new QFormLayout(frequencyAndPlaneGroupBox);
+    // frequencyAndPlaneLayout->addRow(new QLabel("Диапазон частот:"), freqBandComboBox);
+    // frequencyAndPlaneLayout->addRow(pplaneCheckBox);
+    // frequencyAndPlaneGroupBox->setLayout(frequencyAndPlaneLayout);
+
+    // // Настройка размеров элементов для диапазона частот и подстилающей поверхности
+    // freqBandComboBox->setFixedSize(250, 30);
+    // pplaneCheckBox->setFixedSize(235, 30);
+    // frequencyAndPlaneGroupBox->setFixedSize(400, 100);
+
+    // // Группа для портретных типов
+    // QGroupBox *portraitTypeGroupBox = new QGroupBox("Портретные типы", controlWidget);
+    // QVBoxLayout *portraitTypeLayout = new QVBoxLayout(portraitTypeGroupBox);
+
+    // azimuthPortraitCheckBox = new QCheckBox("Азимутальный", portraitTypeGroupBox);
+    // anglePortraitCheckBox = new QCheckBox("Угломестный", portraitTypeGroupBox);
+    // rangePortraitCheckBox = new QCheckBox("Дальностный", portraitTypeGroupBox);
+
+    // portraitTypeLayout->addWidget(anglePortraitCheckBox);
+    // portraitTypeLayout->addWidget(azimuthPortraitCheckBox);
+    // portraitTypeLayout->addWidget(rangePortraitCheckBox);
+
+    // azimuthPortraitCheckBox->setFixedSize(180, 30);
+    // anglePortraitCheckBox->setFixedSize(180, 30);
+    // rangePortraitCheckBox->setFixedSize(180, 30);
+    // portraitTypeGroupBox->setFixedSize(125, 150);
+
+    // portraitTypeGroupBox->setLayout(portraitTypeLayout);
+
+    // // Компоновка параметров и портретных типов в одну строку
+    // QHBoxLayout *parametersAndPortraitLayout = new QHBoxLayout();
+    // parametersAndPortraitLayout->addWidget(portraitTypeGroupBox);
+    // parametersAndPortraitLayout->addWidget(polarizationGroupBox);
+
+    // QWidget *parametersAndPortraitWidget = new QWidget();
+    // parametersAndPortraitWidget->setLayout(parametersAndPortraitLayout);
+
+    // // Устанавливаем фиксированный размер для parametersAndPortraitWidget
+    // parametersAndPortraitWidget->setFixedSize(parametersAndPortraitLayout->sizeHint());
+    // formLayout->addRow(parametersAndPortraitWidget);
+
+    // // Добавляем группу для диапазона частот и подстилающей поверхности в основной макет
+    // formLayout->addRow(frequencyAndPlaneGroupBox);
+
     // Элементы пользовательского интерфейса для ввода параметров
     QGroupBox *radiationPolarizationGroupBox = new QGroupBox("Излучения", controlWidget);
     QVBoxLayout *radiationPolarizationLayout = new QVBoxLayout(radiationPolarizationGroupBox);
-    QRadioButton *radiationHorizontal = new QRadioButton("Горизонтальный");
-    QRadioButton *radiationVertical = new QRadioButton("Вертикальный");
-    QRadioButton *radiationCircular = new QRadioButton("Круговой");
-    radiationPolarizationLayout->addWidget(radiationHorizontal);
-    radiationPolarizationLayout->addWidget(radiationVertical);
-    radiationPolarizationLayout->addWidget(radiationCircular);
+    radiationPolarizationComboBox = new QComboBox();
+    radiationPolarizationComboBox->addItems({"Горизонтальный", "Вертикальный", "Круговой"});
+    radiationPolarizationLayout->addWidget(radiationPolarizationComboBox);
     radiationPolarizationGroupBox->setLayout(radiationPolarizationLayout);
 
     QGroupBox *receivePolarizationGroupBox = new QGroupBox("Приёма", controlWidget);
     QVBoxLayout *receivePolarizationLayout = new QVBoxLayout(receivePolarizationGroupBox);
-    QRadioButton *receiveHorizontal = new QRadioButton("Горизонтальный");
-    QRadioButton *receiveVertical = new QRadioButton("Вертикальный");
-    QRadioButton *receiveCircular = new QRadioButton("Круговой");
-    receivePolarizationLayout->addWidget(receiveHorizontal);
-    receivePolarizationLayout->addWidget(receiveVertical);
-    receivePolarizationLayout->addWidget(receiveCircular);
+    receivePolarizationComboBox = new QComboBox();
+    receivePolarizationComboBox->addItems({"Горизонтальный", "Вертикальный", "Круговой"});
+    receivePolarizationLayout->addWidget(receivePolarizationComboBox);
     receivePolarizationGroupBox->setLayout(receivePolarizationLayout);
 
     // Компоновка поляризации излучения и приёма на одном уровне
@@ -546,6 +629,82 @@ QJsonObject MainWindow::vectorToJson(const QSharedPointer<const rVect>& vector) 
 }
 
 // Функция для выполнения расчета
+// void MainWindow::performCalculation() {
+//     QVector<QSharedPointer<triangle>> triangles = openGLWidget->getTriangles();
+//     if (triangles.isEmpty()) {
+//         logMessage("Ошибка: загруженный файл не содержит корректных данных объекта.");
+//         return;
+//     }
+
+//     if (!anglePortraitCheckBox->isChecked() && !azimuthPortraitCheckBox->isChecked() && !rangePortraitCheckBox->isChecked()) {
+//         logMessage("Ошибка: тип радиопортрета не задан. Пожалуйста, выберите хотя бы один тип радиопортрета.");
+//         return;
+//     }
+
+//     int polarRadiation = radiationPolarizationComboBox->currentIndex();
+//     int polarRecive = receivePolarizationComboBox->currentIndex();
+
+//     bool typeAngle = anglePortraitCheckBox->isChecked();
+//     bool typeAzimut = azimuthPortraitCheckBox->isChecked();
+//     bool typeLength = rangePortraitCheckBox->isChecked();
+
+//     // Получение значения диапазона частот
+//     int freqBand = freqBandComboBox->currentIndex();
+
+//     // Получение значения подстилающей поверхности
+//     bool pplane = pplaneCheckBox->isChecked();
+
+//     QJsonObject dataObject;
+//     QJsonArray visibleTrianglesArray;
+
+//     int index = 0;
+//     for (const auto& tri : triangles) {
+//         QSharedPointer<rVect> v1 = tri->getV1();
+//         QSharedPointer<rVect> v2 = tri->getV2();
+//         QSharedPointer<rVect> v3 = tri->getV3();
+
+//         dataObject[QString::number(index++)] = v1->getX();
+//         dataObject[QString::number(index++)] = v1->getY();
+//         dataObject[QString::number(index++)] = v1->getZ();
+//         dataObject[QString::number(index++)] = v2->getX();
+//         dataObject[QString::number(index++)] = v2->getY();
+//         dataObject[QString::number(index++)] = v2->getZ();
+//         dataObject[QString::number(index++)] = v3->getX();
+//         dataObject[QString::number(index++)] = v3->getY();
+//         dataObject[QString::number(index++)] = v3->getZ();
+
+//         visibleTrianglesArray.append(tri->getVisible());
+
+//         qDebug() << "Triangle" << index / 9 << ":"
+//                  << "V1(" << v1->getX() << "," << v1->getY() << "," << v1->getZ() << "),"
+//                  << "V2(" << v2->getX() << "," << v2->getY() << "," << v2->getZ() << "),"
+//                  << "V3(" << v3->getX() << "," << v3->getY() << "," << v3->getZ() << "),"
+//                  << "Visible:" << tri->getVisible();
+//     }
+
+//     QVector3D cameraPosition = openGLWidget->getCameraPosition();
+//     rVect directVector = openGLWidget->QVector3DToRVect(cameraPosition);
+
+//     QJsonObject modelData;
+//     modelData["data"] = dataObject;
+//     modelData["visibleTriangles"] = visibleTrianglesArray;
+//     modelData["freqBand"] = freqBand;
+//     modelData["polarRadiation"] = polarRadiation;
+//     modelData["polarRecive"] = polarRecive;
+//     modelData["typeAngle"] = typeAngle;
+//     modelData["typeAzimut"] = typeAzimut;
+//     modelData["typeLength"] = typeLength;
+//     modelData["pplane"] = pplane;
+//     modelData["directVector"] = vectorToJson(QSharedPointer<rVect>::create(directVector));
+
+//     // QJsonDocument doc(modelData);
+//     // qDebug() << "Model data to be sent to server:" << doc.toJson(QJsonDocument::Indented);
+
+//     sendDataAfterAuthorization([this, modelData]() {
+//         triangleClient->sendModelData(modelData);
+//     });
+// }
+
 void MainWindow::performCalculation() {
     QVector<QSharedPointer<triangle>> triangles = openGLWidget->getTriangles();
     if (triangles.isEmpty()) {
@@ -558,66 +717,49 @@ void MainWindow::performCalculation() {
         return;
     }
 
-    QString polarizationRadiationText = inputPolarizationRadiation->currentText();
-    QString polarizationReceiveText = inputPolarizationReceive->currentText();
-
-    int polarRadiation = 0;
-    int polarRecive = 0;
-
-    if (polarizationRadiationText == "Горизонтальный") {
-        polarRadiation = 1;
-    } else if (polarizationRadiationText == "Круговой") {
-        polarRadiation = 2;
-    } else if (polarizationRadiationText == "Вертикальный") {
-        polarRadiation = 0;
-    }
-
-    if (polarizationReceiveText == "Горизонтальный") {
-        polarRecive = 1;
-    } else if (polarizationReceiveText == "Круговой") {
-        polarRecive = 2;
-    } else if (polarizationReceiveText == "Вертикальный") {
-        polarRecive = 0;
-    }
+    int polarRadiation = radiationPolarizationComboBox->currentIndex();
+    int polarRecive = receivePolarizationComboBox->currentIndex();
 
     bool typeAngle = anglePortraitCheckBox->isChecked();
     bool typeAzimut = azimuthPortraitCheckBox->isChecked();
     bool typeLength = rangePortraitCheckBox->isChecked();
 
     // Получение значения диапазона частот
-    int freqBand = freqBandComboBox->currentData().toInt();
+    int freqBand = freqBandComboBox->currentIndex();
 
     // Получение значения подстилающей поверхности
     bool pplane = pplaneCheckBox->isChecked();
 
     QJsonObject dataObject;
+    QJsonArray coordinateArray;
     QJsonArray visibleTrianglesArray;
 
-    int index = 0;
     for (const auto& tri : triangles) {
         QSharedPointer<rVect> v1 = tri->getV1();
         QSharedPointer<rVect> v2 = tri->getV2();
         QSharedPointer<rVect> v3 = tri->getV3();
 
-        dataObject[QString::number(index++)] = v1->getX();
-        dataObject[QString::number(index++)] = v1->getY();
-        dataObject[QString::number(index++)] = v1->getZ();
-        dataObject[QString::number(index++)] = v2->getX();
-        dataObject[QString::number(index++)] = v2->getY();
-        dataObject[QString::number(index++)] = v2->getZ();
-        dataObject[QString::number(index++)] = v3->getX();
-        dataObject[QString::number(index++)] = v3->getY();
-        dataObject[QString::number(index++)] = v3->getZ();
+        coordinateArray.append(v1->getX());
+        coordinateArray.append(v1->getY());
+        coordinateArray.append(v1->getZ());
+        coordinateArray.append(v2->getX());
+        coordinateArray.append(v2->getY());
+        coordinateArray.append(v2->getZ());
+        coordinateArray.append(v3->getX());
+        coordinateArray.append(v3->getY());
+        coordinateArray.append(v3->getZ());
 
         visibleTrianglesArray.append(tri->getVisible());
     }
 
-    QVector3D cameraPosition = openGLWidget->getCameraPosition();
-    rVect directVector = openGLWidget->QVector3DToRVect(-cameraPosition);
+    // QVector3D cameraPosition = openGLWidget->getCameraPosition();
+    // rVect directVector = openGLWidget->QVector3DToRVect(cameraPosition);
+    QVector3D waveDirection(0.0f, 0.0f, -1.0f); // Например, волна падает вдоль оси X
+    rVect directVector = openGLWidget->QVector3DToRVect(waveDirection);
 
     QJsonObject modelData;
-    modelData["data"] = dataObject;
-    modelData["visbleTriangles"] = visibleTrianglesArray;
+    modelData["data"] = coordinateArray;
+    modelData["visibleTriangles"] = visibleTrianglesArray;
     modelData["freqBand"] = freqBand;
     modelData["polarRadiation"] = polarRadiation;
     modelData["polarRecive"] = polarRecive;
@@ -627,8 +769,8 @@ void MainWindow::performCalculation() {
     modelData["pplane"] = pplane;
     modelData["directVector"] = vectorToJson(QSharedPointer<rVect>::create(directVector));
 
-    // QJsonDocument doc(modelData);
-    // qDebug() << "Model data to be sent to server:" << doc.toJson(QJsonDocument::Indented);
+    QJsonDocument doc(modelData);
+    qDebug() << "Model data to be sent to server:" << doc.toJson(QJsonDocument::Indented);
 
     sendDataAfterAuthorization([this, modelData]() {
         triangleClient->sendModelData(modelData);

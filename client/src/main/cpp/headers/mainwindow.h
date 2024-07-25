@@ -21,6 +21,7 @@
 #include <QCheckBox>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QRadioButton>
 
 class OpenGLWidget;
 class Parser;

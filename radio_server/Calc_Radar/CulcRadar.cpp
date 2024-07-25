@@ -183,23 +183,48 @@ node culcradar::get_Node(size_t iNode)
 int culcradar::build_Model(QJsonObject &jsonObject, QHash<uint, node> &Node, QHash<uint,edge> &Edge)
 {
 //загружаем вершины из jsonObject
- QJsonObject coord;
- std::vector<double> n_coord;
- int n = 0;
- if (jsonObject.contains("data")) {
-     coord = jsonObject.value("data").toObject();
-     n = coord.count();
-     assert(n > 0);
-     for (int i = 0; i < n; i++) {
-         QString ii = QString::number(i);
-         if (coord.contains(ii)) {
-             n_coord.push_back(coord.value(ii).toDouble());
-         }
-     }
+ // QJsonObject coord;
+ // std::vector<double> n_coord;
+ // int n = 0;
+ // if (jsonObject.contains("data")) {
+ //     coord = jsonObject.value("data").toObject();
+ //     qDebug() << "Received data:" << coord;
+ //     qDebug() << coord;
+ //     n = coord.count();
+ //     assert(n > 0);
+ //     for (int i = 0; i < n; i++) {
+ //         QString ii = QString::number(i);
+ //         if (coord.contains(ii)) {
+ //             double value = coord.value(ii).toDouble();
+ //             n_coord.push_back(value);
+ //             qDebug() << "Coordinate" << i << ":" << value;
+ //         }
+ //     }
+ // } else {
+ //     qDebug() << "Error: 'data' not found in JSON";
+ //     return 1; // ошибка
+ // }
+    QJsonArray coordArray;
+    std::vector<double> n_coord;
+
+    if (jsonObject.contains("data")) {
+        coordArray = jsonObject.value("data").toArray();
+        qDebug() << "Received data:" << coordArray;
+        for (auto value : coordArray) {
+            n_coord.push_back(value.toDouble());
+        }
+    } else {
+        qDebug() << "Error: 'data' not found in JSON";
+        return 1; // ошибка
+    }
+
+ // ѕроверка количества координат
+ if (n_coord.size() % 9 != 0) {
+     qDebug() << "Error: Number of coordinates is not a multiple of 9";
+     return 1; // ошибка
  }
-else {
-     return 1;//ошибка
- }
+
+
 //из вершин формируем повтор€ющиес€ треугольники
  std::vector<std::vector<std::vector<double>>> tri;
  if (n_coord.size() % 9 == 0) tri.resize(n_coord.size()/9); //проверка на остаток от делени€
@@ -211,6 +236,7 @@ else {
          tri[i][j].resize(3);
          for (int k = 0; k < 3; k++) {
              tri[i][j][k] = n_coord[jj];
+             qDebug() << "Triangle" << i << "Vertex" << j << "Coordinate" << k << ":" << n_coord[jj];
              jj++;
          }
      }
@@ -297,15 +323,18 @@ else {
  QJsonArray qvisible;
  std::vector<bool> n_visible;
  int n_vis = 0;
- if (jsonObject.contains("visbleTriangles")) {
-    qvisible =jsonObject.value("visbleTriangles").toArray();
-    n_vis = qvisible.count();
-    for (int i = 0; i < n_vis; i++){
-        n_visible.push_back(qvisible.at(i).toBool());
-    }
- }
- else {
-     return 2; //ошибка
+
+ if (jsonObject.contains("visibleTriangles")) {
+     qvisible = jsonObject.value("visibleTriangles").toArray();
+     n_vis = qvisible.count();
+     for (int i = 0; i < n_vis; i++) {
+         bool visible = qvisible.at(i).toBool();
+         n_visible.push_back(visible);
+         qDebug() << "Triangle" << i << "visible:" << visible;
+     }
+ } else {
+     qDebug() << "Error: 'visibleTriangles' not found in JSON";
+     return 2; // ошибка
  }
 
  //заполн€ем массив треугольников triangles
@@ -376,42 +405,55 @@ else {
  int freqband = -1;
  if (jsonObject.contains("freqBand")) {
      freqband = jsonObject.value("freqBand").toInt();
+     qDebug() << "freqBand:" << freqband;
  }
  radar_wave wave1(freqband);
  //установка пол€ризации волны
  int inc_polariz, ref_polariz;
  if (jsonObject.contains("polarRadiation")) {
      if (jsonObject.contains("polarRecive")) {
-        inc_polariz = jsonObject.value("polarRadiation").toInt();
-        ref_polariz = jsonObject.value("polarRecive").toInt();
-     }
-    int err = wave1.setPolariz(inc_polariz,ref_polariz,Nin,Ein);
-     if (err > 0) {
+         inc_polariz = jsonObject.value("polarRadiation").toInt();
+         ref_polariz = jsonObject.value("polarRecive").toInt();
+         qDebug() << "polarRadiation:" << inc_polariz;
+         qDebug() << "polarRecive:" << ref_polariz;
+
+         int err = wave1.setPolariz(inc_polariz, ref_polariz, Nin, Ein);
+         if (err > 0) {
+             qDebug() << "Error in setPolariz, code:" << err;
+             return 4;
+         }
+     } else {
+         qDebug() << "Error: 'polarRecive' not found in JSON";
          return 4;
      }
-  }
- else return 4;
+ } else {
+     qDebug() << "Error: 'polarRadiation' not found in JSON";
+     return 4;
+ }
+
 
  set_wave(2*Pi/wave1.getLambda());
 
  //6. установка типа радиопортрета
  bool azimuth_radar_image, elevation_radar_image, range_radar_image;
  if (jsonObject.contains("typeAngle")) {
-    elevation_radar_image = jsonObject.value("typeAngle").toBool();
+     elevation_radar_image = jsonObject.value("typeAngle").toBool();
+     qDebug() << "typeAngle:" << elevation_radar_image;
  }
  if (jsonObject.contains("typeAzimut")) {
-    azimuth_radar_image = jsonObject.value("typeAzimut").toBool();
+     azimuth_radar_image = jsonObject.value("typeAzimut").toBool();
+     qDebug() << "typeAzimut:" << azimuth_radar_image;
  }
  if (jsonObject.contains("typeLength")) {
-    range_radar_image = jsonObject.value("typeLength").toBool();
+     range_radar_image = jsonObject.value("typeLength").toBool();
+     qDebug() << "typeLength:" << range_radar_image;
  }
- if (!(elevation_radar_image +
-       azimuth_radar_image + range_radar_image)) {
+ if (!(elevation_radar_image + azimuth_radar_image + range_radar_image)) {
+     qDebug() << "Error: No radar portrait type selected";
      return 5;
- }
- else {
-    set_boolXYZ(azimuth_radar_image,range_radar_image,elevation_radar_image);
-    set_stepXYZ(wave1.getStepX(),wave1.getStepY(),wave1.getStepZ());
+ } else {
+     set_boolXYZ(azimuth_radar_image, range_radar_image, elevation_radar_image);
+     set_stepXYZ(wave1.getStepX(), wave1.getStepY(), wave1.getStepZ());
  }
 
  //вычисл€ем максимальный радиус модели Lmax
@@ -443,29 +485,34 @@ else {
  set_Lmax(Lmax); //установка Lmax
 
  //извлекаем признак подстилающей поверхности
-  if (jsonObject.contains("pplane")) {
-     set_ref(jsonObject.value("pplane").toBool()); //установка Aref
+ if (jsonObject.contains("pplane")) {
+     bool pplane = jsonObject.value("pplane").toBool();
+     set_ref(pplane);
+     qDebug() << "pplane:" << pplane;
   }
 
  //извлекаем направление падени€ волны
   QJsonObject qdirectv;
   rVect aEin;
   if (jsonObject.contains("directVector")) {
-      qdirectv = jsonObject.value("directVector").toObject();
+      QJsonObject qdirectv = jsonObject.value("directVector").toObject();
       double x = qdirectv.value("x").toDouble();
       double y = qdirectv.value("y").toDouble();
       double z = qdirectv.value("z").toDouble();
-      rVect In(x,y,z);
+      rVect In(x, y, z);
       Nin = In;
-      rVect Ref(Nin.getX(),Nin.getY(),-Nin.getZ());
+      rVect Ref(Nin.getX(), Nin.getY(), -Nin.getZ());
       NinRef = Ref;
       rVect Out(-Nin.getX(), -Nin.getY(), -Nin.getZ());
-      rVect OutRef(-Nin.getX(),-Nin.getY(), Nin.getZ());
-      Nout = Out; NoutRef = OutRef;
-      //Nout.setPoint(-cosphi * sintheta, -sinphi * sintheta, costheta);
-      //NoutRef.setPoint(-cosphi * sintheta, -sinphi * sintheta, -costheta);
+      rVect OutRef(-Nin.getX(), -Nin.getY(), Nin.getZ());
+      Nout = Out;
+      NoutRef = OutRef;
+
+      qDebug() << "directVector: (" << x << "," << y << "," << z << ")";
+  } else {
+      qDebug() << "Error: 'directVector' not found in JSON";
+      return 3; // ошибка, если directVector не задан
   }
-  else return 3;
 
 
 
