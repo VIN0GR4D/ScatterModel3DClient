@@ -84,6 +84,7 @@ private:
     double calculateAngle(int index, int totalSteps);
     double calculateAzimuth(int index, int totalSteps);
     bool isDarkTheme;
+    int freqBand;
 };
 
 #endif // MAINWINDOW_H

@@ -725,7 +725,7 @@ void MainWindow::performCalculation() {
     bool typeLength = rangePortraitCheckBox->isChecked();
 
     // Получение значения диапазона частот
-    int freqBand = freqBandComboBox->currentIndex();
+    freqBand = freqBandComboBox->currentIndex();
 
     // Получение значения подстилающей поверхности
     bool pplane = pplaneCheckBox->isChecked();
@@ -849,9 +849,21 @@ void MainWindow::openResultsWindow() {
 void MainWindow::openGraphWindow() {
     GraphWindow *graphWindow = new GraphWindow(this);
 
+    // Определение шага по оси X в зависимости от freqBand
+    double stepX;
+    switch (freqBand) {
+    case 0: stepX = 1.5; break; // P-диапазон
+    case 1: stepX = 0.5; break; // L-диапазон
+    case 2: stepX = 0.5; break; // S-диапазон
+    case 3: stepX = 0.5; break; // C-диапазон
+    case 4: stepX = 0.25; break; // X-диапазон
+    case 5: stepX = 0.125; break; // Ka-диапазон
+    default: stepX = 1.0; break; // Значение по умолчанию
+    }
+
     QVector<double> x;
     for (int i = 0; i < absEout.size(); ++i) {
-        x.append(i);
+        x.append(i * stepX);
     }
 
     qDebug() << "x:" << x;

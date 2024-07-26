@@ -21,6 +21,7 @@ private:
     QVector<double> normEout;
 
     void drawPortrait(QPainter &painter);
+    void drawGrid(QPainter &painter, int width, int height);
 };
 
 #endif // PORTRAITWINDOW_H
