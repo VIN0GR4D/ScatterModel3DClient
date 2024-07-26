@@ -1,0 +1,126 @@
+QMainWindow {
+    background-color: #F8F8F8; /* Светло-серый фон */
+    color: #2E2E2E; /* Темно-серый текст */
+}
+
+QWidget {
+    background-color: #F8F8F8; /* Светло-серый фон */
+    color: #2E2E2E; /* Темно-серый текст */
+}
+
+QPushButton {
+    background-color: #E0E0E0; /* Светло-серый фон */
+    color: #2E2E2E; /* Темно-серый текст */
+    border: 1px solid #B0B0B0; /* Серо-зеленая граница */
+    padding: 5px;
+    border-radius: 3px;
+}
+
+QPushButton:hover {
+    background-color: #D0D0D0; /* Темно-серый при наведении */
+}
+
+QLineEdit {
+    background-color: #FFFFFF; /* Белый фон для ввода */
+    color: #2E2E2E; /* Темно-серый текст */
+    border: 1px solid #B0B0B0; /* Серо-зеленая граница */
+    padding: 5px;
+    border-radius: 3px;
+}
+
+QComboBox {
+    background-color: #FFFFFF; /* Белый фон */
+    color: #2E2E2E; /* Темно-серый текст */
+    border: 1px solid #B0B0B0; /* Серо-зеленая граница */
+    padding: 5px;
+    border-radius: 3px;
+}
+
+QTextEdit {
+    background-color: #FFFFFF; /* Белый фон */
+    color: #2E2E2E; /* Темно-серый текст */
+    border: 1px solid #B0B0B0; /* Серо-зеленая граница */
+    padding: 5px;
+    border-radius: 3px;
+}
+
+QLabel {
+    color: #2E2E2E; /* Темно-серый текст */
+}
+
+QGroupBox {
+    border: 1px solid #B0B0B0; /* Серо-зеленая граница */
+    margin-top: 20px;
+    border-radius: 5px;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    padding: 0 3px;
+    background-color: #F8F8F8; /* Светло-серый фон */
+    color: #2E2E2E; /* Темно-серый текст */
+}
+
+QScrollBar:vertical {
+    border: 1px solid #B0B0B0; /* Серо-зеленая граница */
+    background: #E8E8E8; /* Очень светло-серый фон */
+    width: 15px;
+    margin: 22px 0 22px 0;
+}
+
+QScrollBar::handle:vertical {
+    background: #D0D0D0; /* Темно-серый полоса прокрутки */
+    min-height: 20px;
+    border-radius: 5px;
+}
+
+QScrollBar::add-line:vertical {
+    border: 1px solid #B0B0B0; /* Серо-зеленая граница */
+    background: #B0B0B0; /* Серо-зеленый */
+    height: 20px;
+    subcontrol-position: bottom;
+    subcontrol-origin: margin;
+    border-bottom-left-radius: 5px;
+    border-bottom-right-radius: 5px;
+}
+
+QScrollBar::sub-line:vertical {
+    border: 1px solid #B0B0B0; /* Серо-зеленая граница */
+    background: #B0B0B0; /* Серо-зеленый */
+    height: 20px;
+    subcontrol-position: top;
+    subcontrol-origin: margin;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+}
+
+QScrollBar::up-arrow:vertical, QScrollBar::down-arrow:vertical {
+    border: 1px solid #B0B0B0; /* Серо-зеленая граница */
+    width: 3px;
+    height: 3px;
+    background: white;
+}
+
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+    background: none;
+}
+
+QTabBar::tab {
+    background: #E0E0E0; /* Светло-серый фон */
+    color: #2E2E2E; /* Темно-серый текст */
+    padding: 10px;
+    border: 1px solid #B0B0B0; /* Серо-зеленая граница */
+    border-bottom: none; /* Убираем нижнюю границу для активной вкладки */
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+}
+
+QTabBar::tab:selected {
+    background: #D0D0D0; /* Более темный серый для выбранной вкладки */
+    border-color: #D0D0D0;
+}
+
+QTabBar::tab:!selected {
+    margin-top: 3px; /* Добавляем небольшой отступ для невыбранных вкладок */
+}

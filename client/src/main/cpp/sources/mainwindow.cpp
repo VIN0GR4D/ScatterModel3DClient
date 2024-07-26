@@ -754,7 +754,7 @@ void MainWindow::performCalculation() {
 
     // QVector3D cameraPosition = openGLWidget->getCameraPosition();
     // rVect directVector = openGLWidget->QVector3DToRVect(cameraPosition);
-    QVector3D waveDirection(0.0f, 0.0f, -1.0f); // Например, волна падает вдоль оси X
+    QVector3D waveDirection(0.0f, 0.0f, -1.0f);
     rVect directVector = openGLWidget->QVector3DToRVect(waveDirection);
 
     QJsonObject modelData;

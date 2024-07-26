@@ -11,5 +11,6 @@
         <file>dark-theme.png</file>
         <file>download.png</file>
         <file>login-icon.png</file>
+        <file>lighttheme.qss</file>
     </qresource>
 </RCC>
