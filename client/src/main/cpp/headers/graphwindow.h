@@ -15,10 +15,11 @@ private slots:
     void toggleAbsEout(bool checked);
     void toggleNormEout(bool checked);
     void resetZoom();
+    void toggleLogarithmicScale(bool checked);
 
 private:
     QCustomPlot *customPlot;
-    QCheckBox *absEoutCheckBox, *normEoutCheckBox;
+    QCheckBox *absEoutCheckBox, *normEoutCheckBox, *logScaleCheckBox;
     QCPRange xRange, yRange;
 };
 

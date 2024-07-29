@@ -3,10 +3,9 @@
 
 #include <QMainWindow>
 #include <QVector>
-#include <QPainter>
+#include <QCheckBox>
 
-class PortraitWindow : public QMainWindow
-{
+class PortraitWindow : public QMainWindow {
     Q_OBJECT
 
 public:
@@ -15,13 +14,28 @@ public:
 
 protected:
     void paintEvent(QPaintEvent *event) override;
+    void mousePressEvent(QMouseEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
+    void wheelEvent(QWheelEvent *event) override;
 
 private:
-    QVector<double> absEout;
-    QVector<double> normEout;
-
     void drawPortrait(QPainter &painter);
     void drawGrid(QPainter &painter, int width, int height);
+    void drawData(QPainter &painter, const QVector<double> &data, QColor color, int width, int height, bool logScale);
+    void drawTitle(QPainter &painter, int width);
+    void drawLegend(QPainter &painter, int height);
+
+    QVector<double> absEout;
+    QVector<double> normEout;
+    QCheckBox *logScaleCheckBox;
+    bool logScale;
+
+    QPoint lastMousePosition;
+    double zoomFactor;
+    QPointF panOffset;
+
+private slots:
+    void toggleLogarithmicScale(bool checked);
 };
 
 #endif // PORTRAITWINDOW_H

@@ -38,6 +38,10 @@ GraphWindow::GraphWindow(QWidget *parent) : QDialog(parent) {
     connect(normEoutCheckBox, &QCheckBox::toggled, this, &GraphWindow::toggleNormEout);
     layout->addWidget(normEoutCheckBox);
 
+    logScaleCheckBox = new QCheckBox("Логарифмическая шкала", this);
+    connect(logScaleCheckBox, &QCheckBox::toggled, this, &GraphWindow::toggleLogarithmicScale);
+    layout->addWidget(logScaleCheckBox);
+
     // Добавляем кнопку сброса масштаба
     QPushButton *resetZoomButton = new QPushButton("Сбросить до исходного положения", this);
     connect(resetZoomButton, &QPushButton::clicked, this, &GraphWindow::resetZoom);
@@ -74,6 +78,16 @@ void GraphWindow::toggleAbsEout(bool checked) {
 
 void GraphWindow::toggleNormEout(bool checked) {
     customPlot->graph(1)->setVisible(checked);
+    customPlot->replot();
+}
+
+void GraphWindow::toggleLogarithmicScale(bool checked) {
+    if (checked) {
+        customPlot->yAxis->setScaleType(QCPAxis::stLogarithmic);
+    } else {
+        customPlot->yAxis->setScaleType(QCPAxis::stLinear);
+    }
+    customPlot->rescaleAxes();
     customPlot->replot();
 }
 
