@@ -22,6 +22,8 @@ public:
     void clearScene();
     rVect QVector3DToRVect(const QVector3D& vec);
     void setRotation(float x, float y, float z);
+    QVector<QVector3D> getVertices() const;
+    QVector<QVector<int>> getIndices() const;
 
 private:
     RayTracer rayTracer;

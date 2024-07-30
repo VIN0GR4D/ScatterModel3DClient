@@ -7,6 +7,8 @@
 #include "graphwindow.h"
 #include "logindialog.h"
 #include "portraitwindow.h"
+#include "heatmapwindow.h"
+#include "scatterplot3dwindow.h"
 #include <QFile>
 #include <QFileDialog>
 #include <QFormLayout>
@@ -37,6 +39,9 @@ QCheckBox *pplaneCheckBox;
 
 QComboBox *radiationPolarizationComboBox;
 QComboBox *receivePolarizationComboBox;
+
+QVector<QVector<double>> absEout2D;
+QVector<QVector<double>> normEout2D;
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -104,6 +109,16 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Подключаем слот для нового пункта меню
     connect(showPortraitAction, &QAction::triggered, this, &MainWindow::showPortrait);
+
+    // Пункт меню "Показать цветовую карту"
+    QAction *openHeatmapAction = new QAction("Показать цветовую карту", this);
+    resultsMenu->addAction(openHeatmapAction);
+    connect(openHeatmapAction, &QAction::triggered, this, &MainWindow::openHeatmapWindow);
+
+    // Пункт меню "Показать Scatter Plot 3D"
+    QAction *openScatterPlot3DAction = new QAction("Показать Scatter Plot 3D", this);
+    resultsMenu->addAction(openScatterPlot3DAction);
+    connect(openScatterPlot3DAction, &QAction::triggered, this, &MainWindow::openScatterPlot3DWindow);
 
     menuBar->addMenu(resultsMenu);
 
@@ -178,92 +193,6 @@ MainWindow::MainWindow(QWidget *parent)
     serverConnectionGroupBox->setFixedSize(400, 75);
 
     formLayout->addRow(serverConnectionGroupBox);
-
-    // // Элементы пользовательского интерфейса для ввода параметров
-    // QGroupBox *radiationPolarizationGroupBox = new QGroupBox("Излучения", controlWidget);
-    // QVBoxLayout *radiationPolarizationLayout = new QVBoxLayout(radiationPolarizationGroupBox);
-    // QRadioButton *radiationHorizontal = new QRadioButton("Горизонтальный");
-    // QRadioButton *radiationVertical = new QRadioButton("Вертикальный");
-    // QRadioButton *radiationCircular = new QRadioButton("Круговой");
-    // radiationPolarizationLayout->addWidget(radiationHorizontal);
-    // radiationPolarizationLayout->addWidget(radiationVertical);
-    // radiationPolarizationLayout->addWidget(radiationCircular);
-    // radiationPolarizationGroupBox->setLayout(radiationPolarizationLayout);
-
-    // QGroupBox *receivePolarizationGroupBox = new QGroupBox("Приёма", controlWidget);
-    // QVBoxLayout *receivePolarizationLayout = new QVBoxLayout(receivePolarizationGroupBox);
-    // QRadioButton *receiveHorizontal = new QRadioButton("Горизонтальный");
-    // QRadioButton *receiveVertical = new QRadioButton("Вертикальный");
-    // QRadioButton *receiveCircular = new QRadioButton("Круговой");
-    // receivePolarizationLayout->addWidget(receiveHorizontal);
-    // receivePolarizationLayout->addWidget(receiveVertical);
-    // receivePolarizationLayout->addWidget(receiveCircular);
-    // receivePolarizationGroupBox->setLayout(receivePolarizationLayout);
-
-    // // Компоновка поляризации излучения и приёма на одном уровне
-    // QHBoxLayout *polarizationLayout = new QHBoxLayout();
-    // polarizationLayout->addWidget(radiationPolarizationGroupBox);
-    // polarizationLayout->addWidget(receivePolarizationGroupBox);
-
-    // QGroupBox *polarizationGroupBox = new QGroupBox("Поляризация", controlWidget);
-    // polarizationGroupBox->setLayout(polarizationLayout);
-
-    // // Получаем рекомендованный размер по оси X
-    // int recommendedWidth = polarizationGroupBox->sizeHint().width();
-
-    // // Устанавливаем фиксированный размер по оси Y и оставляем рекомендованный размер по оси X
-    // polarizationGroupBox->setFixedSize(recommendedWidth, 150);
-
-    // // Группа для диапазона частот и подстилающей поверхности
-    // freqBandComboBox = new QComboBox(controlWidget);
-    // freqBandComboBox->addItems({"P-диапазон (400-450 МГц)", "L-диапазон (1-1.5 ГГц)", "S-диапазон (2.75-3.15 ГГц)", "C-диапазон (5-5.5 ГГц)", "X-диапазон (9-10 ГГц)", "Ka-диапазон (36.5-38.5 ГГц)"});
-
-    // pplaneCheckBox = new QCheckBox("Включить подстилающую поверхность", controlWidget);
-
-    // QGroupBox *frequencyAndPlaneGroupBox = new QGroupBox("Параметры", controlWidget);
-    // QFormLayout *frequencyAndPlaneLayout = new QFormLayout(frequencyAndPlaneGroupBox);
-    // frequencyAndPlaneLayout->addRow(new QLabel("Диапазон частот:"), freqBandComboBox);
-    // frequencyAndPlaneLayout->addRow(pplaneCheckBox);
-    // frequencyAndPlaneGroupBox->setLayout(frequencyAndPlaneLayout);
-
-    // // Настройка размеров элементов для диапазона частот и подстилающей поверхности
-    // freqBandComboBox->setFixedSize(250, 30);
-    // pplaneCheckBox->setFixedSize(235, 30);
-    // frequencyAndPlaneGroupBox->setFixedSize(400, 100);
-
-    // // Группа для портретных типов
-    // QGroupBox *portraitTypeGroupBox = new QGroupBox("Портретные типы", controlWidget);
-    // QVBoxLayout *portraitTypeLayout = new QVBoxLayout(portraitTypeGroupBox);
-
-    // azimuthPortraitCheckBox = new QCheckBox("Азимутальный", portraitTypeGroupBox);
-    // anglePortraitCheckBox = new QCheckBox("Угломестный", portraitTypeGroupBox);
-    // rangePortraitCheckBox = new QCheckBox("Дальностный", portraitTypeGroupBox);
-
-    // portraitTypeLayout->addWidget(anglePortraitCheckBox);
-    // portraitTypeLayout->addWidget(azimuthPortraitCheckBox);
-    // portraitTypeLayout->addWidget(rangePortraitCheckBox);
-
-    // azimuthPortraitCheckBox->setFixedSize(180, 30);
-    // anglePortraitCheckBox->setFixedSize(180, 30);
-    // rangePortraitCheckBox->setFixedSize(180, 30);
-    // portraitTypeGroupBox->setFixedSize(125, 150);
-
-    // portraitTypeGroupBox->setLayout(portraitTypeLayout);
-
-    // // Компоновка параметров и портретных типов в одну строку
-    // QHBoxLayout *parametersAndPortraitLayout = new QHBoxLayout();
-    // parametersAndPortraitLayout->addWidget(portraitTypeGroupBox);
-    // parametersAndPortraitLayout->addWidget(polarizationGroupBox);
-
-    // QWidget *parametersAndPortraitWidget = new QWidget();
-    // parametersAndPortraitWidget->setLayout(parametersAndPortraitLayout);
-
-    // // Устанавливаем фиксированный размер для parametersAndPortraitWidget
-    // parametersAndPortraitWidget->setFixedSize(parametersAndPortraitLayout->sizeHint());
-    // formLayout->addRow(parametersAndPortraitWidget);
-
-    // // Добавляем группу для диапазона частот и подстилающей поверхности в основной макет
-    // formLayout->addRow(frequencyAndPlaneGroupBox);
 
     // Элементы пользовательского интерфейса для ввода параметров
     QGroupBox *radiationPolarizationGroupBox = new QGroupBox("Излучения", controlWidget);
@@ -533,6 +462,25 @@ void MainWindow::extractValues(const QJsonArray &array, QVector<double> &contain
     }
 }
 
+void MainWindow::extract2DValues(const QJsonArray &array, QVector<QVector<double>> &container) {
+    container.clear();  // Очистим контейнер перед заполнением
+    for (int i = 0; i < array.size(); ++i) {
+        QJsonArray innerArray = array.at(i).toArray();
+        QVector<double> row;
+        for (const QJsonValue &val : innerArray) {
+            if (val.isArray()) {
+                QJsonArray innermostArray = val.toArray();
+                for (const QJsonValue &innerVal : innermostArray) {
+                    row.append(innerVal.toDouble());
+                }
+            } else {
+                row.append(val.toDouble());
+            }
+        }
+        container.append(row);
+    }
+}
+
 // Функция для отображения результатов
 void MainWindow::displayResults(const QJsonObject &results) {
     // Преобразование JSON-объекта в JSON-документ для дальнейшего использования
@@ -547,6 +495,8 @@ void MainWindow::displayResults(const QJsonObject &results) {
     // Очистка текущего содержимого векторов absEout и normEout
     absEout.clear();
     normEout.clear();
+    absEout2D.clear();
+    normEout2D.clear();
 
     // Проверка, какие чекбоксы отмечены и установка соответствующей глубины вложенности
     if (anglePortraitCheckBox->isChecked()) {
@@ -565,7 +515,13 @@ void MainWindow::displayResults(const QJsonObject &results) {
         extractValues(normEoutArray, normEout, 3);
     }
 
-    portraitWindow->setData(absEout, normEout); // Обновление данных в окне
+    // Извлечение двумерных массивов
+    extract2DValues(absEoutArray, absEout2D);
+    extract2DValues(normEoutArray, normEout2D);
+
+    // Debug вывод данных
+    qDebug() << "absEout2D:" << absEout2D;
+    qDebug() << "normEout2D:" << normEout2D;
 }
 
 void MainWindow::applyRotation() {
@@ -887,19 +843,70 @@ double MainWindow::calculateAzimuth(int index, int totalSteps) {
     return index * stepSize;
 }
 
-void MainWindow::showPortrait()
-{
-    if (absEout.isEmpty() || normEout.isEmpty()) {
-        logMessage("Ошибка: отсутствуют данные для построения 2D портрета.");
+void MainWindow::showPortrait() {
+    if (absEout2D.isEmpty() || normEout2D.isEmpty()) {
+        logMessage("Нет данных для отображения.");
         return;
     }
 
-    // Отладочный вывод
-    qDebug() << "Showing Portrait with absEout:" << absEout << "normEout:" << normEout;
-
-    portraitWindow->setData(absEout, normEout);
+    portraitWindow->clearData();
+    portraitWindow->setData(absEout2D, normEout2D);
     portraitWindow->show();
-    logMessage("2D портрет отображён.");
+}
+
+void MainWindow::openHeatmapWindow() {
+    HeatmapWindow *heatmapWindow = new HeatmapWindow(this);
+
+    // Пример данных для тепловой карты
+    QVector<QVector<double>> heatmapData;
+    for (int i = 0; i < 10; ++i) {
+        QVector<double> row;
+        for (int j = 0; j < 10; ++j) {
+            row.append(rand() % 100); // Заполните данными по вашему выбору
+        }
+        heatmapData.append(row);
+    }
+
+    heatmapWindow->setData(heatmapData);
+    heatmapWindow->setAttribute(Qt::WA_DeleteOnClose);
+    heatmapWindow->show();
+}
+
+// Реализация метода для открытия окна 3D Scatter Plot
+void MainWindow::openScatterPlot3DWindow() {
+    ScatterPlot3DWindow *scatterPlot3DWindow = new ScatterPlot3DWindow(this);
+
+    // Использование загруженных данных для отображения в 3D
+    QVector<QVector3D> vertices = openGLWidget->getVertices();
+    QVector<QVector<int>> indices = openGLWidget->getIndices();
+
+    scatterPlot3DWindow->setData(vertices, indices);
+
+    // Получение данных о рассеивании с сервера
+    QJsonObject scatteringData = getScatteringDataFromServer();
+
+    // Использование метода displayResults для обработки данных
+    displayResults(scatteringData);
+
+    // Передача данных рассеивания в ScatterPlot3DWindow
+    scatterPlot3DWindow->setScatteringData(absEout, normEout);
+
+    scatterPlot3DWindow->setAttribute(Qt::WA_DeleteOnClose);
+    scatterPlot3DWindow->show();
+}
+
+// Пример функции для получения данных с сервера
+QJsonObject MainWindow::getScatteringDataFromServer() {
+    // Имитация получения данных
+    QString jsonData = R"({
+        "content": {
+            "absEout": [[[0.004315734559934541]], [[0.005435415426171632]]],
+            "normEout": [[[0.0018625564791813387]], [[0.002954374085506454]]]
+        },
+        "type": "result"
+    })";
+    QJsonDocument doc = QJsonDocument::fromJson(jsonData.toUtf8());
+    return doc.object()["content"].toObject();
 }
 
 // Метод для переключения темы

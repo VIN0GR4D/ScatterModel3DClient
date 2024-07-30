@@ -13,6 +13,7 @@ CONFIG += c++17
 SOURCES += \
     aboutdialog.cpp \
     graphwindow.cpp \
+    heatmapwindow.cpp \
     logindialog.cpp \
     main.cpp \
     mainwindow.cpp \
@@ -22,6 +23,7 @@ SOURCES += \
     qcustomplot.cpp \
     raytracer.cpp \
     resultsdialog.cpp \
+    scatterplot3dwindow.cpp \
     triangleclient.cpp
 
 HEADERS += \
@@ -31,6 +33,7 @@ HEADERS += \
     aboutdialog.h \
     cVect.h \
     graphwindow.h \
+    heatmapwindow.h \
     logindialog.h \
     mainwindow.h \
     openglwidget.h \
@@ -40,6 +43,7 @@ HEADERS += \
     rVect.h \
     raytracer.h \
     resultsdialog.h \
+    scatterplot3dwindow.h \
     triangleclient.h
 
 FORMS += \

@@ -37,6 +37,14 @@ float OpenGLWidget::calculateOptimalZoomOutFactor(float boundingSphereRadius) {
     return adjustedDistance / boundingSphereRadius;
 }
 
+QVector<QVector3D> OpenGLWidget::getVertices() const {
+    return vertices;
+}
+
+QVector<QVector<int>> OpenGLWidget::getIndices() const {
+    return triangleIndices;
+}
+
 // Вычисление ограничивающего объема для геометрии
 void OpenGLWidget::computeBoundingVolume() {
     if (vertices.isEmpty()) return;

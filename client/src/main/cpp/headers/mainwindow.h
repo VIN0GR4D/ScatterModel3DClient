@@ -59,6 +59,8 @@ private slots:
     void saveFile();
     void loadTheme(const QString &themePath, const QString &iconPath, QAction *action);
     void openResultsWindow();
+    void openHeatmapWindow();
+    void openScatterPlot3DWindow();
     void saveLog();
     void showAboutDialog();
 
@@ -79,12 +81,14 @@ private:
     bool serverEnabled;
     QJsonObject vectorToJson(const QSharedPointer<const rVect>& vector);
     void extractValues(const QJsonArray &array, QVector<double> &container, int depth);
+    void extract2DValues(const QJsonArray &array, QVector<QVector<double>> &container);
     void displayResults(const QJsonObject &results);
     PortraitWindow *portraitWindow;
     double calculateAngle(int index, int totalSteps);
     double calculateAzimuth(int index, int totalSteps);
     bool isDarkTheme;
     int freqBand;
+    QJsonObject getScatteringDataFromServer();
 };
 
 #endif // MAINWINDOW_H
