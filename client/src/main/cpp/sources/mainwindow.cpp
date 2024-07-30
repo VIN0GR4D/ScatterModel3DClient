@@ -8,6 +8,7 @@
 #include "logindialog.h"
 #include "portraitwindow.h"
 #include "heatmapwindow.h"
+#include "graph3dwindow.h"
 #include "scatterplot3dwindow.h"
 #include <QFile>
 #include <QFileDialog>
@@ -51,6 +52,7 @@ MainWindow::MainWindow(QWidget *parent)
     , rayTracer(std::make_unique<RayTracer>())
     , serverEnabled(false)
     , portraitWindow(new PortraitWindow(this))
+    , graph3DWindow(new Graph3DWindow(this))
     , isDarkTheme(true)
 {
     ui->setupUi(this);
@@ -114,6 +116,10 @@ MainWindow::MainWindow(QWidget *parent)
     QAction *openHeatmapAction = new QAction("Показать цветовую карту", this);
     resultsMenu->addAction(openHeatmapAction);
     connect(openHeatmapAction, &QAction::triggered, this, &MainWindow::openHeatmapWindow);
+
+    QAction *showGraph3DAction = new QAction("Show 3D Graph", this);
+    resultsMenu->addAction(showGraph3DAction);
+    connect(showGraph3DAction, &QAction::triggered, this, &MainWindow::showGraph3D);
 
     // Пункт меню "Показать Scatter Plot 3D"
     QAction *openScatterPlot3DAction = new QAction("Показать Scatter Plot 3D", this);
@@ -852,6 +858,17 @@ void MainWindow::showPortrait() {
     portraitWindow->clearData();
     portraitWindow->setData(absEout2D, normEout2D);
     portraitWindow->show();
+}
+
+void MainWindow::showGraph3D() {
+    if (absEout2D.isEmpty() || normEout2D.isEmpty()) {
+        // Сообщение об ошибке, если данных нет
+        return;
+    }
+
+    graph3DWindow->clearData();
+    graph3DWindow->setData(absEout2D, normEout2D);
+    graph3DWindow->show();
 }
 
 void MainWindow::openHeatmapWindow() {

@@ -1,4 +1,4 @@
-QT       += core gui websockets opengl openglwidgets widgets charts printsupport
+QT       += core gui websockets opengl openglwidgets widgets charts printsupport 3dcore 3drender 3dinput 3dextras 3dquickextras
 LIBS += -lopengl32
 LIBS += -lglu32
 
@@ -12,6 +12,7 @@ CONFIG += c++17
 
 SOURCES += \
     aboutdialog.cpp \
+    graph3dwindow.cpp \
     graphwindow.cpp \
     heatmapwindow.cpp \
     logindialog.cpp \
@@ -19,6 +20,7 @@ SOURCES += \
     mainwindow.cpp \
     openglwidget.cpp \
     parser.cpp \
+    portraitopenglwidget.cpp \
     portraitwindow.cpp \
     qcustomplot.cpp \
     raytracer.cpp \
@@ -32,12 +34,14 @@ HEADERS += \
     Triangle.h \
     aboutdialog.h \
     cVect.h \
+    graph3dwindow.h \
     graphwindow.h \
     heatmapwindow.h \
     logindialog.h \
     mainwindow.h \
     openglwidget.h \
     parser.h \
+    portraitopenglwidget.h \
     portraitwindow.h \
     qcustomplot.h \
     rVect.h \

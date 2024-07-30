@@ -6,6 +6,7 @@
 #include "raytracer.h"
 #include "triangleclient.h"
 #include "portraitwindow.h"
+#include "graph3dwindow.h"
 #include <QMainWindow>
 #include <QPushButton>
 #include <QLineEdit>
@@ -53,6 +54,7 @@ private slots:
     void authorizeClient();
     void sendDataAfterAuthorization(std::function<void()> sendDataFunc);
     void openGraphWindow();
+    void showGraph3D();
     void disconnectFromServer();
     void showPortrait();
     void toggleTheme();
@@ -83,6 +85,7 @@ private:
     void extractValues(const QJsonArray &array, QVector<double> &container, int depth);
     void extract2DValues(const QJsonArray &array, QVector<QVector<double>> &container);
     void displayResults(const QJsonObject &results);
+    Graph3DWindow *graph3DWindow;
     PortraitWindow *portraitWindow;
     double calculateAngle(int index, int totalSteps);
     double calculateAzimuth(int index, int totalSteps);
