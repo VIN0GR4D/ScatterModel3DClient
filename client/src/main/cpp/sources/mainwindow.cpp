@@ -51,8 +51,8 @@ MainWindow::MainWindow(QWidget *parent)
     , parser(new Parser(this))
     , rayTracer(std::make_unique<RayTracer>())
     , serverEnabled(false)
-    , portraitWindow(new PortraitWindow(this))
     , graph3DWindow(new Graph3DWindow(this))
+    , portraitWindow(new PortraitWindow(this))
     , isDarkTheme(true)
 {
     ui->setupUi(this);
@@ -855,10 +855,15 @@ void MainWindow::showPortrait() {
         return;
     }
 
-    portraitWindow->clearData();
-    portraitWindow->setData(absEout2D, normEout2D);
+    if (!portraitWindow) {
+        portraitWindow = new PortraitWindow(this);
+        portraitWindow->setAttribute(Qt::WA_DeleteOnClose);
+    }
+
+    portraitWindow->setData(absEout2D);
     portraitWindow->show();
 }
+
 
 void MainWindow::showGraph3D() {
     if (absEout2D.isEmpty() || normEout2D.isEmpty()) {
