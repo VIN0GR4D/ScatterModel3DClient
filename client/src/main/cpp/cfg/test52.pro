@@ -14,7 +14,6 @@ SOURCES += \
     aboutdialog.cpp \
     graph3dwindow.cpp \
     graphwindow.cpp \
-    heatmapwindow.cpp \
     logindialog.cpp \
     main.cpp \
     mainwindow.cpp \
@@ -36,7 +35,6 @@ HEADERS += \
     cVect.h \
     graph3dwindow.h \
     graphwindow.h \
-    heatmapwindow.h \
     logindialog.h \
     mainwindow.h \
     openglwidget.h \
@@ -80,6 +78,7 @@ DISTFILES += \
     helicopter.obj \
     icon.png \
     light-theme.png \
+    lighttheme.qss \
     load.png \
     login-icon.png \
     m4a1.obj \

@@ -56,3 +56,43 @@ QGroupBox::title {
     background-color: #2D2D30;
     color: #CCCCCC;
 }
+
+/* Стили для QMenuBar и QMenu */
+QMenuBar::item {
+    background-color: #2D2D30;
+    color: #CCCCCC;
+}
+
+QMenuBar::item:selected {
+    background-color: #444444; /* Цвет фона при выделении */
+    color: #CCCCCC; /* Цвет текста при выделении */
+}
+
+QMenuBar::item:pressed {
+    background-color: #565656; /* Цвет фона при нажатии */
+    color: #CCCCCC; /* Цвет текста при нажатии */
+}
+
+QMenuBar::item:disabled {
+    color: #777777;  /* Цвет для отключенных пунктов меню */
+}
+
+QMenu::item {
+    background-color: #2D2D30;
+    color: #CCCCCC;
+}
+
+QMenu::item:selected {
+    background-color: #444444; /* Цвет фона при наведении */
+    color: #CCCCCC; /* Цвет текста при наведении */
+}
+
+QMenu::item:pressed {
+    background-color: #565656; /* Цвет фона при нажатии */
+    color: #CCCCCC; /* Цвет текста при нажатии */
+}
+
+QMenu::item:disabled {
+    color: #777777;  /* Цвет для отключенных пунктов меню */
+    background-color: #2D2D30;
+}

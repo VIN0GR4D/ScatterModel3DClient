@@ -7,7 +7,6 @@
 #include "graphwindow.h"
 #include "logindialog.h"
 #include "portraitwindow.h"
-#include "heatmapwindow.h"
 #include "graph3dwindow.h"
 #include "scatterplot3dwindow.h"
 #include <QFile>
@@ -92,37 +91,30 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Пункт меню "Открыть числовые значения"
     QAction *openResultsAction = new QAction("Открыть числовые значения", this);
+    openResultsAction->setEnabled(false);
     resultsMenu->addAction(openResultsAction);
-
-    // Подключаем слот для нового пункта меню
     connect(openResultsAction, &QAction::triggered, this, &MainWindow::openResultsWindow);
 
     // Пункт меню "Открыть график"
     QAction *openGraphAction = new QAction("Открыть график", this);
-
+    openGraphAction->setEnabled(false);
     resultsMenu->addAction(openGraphAction);
-    menuBar->addMenu(resultsMenu);
-
     connect(openGraphAction, &QAction::triggered, this, &MainWindow::openGraphWindow);
 
     // Пункт меню "Показать 2D портрет"
     QAction *showPortraitAction = new QAction("Показать 2D портрет", this);
+    showPortraitAction->setEnabled(false);
     resultsMenu->addAction(showPortraitAction);
-
-    // Подключаем слот для нового пункта меню
     connect(showPortraitAction, &QAction::triggered, this, &MainWindow::showPortrait);
 
-    // Пункт меню "Показать цветовую карту"
-    QAction *openHeatmapAction = new QAction("Показать цветовую карту", this);
-    resultsMenu->addAction(openHeatmapAction);
-    connect(openHeatmapAction, &QAction::triggered, this, &MainWindow::openHeatmapWindow);
-
-    QAction *showGraph3DAction = new QAction("Show 3D Graph", this);
+    QAction *showGraph3DAction = new QAction("Показать 3D Модель", this);
+    showGraph3DAction->setEnabled(false);
     resultsMenu->addAction(showGraph3DAction);
     connect(showGraph3DAction, &QAction::triggered, this, &MainWindow::showGraph3D);
 
     // Пункт меню "Показать Scatter Plot 3D"
     QAction *openScatterPlot3DAction = new QAction("Показать Scatter Plot 3D", this);
+    openScatterPlot3DAction->setEnabled(false);
     resultsMenu->addAction(openScatterPlot3DAction);
     connect(openScatterPlot3DAction, &QAction::triggered, this, &MainWindow::openScatterPlot3DWindow);
 
@@ -876,59 +868,26 @@ void MainWindow::showGraph3D() {
     graph3DWindow->show();
 }
 
-void MainWindow::openHeatmapWindow() {
-    HeatmapWindow *heatmapWindow = new HeatmapWindow(this);
-
-    // Пример данных для тепловой карты
-    QVector<QVector<double>> heatmapData;
-    for (int i = 0; i < 10; ++i) {
-        QVector<double> row;
-        for (int j = 0; j < 10; ++j) {
-            row.append(rand() % 100); // Заполните данными по вашему выбору
-        }
-        heatmapData.append(row);
-    }
-
-    heatmapWindow->setData(heatmapData);
-    heatmapWindow->setAttribute(Qt::WA_DeleteOnClose);
-    heatmapWindow->show();
-}
-
 // Реализация метода для открытия окна 3D Scatter Plot
 void MainWindow::openScatterPlot3DWindow() {
+    // Создаем новое окно для отображения Scatter Plot 3D
     ScatterPlot3DWindow *scatterPlot3DWindow = new ScatterPlot3DWindow(this);
 
-    // Использование загруженных данных для отображения в 3D
+    // Получаем вершины и индексы из OpenGL виджета для отображения объекта
     QVector<QVector3D> vertices = openGLWidget->getVertices();
     QVector<QVector<int>> indices = openGLWidget->getIndices();
 
+    // Устанавливаем данные о вершинах и индексах в окно Scatter Plot 3D
     scatterPlot3DWindow->setData(vertices, indices);
 
-    // Получение данных о рассеивании с сервера
-    QJsonObject scatteringData = getScatteringDataFromServer();
-
-    // Использование метода displayResults для обработки данных
-    displayResults(scatteringData);
-
-    // Передача данных рассеивания в ScatterPlot3DWindow
+    // Передаем уже полученные данные о рассеивании в Scatter Plot 3D
     scatterPlot3DWindow->setScatteringData(absEout, normEout);
 
+    // Устанавливаем атрибут, чтобы окно закрылось и память освободилась при закрытии
     scatterPlot3DWindow->setAttribute(Qt::WA_DeleteOnClose);
-    scatterPlot3DWindow->show();
-}
 
-// Пример функции для получения данных с сервера
-QJsonObject MainWindow::getScatteringDataFromServer() {
-    // Имитация получения данных
-    QString jsonData = R"({
-        "content": {
-            "absEout": [[[0.004315734559934541]], [[0.005435415426171632]]],
-            "normEout": [[[0.0018625564791813387]], [[0.002954374085506454]]]
-        },
-        "type": "result"
-    })";
-    QJsonDocument doc = QJsonDocument::fromJson(jsonData.toUtf8());
-    return doc.object()["content"].toObject();
+    // Показываем окно Scatter Plot 3D
+    scatterPlot3DWindow->show();
 }
 
 // Метод для переключения темы

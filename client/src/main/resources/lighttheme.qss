@@ -62,6 +62,47 @@ QGroupBox::title {
     color: #2E2E2E; /* Темно-серый текст */
 }
 
+/* Стили для QMenuBar и QMenu */
+QMenuBar::item {
+    background-color: #F8F8F8;
+    color: #2E2E2E;
+}
+
+QMenuBar::item:selected {
+    background-color: #D0D0D0; /* Цвет фона при выделении */
+    color: #2E2E2E; /* Цвет текста при выделении */
+}
+
+QMenuBar::item:pressed {
+    background-color: #B0B0B0; /* Цвет фона при нажатии */
+    color: #2E2E2E; /* Цвет текста при нажатии */
+}
+
+QMenuBar::item:disabled {
+    color: #B0B0B0;  /* Цвет для отключенных пунктов меню */
+}
+
+QMenu::item {
+    background-color: #F8F8F8;
+    color: #2E2E2E;
+}
+
+QMenu::item:selected {
+    background-color: #D0D0D0; /* Цвет фона при наведении */
+    color: #2E2E2E; /* Цвет текста при наведении */
+}
+
+QMenu::item:pressed {
+    background-color: #B0B0B0; /* Цвет фона при нажатии */
+    color: #2E2E2E; /* Цвет текста при нажатии */
+}
+
+QMenu::item:disabled {
+    color: #B0B0B0;  /* Цвет для отключенных пунктов меню */
+    background-color: #F8F8F8;
+}
+
+/* Стили для QScrollBar */
 QScrollBar:vertical {
     border: 1px solid #B0B0B0; /* Серо-зеленая граница */
     background: #E8E8E8; /* Очень светло-серый фон */
@@ -106,6 +147,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
     background: none;
 }
 
+/* Стили для QTabBar */
 QTabBar::tab {
     background: #E0E0E0; /* Светло-серый фон */
     color: #2E2E2E; /* Темно-серый текст */

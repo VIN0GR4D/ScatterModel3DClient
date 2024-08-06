@@ -61,7 +61,6 @@ private slots:
     void saveFile();
     void loadTheme(const QString &themePath, const QString &iconPath, QAction *action);
     void openResultsWindow();
-    void openHeatmapWindow();
     void openScatterPlot3DWindow();
     void saveLog();
     void showAboutDialog();
