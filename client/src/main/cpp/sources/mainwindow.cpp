@@ -91,30 +91,30 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Пункт меню "Открыть числовые значения"
     QAction *openResultsAction = new QAction("Открыть числовые значения", this);
-    openResultsAction->setEnabled(false);
+    openResultsAction->setEnabled(true);
     resultsMenu->addAction(openResultsAction);
     connect(openResultsAction, &QAction::triggered, this, &MainWindow::openResultsWindow);
 
     // Пункт меню "Открыть график"
     QAction *openGraphAction = new QAction("Открыть график", this);
-    openGraphAction->setEnabled(false);
+    openGraphAction->setEnabled(true);
     resultsMenu->addAction(openGraphAction);
     connect(openGraphAction, &QAction::triggered, this, &MainWindow::openGraphWindow);
 
     // Пункт меню "Показать 2D портрет"
     QAction *showPortraitAction = new QAction("Показать 2D портрет", this);
-    showPortraitAction->setEnabled(false);
+    showPortraitAction->setEnabled(true);
     resultsMenu->addAction(showPortraitAction);
     connect(showPortraitAction, &QAction::triggered, this, &MainWindow::showPortrait);
 
     QAction *showGraph3DAction = new QAction("Показать 3D Модель", this);
-    showGraph3DAction->setEnabled(false);
+    showGraph3DAction->setEnabled(true);
     resultsMenu->addAction(showGraph3DAction);
     connect(showGraph3DAction, &QAction::triggered, this, &MainWindow::showGraph3D);
 
     // Пункт меню "Показать Scatter Plot 3D"
     QAction *openScatterPlot3DAction = new QAction("Показать Scatter Plot 3D", this);
-    openScatterPlot3DAction->setEnabled(false);
+    openScatterPlot3DAction->setEnabled(true);
     resultsMenu->addAction(openScatterPlot3DAction);
     connect(openScatterPlot3DAction, &QAction::triggered, this, &MainWindow::openScatterPlot3DWindow);
 
@@ -317,6 +317,12 @@ MainWindow::MainWindow(QWidget *parent)
     formLayout->addRow(rotationGroupBox);
 
     rotationGroupBox->setFixedSize(400, 125);
+
+    connect(openGLWidget, &OpenGLWidget::rotationChanged, this, [this](float x, float y, float z) {
+        updateRotationX(x);
+        updateRotationY(y);
+        updateRotationZ(z);
+    });
 
     // Журнал действий
     QGroupBox *logGroupBox = new QGroupBox("Журнал действий", controlWidget);
@@ -538,6 +544,29 @@ void MainWindow::resetRotation() {
     openGLWidget->setRotation(0, 0, 0);
 }
 
+rVect MainWindow::calculateDirectVectorFromRotation() {
+    // Получаем углы поворота от пользователя
+    float rotationX = inputRotationX->value();
+    float rotationY = inputRotationY->value();
+    float rotationZ = inputRotationZ->value();
+
+    // Преобразуем углы в радианы
+    float radX = qDegreesToRadians(rotationX);
+    float radY = qDegreesToRadians(rotationY);
+    float radZ = qDegreesToRadians(rotationZ);
+
+    // Вычисляем компоненты вектора направления на основе углов Эйлера
+    float x = cos(radY) * cos(radZ);
+    float y = sin(radX) * sin(radY) * cos(radZ) - cos(radX) * sin(radZ);
+    float z = cos(radX) * sin(radY) * cos(radZ) + sin(radX) * sin(radZ);
+
+    // Нормализуем вектор, чтобы его длина была равна 1
+    rVect directVector(x, y, z);
+    directVector.normalize();
+
+    return directVector;
+}
+
 // Метод для авторизации
 void MainWindow::authorizeClient() {
     // Создаем диалоговое окно для ввода логина и пароля
@@ -708,8 +737,10 @@ void MainWindow::performCalculation() {
 
     // QVector3D cameraPosition = openGLWidget->getCameraPosition();
     // rVect directVector = openGLWidget->QVector3DToRVect(cameraPosition);
-    QVector3D waveDirection(0.0f, 0.0f, -1.0f);
-    rVect directVector = openGLWidget->QVector3DToRVect(waveDirection);
+    // QVector3D waveDirection(0.0f, 0.0f, -1.0f);
+    // rVect directVector = openGLWidget->QVector3DToRVect(waveDirection);
+
+    rVect directVector = calculateDirectVectorFromRotation();
 
     QJsonObject modelData;
     modelData["data"] = coordinateArray;

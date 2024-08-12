@@ -42,6 +42,26 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+public slots:
+    void updateRotationX(double x) {
+        inputRotationX->blockSignals(true);
+        inputRotationX->setValue(fmod(x, 360.0));  // Применяем модуль от 360
+        inputRotationX->blockSignals(false);
+    }
+
+    void updateRotationY(double y) {
+        inputRotationY->blockSignals(true);
+        inputRotationY->setValue(fmod(y, 360.0));  // Применяем модуль от 360
+        inputRotationY->blockSignals(false);
+    }
+
+    void updateRotationZ(double z) {
+        inputRotationZ->blockSignals(true);
+        inputRotationZ->setValue(fmod(z, 360.0));  // Применяем модуль от 360
+        inputRotationZ->blockSignals(false);
+    }
+
+
 private slots:
     void loadModel();
     void applyRotation();
@@ -83,6 +103,7 @@ private:
     QJsonObject vectorToJson(const QSharedPointer<const rVect>& vector);
     void extractValues(const QJsonArray &array, QVector<double> &container, int depth);
     void extract2DValues(const QJsonArray &array, QVector<QVector<double>> &container);
+    // void extractValuesRecursive(const QJsonArray &array, QVector<double> &container);
     void displayResults(const QJsonObject &results);
     Graph3DWindow *graph3DWindow;
     PortraitWindow *portraitWindow;
@@ -91,6 +112,7 @@ private:
     bool isDarkTheme;
     int freqBand;
     QJsonObject getScatteringDataFromServer();
+    rVect calculateDirectVectorFromRotation();
 };
 
 #endif // MAINWINDOW_H

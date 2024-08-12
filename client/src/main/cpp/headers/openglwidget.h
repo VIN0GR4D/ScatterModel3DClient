@@ -12,6 +12,7 @@
 #include <raytracer.h>
 
 class OpenGLWidget : public QOpenGLWidget, protected QOpenGLFunctions_3_0 {
+    Q_OBJECT
 
 public:
     explicit OpenGLWidget(QWidget *parent = nullptr);
@@ -24,6 +25,9 @@ public:
     void setRotation(float x, float y, float z);
     QVector<QVector3D> getVertices() const;
     QVector<QVector<int>> getIndices() const;
+
+signals:
+    void rotationChanged(float x, float y, float z);
 
 private:
     RayTracer rayTracer;

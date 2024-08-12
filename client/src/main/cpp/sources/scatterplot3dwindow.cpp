@@ -122,31 +122,17 @@ void ScatterPlot3DWidget::drawScattering() {
     double maxAbsEout = *std::max_element(absEout.begin(), absEout.end());
     double minAbsEout = *std::min_element(absEout.begin(), absEout.end());
 
-    qDebug() << "Отрисовка распределения электромагнитных волн:";
     glBegin(GL_TRIANGLES);
     for (const auto &index : indices) {
         if (index.size() == 3) {
-            int idx1 = index[0];
-            int idx2 = index[1];
-            int idx3 = index[2];
-
-            if (idx1 < vertices.size() && idx2 < vertices.size() && idx3 < vertices.size()) {
-                auto setColor = [&](int idx) {
+            for (int i = 0; i < 3; ++i) {
+                int idx = index[i];
+                if (idx < vertices.size()) {
                     double normalizedVal = (absEout[idx] - minAbsEout) / (maxAbsEout - minAbsEout);
                     QColor color = QColor::fromHsvF(0.67 - 0.67 * normalizedVal, 1.0, 1.0); // От синего к красному
                     glColor3f(color.redF(), color.greenF(), color.blueF());
-                };
-
-                setColor(idx1);
-                glVertex3f(vertices[idx1].x(), vertices[idx1].y(), vertices[idx1].z());
-                setColor(idx2);
-                glVertex3f(vertices[idx2].x(), vertices[idx2].y(), vertices[idx2].z());
-                setColor(idx3);
-                glVertex3f(vertices[idx3].x(), vertices[idx3].y(), vertices[idx3].z());
-
-                // Вывод данных в консоль
-                qDebug() << "Треугольник:" << idx1 << vertices[idx1] << idx2 << vertices[idx2] << idx3 << vertices[idx3]
-                         << "absEout:" << absEout[idx1] << absEout[idx2] << absEout[idx3];
+                    glVertex3f(vertices[idx].x(), vertices[idx].y(), vertices[idx].z());
+                }
             }
         }
     }

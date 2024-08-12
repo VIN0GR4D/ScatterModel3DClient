@@ -268,6 +268,9 @@ void OpenGLWidget::mouseMoveEvent(QMouseEvent *event) {
     } else if (event->buttons() & Qt::RightButton) {
         rotationZ += dx * sensitivity;
     }
+
+    emit rotationChanged(rotationX, rotationY, rotationZ); // Испускаем сигнал для обновления угла поворота в интерфейсе
+
     update();
     lastMousePosition = pos.toPoint(); // Обновление последней позиции мыши
 }
