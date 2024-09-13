@@ -12,21 +12,58 @@ void PortraitWindow::setData(const QVector<QVector<double>> &data) {
     update(); // Обновляем виджет для перерисовки
 }
 
+// void PortraitWindow::paintEvent(QPaintEvent *event) {
+//     if (data.isEmpty()) return;
+
+//     QPainter painter(this);
+//     int numRows = data.size();
+//     int numCols = data[0].size();
+
+//     double cellWidth = scale * width() / numCols;
+//     double cellHeight = scale * height() / numRows;
+
+//     for (int row = 0; row < numRows; ++row) {
+//         for (int col = 0; col < numCols; ++col) {
+//             double value = data[row][col];
+//             QColor color = getColorForValue(value);
+//             painter.fillRect(scale * col * cellWidth + offset.x(), scale * row * cellHeight + offset.y(), cellWidth, cellHeight, color);
+//         }
+//     }
+// }
+
 void PortraitWindow::paintEvent(QPaintEvent *event) {
     if (data.isEmpty()) return;
 
     QPainter painter(this);
-    int numRows = data.size();
-    int numCols = data[0].size();
 
+    // Определение количества строк и столбцов
+    int numRows = data.size();
+    if (numRows == 0) return;
+    int numCols = data[0].size();
+    if (numCols == 0) return;
+
+    // Вычисление размеров ячеек
     double cellWidth = scale * width() / numCols;
     double cellHeight = scale * height() / numRows;
 
     for (int row = 0; row < numRows; ++row) {
+        // Отражение по вертикали (верх-низ)
+        int flippedRow = numRows - 1 - row;
+
         for (int col = 0; col < numCols; ++col) {
-            double value = data[row][col];
+            // Отражение по горизонтали (право-лево)
+            int flippedCol = numCols - 1 - col;
+
+            // Получение значения из отражённых координат
+            double value = data[flippedRow][flippedCol];
             QColor color = getColorForValue(value);
-            painter.fillRect(scale * col * cellWidth + offset.x(), scale * row * cellHeight + offset.y(), cellWidth, cellHeight, color);
+
+            // Отрисовка ячейки
+            painter.fillRect(scale * col * cellWidth + offset.x(),
+                             scale * row * cellHeight + offset.y(),
+                             cellWidth,
+                             cellHeight,
+                             color);
         }
     }
 }
