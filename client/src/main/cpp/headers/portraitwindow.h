@@ -27,6 +27,7 @@ private:
     QPointF offset;
     double scale = 1.0;
     QPoint lastMousePos;
+    double maxDataValue;
 };
 
 #endif // PORTRAITWINDOW_H

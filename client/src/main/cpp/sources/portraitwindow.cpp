@@ -1,75 +1,68 @@
 #include "portraitwindow.h"
-#include <QPaintEvent>
+#include <QPainter>
+#include <QWheelEvent>
 #include <QMouseEvent>
+#include <QDebug>
 
-PortraitWindow::PortraitWindow(QWidget *parent) : QDialog(parent) {
+PortraitWindow::PortraitWindow(QWidget *parent)
+    : QDialog(parent), offset(0, 0), scale(1.0), maxDataValue(1.0) {
     setWindowTitle("2D Портрет");
     resize(1280, 720);
 }
 
 void PortraitWindow::setData(const QVector<QVector<double>> &data) {
     this->data = data;
+
+    // Вычисляем максимальное значение в данных для корректного отображения цветов
+    maxDataValue = 0.0;
+    for (const auto &row : data) {
+        for (double val : row) {
+            if (val > maxDataValue) {
+                maxDataValue = val;
+            }
+        }
+    }
+
+    // Избегаем деления на ноль
+    if (maxDataValue == 0.0) {
+        maxDataValue = 1.0;
+    }
+
     update(); // Обновляем виджет для перерисовки
 }
 
-// void PortraitWindow::paintEvent(QPaintEvent *event) {
-//     if (data.isEmpty()) return;
-
-//     QPainter painter(this);
-//     int numRows = data.size();
-//     int numCols = data[0].size();
-
-//     double cellWidth = scale * width() / numCols;
-//     double cellHeight = scale * height() / numRows;
-
-//     for (int row = 0; row < numRows; ++row) {
-//         for (int col = 0; col < numCols; ++col) {
-//             double value = data[row][col];
-//             QColor color = getColorForValue(value);
-//             painter.fillRect(scale * col * cellWidth + offset.x(), scale * row * cellHeight + offset.y(), cellWidth, cellHeight, color);
-//         }
-//     }
-// }
-
 void PortraitWindow::paintEvent(QPaintEvent *event) {
-    if (data.isEmpty()) return;
+    if (data.isEmpty())
+        return;
 
     QPainter painter(this);
+    painter.save();
 
-    // Определение количества строк и столбцов
+    // Применяем смещение и масштабирование
+    painter.translate(offset);
+    painter.scale(scale, scale);
+
     int numRows = data.size();
-    if (numRows == 0) return;
     int numCols = data[0].size();
-    if (numCols == 0) return;
 
-    // Вычисление размеров ячеек
-    double cellWidth = scale * width() / numCols;
-    double cellHeight = scale * height() / numRows;
+    // Вычисляем размеры ячеек в сценических координатах
+    double cellWidth = 1.0;
+    double cellHeight = 1.0;
 
+    // Рисуем данные
     for (int row = 0; row < numRows; ++row) {
-        // Отражение по вертикали (верх-низ)
-        int flippedRow = numRows - 1 - row;
-
         for (int col = 0; col < numCols; ++col) {
-            // Отражение по горизонтали (право-лево)
-            int flippedCol = numCols - 1 - col;
-
-            // Получение значения из отражённых координат
-            double value = data[flippedRow][flippedCol];
+            double value = data[row][col];
             QColor color = getColorForValue(value);
-
-            // Отрисовка ячейки
-            painter.fillRect(scale * col * cellWidth + offset.x(),
-                             scale * row * cellHeight + offset.y(),
-                             cellWidth,
-                             cellHeight,
-                             color);
+            painter.fillRect(col * cellWidth, row * cellHeight, cellWidth, cellHeight, color);
         }
     }
+
+    painter.restore();
 }
 
 QColor PortraitWindow::getColorForValue(double value) const {
-    int colorValue = static_cast<int>((value / 4.0) * 255);
+    int colorValue = static_cast<int>((value / maxDataValue) * 255);
     colorValue = qBound(0, colorValue, 255);
     int hue = 240 - colorValue;
     hue = qBound(0, hue, 359);
@@ -92,8 +85,14 @@ void PortraitWindow::mouseMoveEvent(QMouseEvent *event) {
 void PortraitWindow::wheelEvent(QWheelEvent *event) {
     QPoint numDegrees = event->angleDelta() / 8;
     if (!numDegrees.isNull()) {
-        QPointF numSteps = numDegrees / 15.0;
-        scale *= (1.0 + numSteps.y() / 10);
+        double factor = std::pow(1.0015, numDegrees.y());
+        QPointF cursorPos = event->position();
+        QPointF scenePos = (cursorPos - offset) / scale;
+
+        scale *= factor;
+
+        offset = cursorPos - scenePos * scale;
+
         update();
     }
     event->accept();
