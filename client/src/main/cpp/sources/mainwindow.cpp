@@ -366,8 +366,8 @@ MainWindow::MainWindow(QWidget *parent)
     inputRotationZ->setRange(-360, 360);
     inputRotationZ->setSuffix(" °");
 
-    buttonApplyRotation = new QPushButton("Применить поворот", controlWidget);
-    buttonResetRotation = new QPushButton("Сбросить поворот", controlWidget);
+    buttonApplyRotation = new QPushButton(QIcon(":/apply.png"), "Применить поворот", controlWidget);
+    buttonResetRotation = new QPushButton(QIcon(":/reset.png"), "Сбросить поворот", controlWidget);
 
     QGroupBox *rotationGroupBox = new QGroupBox("Поворот", controlWidget);
     QHBoxLayout *rotationMainLayout = new QHBoxLayout(rotationGroupBox);

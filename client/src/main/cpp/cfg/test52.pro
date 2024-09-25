@@ -63,6 +63,7 @@ DISTFILES += \
     Cylindr.obj \
     HollowCylinder.obj \
     Sph.obj \
+    apply.png \
     bmw.obj \
     calculator.png \
     cat.obj \
@@ -83,6 +84,7 @@ DISTFILES += \
     login-icon.png \
     m4a1.obj \
     plane.obj \
+    reset.png \
     simple_triangle.obj \
     styles.css \
     t34.obj \

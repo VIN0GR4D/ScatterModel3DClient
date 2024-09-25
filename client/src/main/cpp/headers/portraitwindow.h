@@ -20,14 +20,17 @@ protected:
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
+    void drawColorScale(QPainter &painter);
 
 private:
     QVector<QVector<double>> data;
     QColor getColorForValue(double value) const;
     QPointF offset;
-    double scale = 1.0;
+    double scale;
     QPoint lastMousePos;
     double maxDataValue;
+    double minDataValue;
+    int legendWidth;
 };
 
 #endif // PORTRAITWINDOW_H

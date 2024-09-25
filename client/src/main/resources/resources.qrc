@@ -12,5 +12,7 @@
         <file>download.png</file>
         <file>login-icon.png</file>
         <file>lighttheme.qss</file>
+        <file>apply.png</file>
+        <file>reset.png</file>
     </qresource>
 </RCC>
