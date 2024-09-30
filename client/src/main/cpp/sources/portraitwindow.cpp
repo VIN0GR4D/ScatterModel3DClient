@@ -95,7 +95,7 @@ void PortraitWindow::paintEvent(QPaintEvent *event) {
 }
 
 void PortraitWindow::drawColorScale(QPainter &painter) {
-    int legendHeight = height() * 0.8; // Высота легенды занимает 80% высоты окна
+    int legendHeight = static_cast<int>(height() * 0.8); // Высота легенды занимает 80% высоты окна
     int legendX = width() - legendWidth - 30; // Отступ ближе к графику
     int legendY = (height() - legendHeight) / 2; // Центрируем по Y
 
@@ -103,8 +103,15 @@ void PortraitWindow::drawColorScale(QPainter &painter) {
     QRect legendRect(legendX, legendY, legendWidth - 10, legendHeight);
 
     QLinearGradient gradient(legendRect.topLeft(), legendRect.bottomLeft());
-    gradient.setColorAt(0.0, getColorForValue(maxDataValue));
-    gradient.setColorAt(1.0, getColorForValue(minDataValue));
+
+    // Добавляем множество цветовых остановок для плавного перехода
+    const int numStops = 100; // Количество цветовых остановок
+    for (int i = 0; i <= numStops; ++i) {
+        double ratio = static_cast<double>(i) / numStops;
+        double value = minDataValue + ratio * (maxDataValue - minDataValue);
+        QColor color = getColorForValue(value);
+        gradient.setColorAt(ratio, color);
+    }
 
     painter.fillRect(legendRect, gradient);
     painter.setPen(Qt::black);
@@ -120,7 +127,7 @@ void PortraitWindow::drawColorScale(QPainter &painter) {
     for (int i = 0; i <= numTicks; ++i) {
         double ratio = static_cast<double>(i) / numTicks;
         int y = legendY + ratio * legendHeight;
-        double value = maxDataValue - ratio * (maxDataValue - minDataValue);
+        double value = minDataValue + ratio * (maxDataValue - minDataValue);
         QString text = QString::number(value, 'g', 4);
 
         // Корректируем отступ для текста, чтобы он вписывался в окно
@@ -130,13 +137,19 @@ void PortraitWindow::drawColorScale(QPainter &painter) {
 }
 
 QColor PortraitWindow::getColorForValue(double value) const {
+    if (maxDataValue == minDataValue) {
+        return QColor::fromHsv(240, 255, 255); // Возвращаем синий, если нет вариации
+    }
+
     double normalizedValue = (value - minDataValue) / (maxDataValue - minDataValue);
-    int colorValue = static_cast<int>(normalizedValue * 255);
-    colorValue = qBound(0, colorValue, 255);
-    int hue = 240 - colorValue * 240 / 255; // От синего (240) к красному (0)
-    hue = qBound(0, hue, 359);
+    normalizedValue = qBound(0.0, normalizedValue, 1.0); // Ограничиваем диапазон [0, 1]
+
+    int hue = static_cast<int>(240 - normalizedValue * 240); // От синего (240) к красному (0)
+    hue = qBound(0, hue, 359); // Убедимся, что hue находится в допустимом диапазоне
+
     return QColor::fromHsv(hue, 255, 255);
 }
+
 
 void PortraitWindow::mousePressEvent(QMouseEvent *event) {
     lastMousePos = event->pos();
