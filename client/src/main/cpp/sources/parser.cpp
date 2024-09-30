@@ -50,9 +50,9 @@ void Parser::readFromObjFile(const QString& filename) {
         QVector<int> indices;
 
         // Получаем индексы вершин треугольника из общего списка узлов
-        int indexV1 = nodes.indexOf(triangle->getV1());
-        int indexV2 = nodes.indexOf(triangle->getV2());
-        int indexV3 = nodes.indexOf(triangle->getV3());
+        int indexV1 = nodeIndexCache[triangle->getV1()];
+        int indexV2 = nodeIndexCache[triangle->getV2()];
+        int indexV3 = nodeIndexCache[triangle->getV3()];
 
         // Добавляем индексы в список
         indices << indexV1 << indexV2 << indexV3;
