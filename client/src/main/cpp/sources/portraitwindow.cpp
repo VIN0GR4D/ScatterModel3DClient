@@ -99,10 +99,11 @@ void PortraitWindow::drawColorScale(QPainter &painter) {
     int legendX = width() - legendWidth - 30; // Отступ ближе к графику
     int legendY = (height() - legendHeight) / 2; // Центрируем по Y
 
-    // Рисуем градиентную шкалу
+    // Рисуем градиентную шкалу с инвертированным направлением
     QRect legendRect(legendX, legendY, legendWidth - 10, legendHeight);
 
-    QLinearGradient gradient(legendRect.topLeft(), legendRect.bottomLeft());
+    // Инвертированный градиент: от нижней к верхней части
+    QLinearGradient gradient(legendRect.bottomLeft(), legendRect.topLeft());
 
     // Добавляем множество цветовых остановок для плавного перехода
     const int numStops = 100; // Количество цветовых остановок
@@ -126,7 +127,8 @@ void PortraitWindow::drawColorScale(QPainter &painter) {
     int numTicks = 5; // Количество меток
     for (int i = 0; i <= numTicks; ++i) {
         double ratio = static_cast<double>(i) / numTicks;
-        int y = legendY + ratio * legendHeight;
+        // Инвертируем позицию y
+        int y = legendY + (1.0 - ratio) * legendHeight;
         double value = minDataValue + ratio * (maxDataValue - minDataValue);
         QString text = QString::number(value, 'g', 4);
 
@@ -149,7 +151,6 @@ QColor PortraitWindow::getColorForValue(double value) const {
 
     return QColor::fromHsv(hue, 255, 255);
 }
-
 
 void PortraitWindow::mousePressEvent(QMouseEvent *event) {
     lastMousePos = event->pos();
