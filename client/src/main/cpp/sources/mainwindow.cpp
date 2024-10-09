@@ -626,23 +626,25 @@ void MainWindow::resetRotation() {
 }
 
 rVect MainWindow::calculateDirectVectorFromRotation() {
-    // Получаем углы поворота от пользователя
     float rotationX = inputRotationX->value();
     float rotationY = inputRotationY->value();
     float rotationZ = inputRotationZ->value();
 
-    // Преобразуем углы в радианы
-    float radX = qDegreesToRadians(rotationX);
-    float radY = qDegreesToRadians(rotationY);
-    float radZ = qDegreesToRadians(rotationZ);
+    // Создаем матрицу вращения в том же порядке, что и в OpenGL
+    QMatrix4x4 rotationMatrix;
+    rotationMatrix.setToIdentity();
+    rotationMatrix.rotate(rotationZ, 0.0f, 0.0f, 1.0f); // Сначала вращаем вокруг оси Z
+    rotationMatrix.rotate(rotationY, 0.0f, 1.0f, 0.0f); // Затем вокруг оси Y
+    rotationMatrix.rotate(rotationX, 1.0f, 0.0f, 0.0f); // И затем вокруг оси X
 
-    // Вычисляем компоненты вектора направления на основе углов Эйлера
-    float x = cos(radY) * cos(radZ);
-    float y = sin(radX) * sin(radY) * cos(radZ) - cos(radX) * sin(radZ);
-    float z = cos(radX) * sin(radY) * cos(radZ) + sin(radX) * sin(radZ);
+    // Вектор направления по умолчанию, указывающий вдоль отрицательной оси Z
+    QVector3D defaultDirection(0.0f, 0.0f, -1.0f);
 
-    // Нормализуем вектор, чтобы его длина была равна 1
-    rVect directVector(x, y, z);
+    // Применяем матрицу вращения к вектору направления
+    QVector3D transformedDirection = rotationMatrix * defaultDirection;
+
+    // Нормализуем результат, чтобы гарантировать, что это единичный вектор
+    rVect directVector(transformedDirection.x(), transformedDirection.y(), transformedDirection.z());
     directVector.normalize();
 
     return directVector;
