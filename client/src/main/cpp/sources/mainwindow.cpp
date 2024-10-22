@@ -614,8 +614,9 @@ void MainWindow::applyRotation() {
     float rotationY = inputRotationY->value();
     float rotationZ = inputRotationZ->value();
 
-    openGLWidget->setRotation(rotationX, rotationY, rotationZ);
+    openGLWidget->setRotation(rotationY, rotationX, rotationZ);
 }
+
 
 void MainWindow::resetRotation() {
     inputRotationX->setValue(0);

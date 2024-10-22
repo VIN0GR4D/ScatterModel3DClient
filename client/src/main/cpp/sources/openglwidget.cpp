@@ -191,9 +191,9 @@ void OpenGLWidget::paintGL() {
     // Применение трансформаций камеры
     glTranslatef(-cameraPosition.x(), -cameraPosition.y(), cameraPosition.z());
     glScalef(scale, scale, scale);
-    glRotatef(rotationX, 1.0f, 0.0f, 0.0f);
-    glRotatef(rotationY, 0.0f, 1.0f, 0.0f);
     glRotatef(rotationZ, 0.0f, 0.0f, 1.0f);
+    glRotatef(rotationY, 0.0f, 1.0f, 0.0f);
+    glRotatef(rotationX, 1.0f, 0.0f, 0.0f);
 
     // Установка позиции источника света, прикрепленного к камере
     GLfloat lightPos[] = { lightPosition.x(), lightPosition.y(), lightPosition.z(), 1.0f };
@@ -269,7 +269,7 @@ void OpenGLWidget::mouseMoveEvent(QMouseEvent *event) {
         rotationZ += dx * sensitivity;
     }
 
-    emit rotationChanged(rotationX, rotationY, rotationZ); // Испускаем сигнал для обновления угла поворота в интерфейсе
+    emit rotationChanged(rotationY, rotationX, rotationZ); // Испускаем сигнал для обновления угла поворота в интерфейсе
 
     update();
     lastMousePosition = pos.toPoint(); // Обновление последней позиции мыши
