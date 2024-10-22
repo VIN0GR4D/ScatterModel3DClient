@@ -630,20 +630,20 @@ rVect MainWindow::calculateDirectVectorFromRotation() {
     float rotationY = inputRotationY->value();
     float rotationZ = inputRotationZ->value();
 
-    // Создаем матрицу вращения в том же порядке, что и в OpenGL
+    // Reverse the order of rotations to match OpenGL's transformation order
     QMatrix4x4 rotationMatrix;
     rotationMatrix.setToIdentity();
-    rotationMatrix.rotate(rotationZ, 0.0f, 0.0f, 1.0f); // Сначала вращаем вокруг оси Z
-    rotationMatrix.rotate(rotationY, 0.0f, 1.0f, 0.0f); // Затем вокруг оси Y
-    rotationMatrix.rotate(rotationX, 1.0f, 0.0f, 0.0f); // И затем вокруг оси X
+    rotationMatrix.rotate(rotationZ, 0.0f, 0.0f, 1.0f); // First
+    rotationMatrix.rotate(rotationY, 0.0f, 1.0f, 0.0f); // Second
+    rotationMatrix.rotate(rotationX, 1.0f, 0.0f, 0.0f); // Third
 
-    // Вектор направления по умолчанию, указывающий вдоль отрицательной оси Z
+    // Default direction vector pointing along negative Z-axis
     QVector3D defaultDirection(0.0f, 0.0f, -1.0f);
 
-    // Применяем матрицу вращения к вектору направления
+    // Apply the rotation matrix
     QVector3D transformedDirection = rotationMatrix * defaultDirection;
 
-    // Нормализуем результат, чтобы гарантировать, что это единичный вектор
+    // Normalize the result
     rVect directVector(transformedDirection.x(), transformedDirection.y(), transformedDirection.z());
     directVector.normalize();
 

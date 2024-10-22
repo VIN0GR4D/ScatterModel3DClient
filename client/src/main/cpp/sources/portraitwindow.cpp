@@ -68,29 +68,28 @@ void PortraitWindow::paintEvent(QPaintEvent *event) {
     QPainter painter(this);
     painter.save();
 
-    // Применяем смещение и масштабирование для рисования данных
+    // Apply offset and scaling for drawing data
     painter.translate(offset);
-    painter.scale(scale, scale);
+    painter.scale(scale, -scale); // Invert the Y-axis
+
+    // Adjust the offset in Y to compensate for the inverted axis
+    painter.translate(0, -data.size());
 
     int numRows = data.size();
     int numCols = data[0].size();
 
-    // Вычисляем размеры ячеек в сценических координатах
-    double cellWidth = 1.0;
-    double cellHeight = 1.0;
-
-    // Рисуем данные
+    // Draw the data
     for (int row = 0; row < numRows; ++row) {
         for (int col = 0; col < numCols; ++col) {
             double value = data[row][col];
             QColor color = getColorForValue(value);
-            painter.fillRect(col * cellWidth, row * cellHeight, cellWidth, cellHeight, color);
+            painter.fillRect(col * 1.0, row * 1.0, 1.0, 1.0, color);
         }
     }
 
     painter.restore();
 
-    // Рисуем цветовую шкалу после восстановления преобразований
+    // Draw the color scale after restoring transformations
     drawColorScale(painter);
 }
 
