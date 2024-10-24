@@ -6,17 +6,25 @@
 #include <QFile>
 
 TriangleClient::TriangleClient(const QUrl &url, QObject *parent)
-    : QObject(parent), m_webSocket(new QWebSocket), m_url(url), m_reconnectAttempts(0), m_maxReconnectAttempts(3), m_intentionalDisconnect(false) {
-    connect(m_webSocket, &QWebSocket::connected, this, &TriangleClient::onConnected);
-    connect(m_webSocket, &QWebSocket::disconnected, this, &TriangleClient::onDisconnected);
-    connect(m_webSocket, &QWebSocket::textMessageReceived, this, &TriangleClient::onTextMessageReceived);
-    connect(m_webSocket, &QWebSocket::errorOccurred, this, &TriangleClient::onErrorOccurred);
-    m_webSocket->open(url); // Открываем соединение с сервером
+    : QObject(parent),
+    m_webSocket(std::make_unique<QWebSocket>()),
+    m_url(url),
+    m_reconnectAttempts(0),
+    m_maxReconnectAttempts(3),
+    m_intentionalDisconnect(false) {
+    connect(m_webSocket.get(), &QWebSocket::connected, this, &TriangleClient::onConnected);
+    connect(m_webSocket.get(), &QWebSocket::disconnected, this, &TriangleClient::onDisconnected);
+    connect(m_webSocket.get(), &QWebSocket::textMessageReceived, this, &TriangleClient::onTextMessageReceived);
+    connect(m_webSocket.get(), &QWebSocket::errorOccurred, this, &TriangleClient::onErrorOccurred);
+    m_webSocket->open(url);
 }
 
 TriangleClient::~TriangleClient() {
-    m_webSocket->close();
+    if (m_webSocket->isValid()) {
+        m_webSocket->close();
+    }
 }
+
 // Попытка переподключения
 void TriangleClient::attemptReconnect() {
     if (m_intentionalDisconnect) {

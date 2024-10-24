@@ -9,6 +9,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QUrl>
+#include <memory>
 #include "Triangle.h"
 
 class TriangleClient : public QObject {
@@ -46,7 +47,7 @@ public slots:
     void onErrorOccurred(QAbstractSocket::SocketError error);
 
 private:
-    QWebSocket *m_webSocket;
+    std::unique_ptr<QWebSocket> m_webSocket;
     QUrl m_url;
     int m_polarRadiation;
     int m_polarRecive;
