@@ -10,6 +10,9 @@
 #include <QJsonArray>
 #include <QUrl>
 #include <memory>
+#include <QThread>
+#include <QMutex>
+#include <QQueue>
 #include "Triangle.h"
 
 class TriangleClient : public QObject {
@@ -38,6 +41,7 @@ public:
 signals:
     void resultsReceived(const QJsonObject &results);
     void logMessage(const QString &message);
+    void logToFile(const QString &message);
 
 public slots:
     void onConnected();
@@ -64,6 +68,11 @@ private:
 
     void attemptReconnect();
     void logMessageToFile(const QString &message);
+
+    QThread m_logThread;
+    QMutex m_logMutex;
+    QQueue<QString> m_logQueue;
+    void processLogQueue();
 };
 
 #endif // TRIANGLECLIENT_H

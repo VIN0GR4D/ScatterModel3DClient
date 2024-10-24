@@ -16,6 +16,9 @@ TriangleClient::TriangleClient(const QUrl &url, QObject *parent)
     connect(m_webSocket.get(), &QWebSocket::disconnected, this, &TriangleClient::onDisconnected);
     connect(m_webSocket.get(), &QWebSocket::textMessageReceived, this, &TriangleClient::onTextMessageReceived);
     connect(m_webSocket.get(), &QWebSocket::errorOccurred, this, &TriangleClient::onErrorOccurred);
+
+    connect(this, &TriangleClient::logToFile, this, &TriangleClient::logMessageToFile);
+
     m_webSocket->open(url);
 }
 
@@ -291,9 +294,30 @@ void TriangleClient::processResults(const QJsonObject &results) {
 }
 
 void TriangleClient::logMessageToFile(const QString &message) {
-    QFile file("received_messages.log");
-    if (file.open(QIODevice::Append | QIODevice::Text)) {
-        QTextStream out(&file);
-        out << message << "\n";
+    QMutexLocker locker(&m_logMutex);
+    m_logQueue.enqueue(message);
+    // Реализация обработки очереди в отдельном потоке
+    if (!m_logThread.isRunning()) {
+        m_logThread.start();
+        connect(&m_logThread, &QThread::started, this, &TriangleClient::processLogQueue);
+    }
+}
+
+void TriangleClient::processLogQueue() {
+    while (true) {
+        m_logMutex.lock();
+        if (m_logQueue.isEmpty()) {
+            m_logMutex.unlock();
+            m_logThread.quit();
+            break;
+        }
+        QString message = m_logQueue.dequeue();
+        m_logMutex.unlock();
+
+        QFile file("received_messages.log");
+        if (file.open(QIODevice::Append | QIODevice::Text)) {
+            QTextStream out(&file);
+            out << message << "\n";
+        }
     }
 }
