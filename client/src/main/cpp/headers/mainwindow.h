@@ -70,7 +70,7 @@ private slots:
     void saveResults();
     void connectToServer();
     void onConnectedToServer();
-    void logMessage(const QString& message);
+    void logMessage(const QString& message) const;
     void authorizeClient();
     void sendDataAfterAuthorization(std::function<void()> sendDataFunc);
     void openGraphWindow();

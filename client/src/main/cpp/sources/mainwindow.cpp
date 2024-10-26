@@ -888,7 +888,7 @@ void MainWindow::disconnectFromServer() {
     }
 }
 
-void MainWindow::logMessage(const QString& message) {
+void MainWindow::logMessage(const QString& message) const {
     logDisplay->append(QTime::currentTime().toString("HH:mm:ss") + " - " + message);
 }
 

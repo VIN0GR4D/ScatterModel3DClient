@@ -107,40 +107,73 @@ void TriangleClient::onErrorOccurred(QAbstractSocket::SocketError error) {
 
 // Обработчик получения текстового сообщения от сервера
 void TriangleClient::onTextMessageReceived(QString message) {
-    emit logMessage("Message received: " + message);
-    qDebug() << "Message received:" << message;
+    // Логируем полученное сообщение
+    emit logMessage("Получено сообщение: " + message);
+    qDebug() << "Получено сообщение:" << message;
 
-    // Логирование сообщения в файл
-    logMessageToFile(message);
+    // Асинхронная запись в лог
+    emit logToFile(message);
 
-    QJsonDocument doc = QJsonDocument::fromJson(message.toUtf8());
+    // Преобразуем строку в QByteArray для минимизации копирований
+    QByteArray messageData = message.toUtf8();
+
+    // Попытка разобрать JSON-документ
+    QJsonParseError parseError;
+    QJsonDocument doc = QJsonDocument::fromJson(messageData, &parseError);
+    if (parseError.error != QJsonParseError::NoError) {
+        // Ошибка при разборе JSON
+        qDebug() << "Ошибка разбора JSON:" << parseError.errorString();
+        emit logMessage("Ошибка разбора JSON: " + parseError.errorString());
+        return;
+    }
+
+    // Проверка, является ли JSON объектом
+    if (!doc.isObject()) {
+        qDebug() << "Полученный JSON не является объектом.";
+        emit logMessage("Полученный JSON не является объектом.");
+        return;
+    }
+
+    // Получаем JSON-объект
     QJsonObject obj = doc.object();
 
-    if (obj.contains("type")) {
+    // Проверка наличия поля "type" и его строкового типа
+    if (obj.contains("type") && obj["type"].isString()) {
         QString type = obj["type"].toString();
 
-        if (type == "result") {
-            qDebug() << "Results received from server:" << obj["content"].toObject();
-            emit resultsReceived(obj["content"].toObject()); // Эмитирование сигнала с полученными данными
-        } else if (type == "answer") {
+        // Обработка типа "result" с содержимым-объектом
+        if (type == "result" && obj["content"].isObject()) {
+            QJsonObject content = obj["content"].toObject();
+            qDebug() << "Получены результаты от сервера:" << content;
+            emit resultsReceived(content);
+        }
+        // Обработка типа "answer" с текстовым сообщением
+        else if (type == "answer" && obj.contains("msg") && obj["msg"].isString()) {
             QString msg = obj["msg"].toString();
             if (msg == "клиент подключен") {
-                m_isAuthorized = true;  // Устанавливаем флаг авторизации в true
-                qDebug() << "Authorization successful";
-                emit logMessage("Authorization successful.");
+                m_isAuthorized = true;
+                qDebug() << "Авторизация успешна";
+                emit logMessage("Авторизация успешна.");
             }
-            emit logMessage("Answer received: " + msg);
-            qDebug() << "Answer received from server.";
-        } else if (type == "progress_bar") {
-            qDebug() << "Progress bar update received:" << obj["content"].toInt();
-            emit logMessage("Progress: " + QString::number(obj["content"].toInt()) + "%");
-        } else {
-            qDebug() << "Unknown message type received:" << type;
-            qDebug() << "Message content:" << message;
+            emit logMessage("Получен ответ: " + msg);
+            qDebug() << "Ответ получен от сервера.";
         }
-    } else {
-        qDebug() << "Message does not contain a type field.";
-        qDebug() << "Message content:" << message;
+        // Обработка типа "progress_bar" с числовым значением
+        else if (type == "progress_bar" && obj.contains("content") && obj["content"].isDouble()) {
+            int progress = obj["content"].toInt();
+            qDebug() << "Получено обновление прогресс-бара:" << progress;
+            emit logMessage("Прогресс: " + QString::number(progress) + "%");
+        }
+        // Обработка неизвестного или некорректного типа сообщения
+        else {
+            qDebug() << "Получен неизвестный или некорректный тип сообщения:" << type;
+            emit logMessage("Неизвестный или некорректный тип сообщения: " + type);
+        }
+    }
+    // Сообщение не содержит допустимого поля "type"
+    else {
+        qDebug() << "Сообщение не содержит допустимого поля type.";
+        emit logMessage("Сообщение не содержит допустимого поля type.");
     }
 }
 
