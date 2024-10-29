@@ -190,87 +190,6 @@ MainWindow::MainWindow(QWidget *parent)
 
     formLayout->addRow(serverConnectionGroupBox);
 
-    // // Элементы пользовательского интерфейса для ввода параметров
-    // QGroupBox *radiationPolarizationGroupBox = new QGroupBox("Излучения", controlWidget);
-    // QVBoxLayout *radiationPolarizationLayout = new QVBoxLayout(radiationPolarizationGroupBox);
-    // radiationPolarizationComboBox = new QComboBox();
-    // radiationPolarizationComboBox->addItems({"Горизонтальный", "Вертикальный", "Круговой"});
-    // radiationPolarizationLayout->addWidget(radiationPolarizationComboBox);
-    // radiationPolarizationGroupBox->setLayout(radiationPolarizationLayout);
-
-    // QGroupBox *receivePolarizationGroupBox = new QGroupBox("Приёма", controlWidget);
-    // QVBoxLayout *receivePolarizationLayout = new QVBoxLayout(receivePolarizationGroupBox);
-    // receivePolarizationComboBox = new QComboBox();
-    // receivePolarizationComboBox->addItems({"Горизонтальный", "Вертикальный", "Круговой"});
-    // receivePolarizationLayout->addWidget(receivePolarizationComboBox);
-    // receivePolarizationGroupBox->setLayout(receivePolarizationLayout);
-
-    // // Компоновка поляризации излучения и приёма на одном уровне
-    // QHBoxLayout *polarizationLayout = new QHBoxLayout();
-    // polarizationLayout->addWidget(radiationPolarizationGroupBox);
-    // polarizationLayout->addWidget(receivePolarizationGroupBox);
-
-    // QGroupBox *polarizationGroupBox = new QGroupBox("Поляризация", controlWidget);
-    // polarizationGroupBox->setLayout(polarizationLayout);
-
-    // // Получаем рекомендованный размер по оси X
-    // int recommendedWidth = polarizationGroupBox->sizeHint().width();
-
-    // // Устанавливаем фиксированный размер по оси Y и оставляем рекомендованный размер по оси X
-    // polarizationGroupBox->setFixedSize(recommendedWidth, 150);
-
-    // // Группа для диапазона частот и подстилающей поверхности
-    // freqBandComboBox = new QComboBox(controlWidget);
-    // freqBandComboBox->addItems({"P-диапазон (400-450 МГц)", "L-диапазон (1-1.5 ГГц)", "S-диапазон (2.75-3.15 ГГц)", "C-диапазон (5-5.5 ГГц)", "X-диапазон (9-10 ГГц)", "Ka-диапазон (36.5-38.5 ГГц)"});
-    // freqBandComboBox->setCurrentIndex(5);
-
-    // pplaneCheckBox = new QCheckBox("Включить подстилающую поверхность", controlWidget);
-
-    // QGroupBox *frequencyAndPlaneGroupBox = new QGroupBox("Параметры", controlWidget);
-    // QFormLayout *frequencyAndPlaneLayout = new QFormLayout(frequencyAndPlaneGroupBox);
-    // frequencyAndPlaneLayout->addRow(new QLabel("Диапазон частот:"), freqBandComboBox);
-    // frequencyAndPlaneLayout->addRow(pplaneCheckBox);
-    // frequencyAndPlaneGroupBox->setLayout(frequencyAndPlaneLayout);
-
-    // // Настройка размеров элементов для диапазона частот и подстилающей поверхности
-    // freqBandComboBox->setFixedSize(250, 30);
-    // pplaneCheckBox->setFixedSize(235, 30);
-    // frequencyAndPlaneGroupBox->setFixedSize(400, 100);
-
-    // // Группа для портретных типов
-    // QGroupBox *portraitTypeGroupBox = new QGroupBox("Портретные типы", controlWidget);
-    // QVBoxLayout *portraitTypeLayout = new QVBoxLayout(portraitTypeGroupBox);
-
-    // azimuthPortraitCheckBox = new QCheckBox("Азимутальный", portraitTypeGroupBox);
-    // anglePortraitCheckBox = new QCheckBox("Угломестный", portraitTypeGroupBox);
-    // rangePortraitCheckBox = new QCheckBox("Дальностный", portraitTypeGroupBox);
-
-    // portraitTypeLayout->addWidget(anglePortraitCheckBox);
-    // portraitTypeLayout->addWidget(azimuthPortraitCheckBox);
-    // portraitTypeLayout->addWidget(rangePortraitCheckBox);
-
-    // azimuthPortraitCheckBox->setFixedSize(180, 30);
-    // anglePortraitCheckBox->setFixedSize(180, 30);
-    // rangePortraitCheckBox->setFixedSize(180, 30);
-    // portraitTypeGroupBox->setFixedSize(125, 150);
-
-    // portraitTypeGroupBox->setLayout(portraitTypeLayout);
-
-    // // Компоновка параметров и портретных типов в одну строку
-    // QHBoxLayout *parametersAndPortraitLayout = new QHBoxLayout();
-    // parametersAndPortraitLayout->addWidget(portraitTypeGroupBox);
-    // parametersAndPortraitLayout->addWidget(polarizationGroupBox);
-
-    // QWidget *parametersAndPortraitWidget = new QWidget();
-    // parametersAndPortraitWidget->setLayout(parametersAndPortraitLayout);
-
-    // // Устанавливаем фиксированный размер для parametersAndPortraitWidget
-    // parametersAndPortraitWidget->setFixedSize(parametersAndPortraitLayout->sizeHint());
-    // formLayout->addRow(parametersAndPortraitWidget);
-
-    // // Добавляем группу для диапазона частот и подстилающей поверхности в основной макет
-    // formLayout->addRow(frequencyAndPlaneGroupBox);
-
     // Элементы пользовательского интерфейса для ввода параметров
     // Создаем компоновку для "Поляризации"
     QVBoxLayout *polarizationLayout = new QVBoxLayout();
@@ -296,7 +215,7 @@ MainWindow::MainWindow(QWidget *parent)
     polarizationGroupBox->setLayout(polarizationLayout);
 
     // Получаем рекомендованный размер по оси X
-    int recommendedWidth = polarizationGroupBox->sizeHint().width();
+    // int recommendedWidth = polarizationGroupBox->sizeHint().width();
 
     // Устанавливаем фиксированный размер для группы "Поляризация"
     polarizationGroupBox->setFixedSize(250, 150);
@@ -631,20 +550,20 @@ rVect MainWindow::calculateDirectVectorFromRotation() {
     float rotationY = inputRotationY->value();
     float rotationZ = inputRotationZ->value();
 
-    // Reverse the order of rotations to match OpenGL's transformation order
+    // Инвертируем порядок вращений, чтобы соответствовать порядку трансформаций в OpenGL
     QMatrix4x4 rotationMatrix;
     rotationMatrix.setToIdentity();
-    rotationMatrix.rotate(rotationZ, 0.0f, 0.0f, 1.0f); // First
-    rotationMatrix.rotate(rotationY, 0.0f, 1.0f, 0.0f); // Second
-    rotationMatrix.rotate(rotationX, 1.0f, 0.0f, 0.0f); // Third
+    rotationMatrix.rotate(rotationZ, 0.0f, 0.0f, 1.0f);
+    rotationMatrix.rotate(rotationY, 0.0f, 1.0f, 0.0f);
+    rotationMatrix.rotate(rotationX, 1.0f, 0.0f, 0.0f);
 
-    // Default direction vector pointing along negative Z-axis
+    // Вектор направления по умолчанию, направленный вдоль отрицательной оси Z
     QVector3D defaultDirection(0.0f, 0.0f, -1.0f);
 
-    // Apply the rotation matrix
-    QVector3D transformedDirection = rotationMatrix * defaultDirection;
+    // Применяем матрицу вращения
+    QVector3D transformedDirection = rotationMatrix.map(defaultDirection);
 
-    // Normalize the result
+    // Нормализуем результат
     rVect directVector(transformedDirection.x(), transformedDirection.y(), transformedDirection.z());
     directVector.normalize();
 

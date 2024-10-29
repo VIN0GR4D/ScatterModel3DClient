@@ -140,7 +140,7 @@ void Graph3DWindow::onRotateLeft() {
     QVector3D cameraPosition = cameraEntity->position();
     QMatrix4x4 rotationMatrix;
     rotationMatrix.rotate(-10.0f, QVector3D(0, 1, 0));
-    cameraPosition = rotationMatrix * cameraPosition;
+    cameraPosition = rotationMatrix.map(cameraPosition);
     cameraEntity->setPosition(cameraPosition);
     cameraEntity->setViewCenter(viewCenter);
 }
@@ -150,7 +150,7 @@ void Graph3DWindow::onRotateRight() {
     QVector3D cameraPosition = cameraEntity->position();
     QMatrix4x4 rotationMatrix;
     rotationMatrix.rotate(10.0f, QVector3D(0, 1, 0));
-    cameraPosition = rotationMatrix * cameraPosition;
+    cameraPosition = rotationMatrix.map(cameraPosition);
     cameraEntity->setPosition(cameraPosition);
     cameraEntity->setViewCenter(viewCenter);
 }

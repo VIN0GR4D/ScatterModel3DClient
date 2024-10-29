@@ -33,10 +33,10 @@ void PortraitOpenGLWidget::resizeGL(int w, int h)
 {
     glViewport(0, 0, w, h);
     QMatrix4x4 projection;
-    projection.perspective(45.0, double(w) / h, 0.1, 100.0);
-    projection.translate(0, 0, -10);
-    projection.rotate(25, 1, 0, 0);
-    projection.rotate(-45, 0, 1, 0);
+    projection.perspective(45.0f, float(w) / h, 0.1f, 100.0f);
+    projection.translate(0.0f, 0.0f, -10.0f);
+    projection.rotate(25.0f, 1.0f, 0.0f, 0.0f);
+    projection.rotate(-45.0f, 0.0f, 1.0f, 0.0f);
     glMatrixMode(GL_PROJECTION);
     glLoadMatrixf(projection.constData());
 }
