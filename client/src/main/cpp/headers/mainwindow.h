@@ -23,6 +23,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QRadioButton>
+#include <QFutureWatcher>
 
 class OpenGLWidget;
 class Parser;
@@ -84,6 +85,8 @@ private slots:
     void openScatterPlot3DWindow();
     void saveLog();
     void showAboutDialog();
+    void displayResults(const QJsonObject &results);
+    void processResults(const QJsonObject &results, bool angleChecked, bool azimuthChecked, bool rangeChecked);
 
 private:
     Ui::MainWindow *ui;
@@ -118,7 +121,6 @@ private:
     QJsonObject vectorToJson(const QSharedPointer<const rVect>& vector);
     void extractValues(const QJsonArray &array, QVector<double> &container, int depth);
     void extract2DValues(const QJsonArray &array, QVector<QVector<double>> &container);
-    void displayResults(const QJsonObject &results);
     Graph3DWindow *graph3DWindow;
     PortraitWindow *portraitWindow;
     bool isDarkTheme;
@@ -126,6 +128,7 @@ private:
     QJsonObject getScatteringDataFromServer();
     rVect calculateDirectVectorFromRotation();
 
+    QFutureWatcher<void> *resultsWatcher;
 };
 
 #endif // MAINWINDOW_H

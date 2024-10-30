@@ -49,6 +49,7 @@ MainWindow::MainWindow(QWidget *parent)
     , graph3DWindow(new Graph3DWindow(this))
     , portraitWindow(new PortraitWindow(this))
     , isDarkTheme(true)
+    , resultsWatcher(new QFutureWatcher<void>(this))
 {
     ui->setupUi(this);
     setCentralWidget(openGLWidget);
@@ -349,7 +350,11 @@ MainWindow::MainWindow(QWidget *parent)
     connect(buttonResetRotation, &QPushButton::clicked, this, &MainWindow::resetRotation);
     connect(connectButton, &QPushButton::clicked, this, &MainWindow::connectToServer);
     connect(disconnectButton, &QPushButton::clicked, this, &MainWindow::disconnectFromServer);
-    connect(triangleClient, &TriangleClient::resultsReceived, this, QOverload<const QJsonObject &>::of(&MainWindow::displayResults));
+    // connect(triangleClient, &TriangleClient::resultsReceived, this, QOverload<const QJsonObject &>::of(&MainWindow::displayResults));
+    connect(resultsWatcher, &QFutureWatcher<void>::finished, this, [this]() {
+        logMessage("Обработка результатов завершена.");
+        // Дополнительные действия после завершения
+    });
     connect(parser, &Parser::fileParsed, this, [&](const QVector<QVector3D> &v, const QVector<QVector<int>> &t, const QVector<QSharedPointer<triangle>> &tri) {
         QVector3D observerPositionQVector = openGLWidget->getCameraPosition();
         rVect observerPosition = openGLWidget->QVector3DToRVect(observerPositionQVector);
@@ -485,45 +490,63 @@ void MainWindow::extract2DValues(const QJsonArray &array, QVector<QVector<double
 
 // Функция для отображения результатов
 void MainWindow::displayResults(const QJsonObject &results) {
+    // Копируем необходимые флаги перед запуском в другом потоке
+    bool angleChecked = anglePortraitCheckBox->isChecked();
+    bool azimuthChecked = azimuthPortraitCheckBox->isChecked();
+    bool rangeChecked = rangePortraitCheckBox->isChecked();
+
+    QFuture<void> future = QtConcurrent::run([this, results, angleChecked, azimuthChecked, rangeChecked]() {
+        processResults(results, angleChecked, azimuthChecked, rangeChecked);
+    });
+
+    resultsWatcher->setFuture(future);
+}
+
+void MainWindow::processResults(const QJsonObject &results, bool angleChecked, bool azimuthChecked, bool rangeChecked) {
     // Преобразование JSON-объекта в JSON-документ для дальнейшего использования
     QJsonDocument doc(results);
-    storedResults = doc.toJson(QJsonDocument::Indented); // Сохранение результатов
-    logMessage("Числовые значения с сервера получены и сохранены.");
+    QString localStoredResults = doc.toJson(QJsonDocument::Indented); // Локальная копия результатов
 
     // Извлечение массивов absEout и normEout из JSON-объекта результатов
     QJsonArray absEoutArray = results["absEout"].toArray();
     QJsonArray normEoutArray = results["normEout"].toArray();
 
-    // Очистка текущего содержимого векторов absEout и normEout
-    this->absEout.clear();
-    this->normEout.clear();
-    this->absEout2D.clear();
-    this->normEout2D.clear();
+    // Локальные копии векторов
+    QVector<double> localAbsEout;
+    QVector<double> localNormEout;
+    QVector<QVector<double>> localAbsEout2D;
+    QVector<QVector<double>> localNormEout2D;
 
     // Проверка, какие чекбоксы отмечены и установка соответствующей глубины вложенности
-    if (anglePortraitCheckBox->isChecked()) {
-        // Для угломестного типа также используется двойная вложенность
-        extractValues(absEoutArray, absEout, 3);
-        extractValues(normEoutArray, normEout, 3);
+    if (angleChecked) {
+        // Для угломестного типа также используется тройная вложенность
+        extractValues(absEoutArray, localAbsEout, 3);
+        extractValues(normEoutArray, localNormEout, 3);
     }
-    if (azimuthPortraitCheckBox->isChecked()) {
-        // Для азимутального типа используется двойная вложенность
-        extractValues(absEoutArray, absEout, 3);
-        extractValues(normEoutArray, normEout, 3);
+    if (azimuthChecked) {
+        // Для азимутального типа используется тройная вложенность
+        extractValues(absEoutArray, localAbsEout, 3);
+        extractValues(normEoutArray, localNormEout, 3);
     }
-    if (rangePortraitCheckBox->isChecked()) {
+    if (rangeChecked) {
         // Для дальностного типа требуется тройная вложенность
-        extractValues(absEoutArray, absEout, 3);
-        extractValues(normEoutArray, normEout, 3);
+        extractValues(absEoutArray, localAbsEout, 3);
+        extractValues(normEoutArray, localNormEout, 3);
     }
 
     // Извлечение двумерных массивов
-    extract2DValues(absEoutArray, absEout2D);
-    extract2DValues(normEoutArray, normEout2D);
+    extract2DValues(absEoutArray, localAbsEout2D);
+    extract2DValues(normEoutArray, localNormEout2D);
 
-    // Debug вывод данных
-    qDebug() << "absEout2D:" << absEout2D;
-    qDebug() << "normEout2D:" << normEout2D;
+    // После обработки данных обновляем UI в главном потоке
+    QMetaObject::invokeMethod(this, [=]() {
+            storedResults = localStoredResults;
+            absEout = localAbsEout;
+            normEout = localNormEout;
+            absEout2D = localAbsEout2D;
+            normEout2D = localNormEout2D;
+            logMessage("Числовые значения с сервера получены и сохранены.");
+        }, Qt::QueuedConnection);
 }
 
 void MainWindow::applyRotation() {
