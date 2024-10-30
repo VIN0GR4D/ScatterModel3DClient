@@ -100,19 +100,32 @@ private:
     QWidget *controlWidget;
     QFormLayout *formLayout;
     bool serverEnabled;
+
+    QVector<double> absEout;
+    QVector<double> normEout;
+    QVector<QVector<double>> absEout2D;
+    QVector<QVector<double>> normEout2D;
+    QCheckBox *anglePortraitCheckBox;
+    QCheckBox *azimuthPortraitCheckBox;
+    QCheckBox *rangePortraitCheckBox;
+    QString storedResults;
+    QComboBox *freqBandComboBox;
+    QCheckBox *pplaneCheckBox;
+
+    QComboBox *radiationPolarizationComboBox;
+    QComboBox *receivePolarizationComboBox;
+
     QJsonObject vectorToJson(const QSharedPointer<const rVect>& vector);
     void extractValues(const QJsonArray &array, QVector<double> &container, int depth);
     void extract2DValues(const QJsonArray &array, QVector<QVector<double>> &container);
-    // void extractValuesRecursive(const QJsonArray &array, QVector<double> &container);
     void displayResults(const QJsonObject &results);
     Graph3DWindow *graph3DWindow;
     PortraitWindow *portraitWindow;
-    double calculateAngle(int index, int totalSteps);
-    double calculateAzimuth(int index, int totalSteps);
     bool isDarkTheme;
     int freqBand;
     QJsonObject getScatteringDataFromServer();
     rVect calculateDirectVectorFromRotation();
+
 };
 
 #endif // MAINWINDOW_H

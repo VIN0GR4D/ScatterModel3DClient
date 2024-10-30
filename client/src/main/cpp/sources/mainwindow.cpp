@@ -26,28 +26,26 @@
 #include <QScopedPointer>
 #include <memory>
 
-QVector<double> absEout;
-QVector<double> normEout;
-QCheckBox *anglePortraitCheckBox;
-QCheckBox *azimuthPortraitCheckBox;
-QCheckBox *rangePortraitCheckBox;
-QString storedResults;
-QComboBox *freqBandComboBox;
-QCheckBox *pplaneCheckBox;
-
-QComboBox *radiationPolarizationComboBox;
-QComboBox *receivePolarizationComboBox;
-
-QVector<QVector<double>> absEout2D;
-QVector<QVector<double>> normEout2D;
-
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
     , openGLWidget(new OpenGLWidget(this))
     , parser(new Parser(this))
     , rayTracer(std::make_unique<RayTracer>())
+    , triangleClient(nullptr) // Инициализируем указатель нулевым значением
     , serverEnabled(false)
+    , absEout()
+    , normEout()
+    , absEout2D()
+    , normEout2D()
+    , anglePortraitCheckBox(new QCheckBox("Угломестный", this))
+    , azimuthPortraitCheckBox(new QCheckBox("Азимутальный", this))
+    , rangePortraitCheckBox(new QCheckBox("Дальностный", this))
+    , storedResults()
+    , freqBandComboBox(new QComboBox(this))
+    , pplaneCheckBox(new QCheckBox("Включить подстилающую поверхность", this))
+    , radiationPolarizationComboBox(new QComboBox(this))
+    , receivePolarizationComboBox(new QComboBox(this))
     , graph3DWindow(new Graph3DWindow(this))
     , portraitWindow(new PortraitWindow(this))
     , isDarkTheme(true)
@@ -497,10 +495,10 @@ void MainWindow::displayResults(const QJsonObject &results) {
     QJsonArray normEoutArray = results["normEout"].toArray();
 
     // Очистка текущего содержимого векторов absEout и normEout
-    absEout.clear();
-    normEout.clear();
-    absEout2D.clear();
-    normEout2D.clear();
+    this->absEout.clear();
+    this->normEout.clear();
+    this->absEout2D.clear();
+    this->normEout2D.clear();
 
     // Проверка, какие чекбоксы отмечены и установка соответствующей глубины вложенности
     if (anglePortraitCheckBox->isChecked()) {
@@ -533,9 +531,8 @@ void MainWindow::applyRotation() {
     float rotationY = inputRotationY->value();
     float rotationZ = inputRotationZ->value();
 
-    openGLWidget->setRotation(rotationY, rotationX, rotationZ);
+    openGLWidget->setRotation(rotationX, rotationY, rotationZ);
 }
-
 
 void MainWindow::resetRotation() {
     inputRotationX->setValue(0);
@@ -553,9 +550,9 @@ rVect MainWindow::calculateDirectVectorFromRotation() {
     // Инвертируем порядок вращений, чтобы соответствовать порядку трансформаций в OpenGL
     QMatrix4x4 rotationMatrix;
     rotationMatrix.setToIdentity();
-    rotationMatrix.rotate(rotationZ, 0.0f, 0.0f, 1.0f);
-    rotationMatrix.rotate(rotationY, 0.0f, 1.0f, 0.0f);
     rotationMatrix.rotate(rotationX, 1.0f, 0.0f, 0.0f);
+    rotationMatrix.rotate(rotationY, 0.0f, 1.0f, 0.0f);
+    rotationMatrix.rotate(rotationZ, 0.0f, 0.0f, 1.0f);
 
     // Вектор направления по умолчанию, направленный вдоль отрицательной оси Z
     QVector3D defaultDirection(0.0f, 0.0f, -1.0f);
