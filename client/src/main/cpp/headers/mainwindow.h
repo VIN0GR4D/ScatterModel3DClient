@@ -44,24 +44,9 @@ public:
     ~MainWindow();
 
 public slots:
-    void updateRotationX(double x) {
-        inputRotationX->blockSignals(true);
-        inputRotationX->setValue(fmod(x, 360.0));  // Применяем модуль от 360
-        inputRotationX->blockSignals(false);
-    }
-
-    void updateRotationY(double y) {
-        inputRotationY->blockSignals(true);
-        inputRotationY->setValue(fmod(y, 360.0));  // Применяем модуль от 360
-        inputRotationY->blockSignals(false);
-    }
-
-    void updateRotationZ(double z) {
-        inputRotationZ->blockSignals(true);
-        inputRotationZ->setValue(fmod(z, 360.0));  // Применяем модуль от 360
-        inputRotationZ->blockSignals(false);
-    }
-
+    void updateRotationX(double x);
+    void updateRotationY(double y);
+    void updateRotationZ(double z);
 
 private slots:
     void loadModel();
@@ -71,7 +56,7 @@ private slots:
     void saveResults();
     void connectToServer();
     void onConnectedToServer();
-    void logMessage(const QString& message) const;
+    void logMessage(const QString& message);
     void authorizeClient();
     void sendDataAfterAuthorization(std::function<void()> sendDataFunc);
     void openGraphWindow();

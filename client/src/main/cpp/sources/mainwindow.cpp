@@ -549,6 +549,24 @@ void MainWindow::processResults(const QJsonObject &results, bool angleChecked, b
         }, Qt::QueuedConnection);
 }
 
+void MainWindow::updateRotationX(double x) {
+    inputRotationX->blockSignals(true);
+    inputRotationX->setValue(fmod(x, 360.0));  // Применяем модуль от 360
+    inputRotationX->blockSignals(false);
+}
+
+void MainWindow::updateRotationY(double y) {
+    inputRotationY->blockSignals(true);
+    inputRotationY->setValue(fmod(y, 360.0));
+    inputRotationY->blockSignals(false);
+}
+
+void MainWindow::updateRotationZ(double z) {
+    inputRotationZ->blockSignals(true);
+    inputRotationZ->setValue(fmod(z, 360.0));
+    inputRotationZ->blockSignals(false);
+}
+
 void MainWindow::applyRotation() {
     float rotationX = inputRotationX->value();
     float rotationY = inputRotationY->value();
@@ -827,7 +845,7 @@ void MainWindow::disconnectFromServer() {
     }
 }
 
-void MainWindow::logMessage(const QString& message) const {
+void MainWindow::logMessage(const QString& message) {
     logDisplay->append(QTime::currentTime().toString("HH:mm:ss") + " - " + message);
 }
 

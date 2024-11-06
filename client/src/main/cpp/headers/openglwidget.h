@@ -18,13 +18,13 @@ public:
     explicit OpenGLWidget(QWidget *parent = nullptr);
     void setGeometry(const QVector<QVector3D> &vertices, const QVector<QVector<int>> &triangleIndices, const QVector<QSharedPointer<triangle>> &triangles);
     QVector3D getCameraPosition() const;
-    QVector<QSharedPointer<triangle>> getTriangles() const;
+    const QVector<QSharedPointer<triangle>>& getTriangles() const;
     void updateScene();
     void clearScene();
     rVect QVector3DToRVect(const QVector3D& vec);
     void setRotation(float x, float y, float z);
-    QVector<QVector3D> getVertices() const;
-    QVector<QVector<int>> getIndices() const;
+    const QVector<QVector3D>& getVertices() const;
+    const QVector<QVector<int>>& getIndices() const;
 
 signals:
     void rotationChanged(float x, float y, float z);

@@ -3,6 +3,11 @@
 
 OpenGLWidget::OpenGLWidget(QWidget *parent)
     : QOpenGLWidget(parent), rotationX(0.0f), rotationY(0.0f), rotationZ(0.0f), scale(1.0f) {
+    QSurfaceFormat format;
+    format.setProfile(QSurfaceFormat::CompatibilityProfile);
+    format.setVersion(3, 0);
+    setFormat(format);
+
     setFocusPolicy(Qt::StrongFocus);
     // colorTable = {Qt::red, Qt::green, Qt::blue, Qt::yellow, Qt::magenta, Qt::cyan, Qt::white, Qt::gray};
     colorTable = {Qt::white};
@@ -37,11 +42,15 @@ float OpenGLWidget::calculateOptimalZoomOutFactor(float boundingSphereRadius) {
     return adjustedDistance / boundingSphereRadius;
 }
 
-QVector<QVector3D> OpenGLWidget::getVertices() const {
+const QVector<QSharedPointer<triangle>>& OpenGLWidget::getTriangles() const {
+    return triangles;
+}
+
+const QVector<QVector3D>& OpenGLWidget::getVertices() const {
     return vertices;
 }
 
-QVector<QVector<int>> OpenGLWidget::getIndices() const {
+const QVector<QVector<int>>& OpenGLWidget::getIndices() const {
     return triangleIndices;
 }
 
@@ -116,10 +125,6 @@ void OpenGLWidget::setRotation(float x, float y, float z) {
     rotationY = y;
     rotationZ = z;
     update();
-}
-
-QVector<QSharedPointer<triangle>> OpenGLWidget::getTriangles() const {
-    return triangles;
 }
 
 // Инициализация OpenGL
