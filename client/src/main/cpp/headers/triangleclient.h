@@ -14,6 +14,7 @@
 #include <QMutex>
 #include <QQueue>
 #include "Triangle.h"
+#include "logworker.h"
 
 class TriangleClient : public QObject {
     Q_OBJECT
@@ -47,6 +48,7 @@ public slots:
     void onConnected();
     void onDisconnected();
     void onTextMessageReceived(QString message);
+    void parseAndProcessMessage(const QString& message);
     void sendTriangleData(const QVector<QSharedPointer<triangle>>& triangles);
     void onErrorOccurred(QAbstractSocket::SocketError error);
 
@@ -67,12 +69,8 @@ private:
     bool m_isAuthorized = false;
 
     void attemptReconnect();
-    void logMessageToFile(const QString &message);
-
     QThread m_logThread;
-    QMutex m_logMutex;
-    QQueue<QString> m_logQueue;
-    void processLogQueue();
+    LogWorker *m_logWorker;
 };
 
 #endif // TRIANGLECLIENT_H

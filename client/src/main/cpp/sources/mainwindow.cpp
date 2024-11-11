@@ -490,7 +490,7 @@ void MainWindow::extract2DValues(const QJsonArray &array, QVector<QVector<double
 
 // Функция для отображения результатов
 void MainWindow::displayResults(const QJsonObject &results) {
-    // Копируем необходимые флаги перед запуском в другом потоке
+    // Копируем необходимые данные перед запуском в другом потоке
     bool angleChecked = anglePortraitCheckBox->isChecked();
     bool azimuthChecked = azimuthPortraitCheckBox->isChecked();
     bool rangeChecked = rangePortraitCheckBox->isChecked();
@@ -846,8 +846,15 @@ void MainWindow::disconnectFromServer() {
 }
 
 void MainWindow::logMessage(const QString& message) {
-    logDisplay->append(QTime::currentTime().toString("HH:mm:ss") + " - " + message);
+    // Ограничиваем длину сообщения, чтобы предотвратить зависание UI
+    QString displayedMessage = message;
+    int maxLength = 500; // Устанавливаем максимальную длину отображаемого сообщения
+    if (displayedMessage.length() > maxLength) {
+        displayedMessage = displayedMessage.left(maxLength) + "... [сообщение обрезано]";
+    }
+    logDisplay->append(QTime::currentTime().toString("HH:mm:ss") + " - " + displayedMessage);
 }
+
 
 // Функция для сохранения результатов
 void MainWindow::saveResults() {

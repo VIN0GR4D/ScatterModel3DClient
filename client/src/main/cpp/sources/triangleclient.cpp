@@ -4,6 +4,7 @@
 #include <QDebug>
 #include <QTimer>
 #include <QFile>
+#include <QtConcurrent/QtConcurrent>
 
 TriangleClient::TriangleClient(const QUrl &url, QObject *parent)
     : QObject(parent),
@@ -11,13 +12,25 @@ TriangleClient::TriangleClient(const QUrl &url, QObject *parent)
     m_url(url),
     m_reconnectAttempts(0),
     m_maxReconnectAttempts(3),
-    m_intentionalDisconnect(false) {
+    m_intentionalDisconnect(false),
+    m_logWorker(new LogWorker){
     connect(m_webSocket.get(), &QWebSocket::connected, this, &TriangleClient::onConnected);
     connect(m_webSocket.get(), &QWebSocket::disconnected, this, &TriangleClient::onDisconnected);
     connect(m_webSocket.get(), &QWebSocket::textMessageReceived, this, &TriangleClient::onTextMessageReceived);
     connect(m_webSocket.get(), &QWebSocket::errorOccurred, this, &TriangleClient::onErrorOccurred);
 
-    connect(this, &TriangleClient::logToFile, this, &TriangleClient::logMessageToFile);
+    // connect(this, &TriangleClient::logToFile, this, &TriangleClient::logMessageToFile);
+
+    // Настройка LogWorker и потока
+    m_logWorker->moveToThread(&m_logThread);
+    connect(this, &TriangleClient::logToFile, m_logWorker, &LogWorker::enqueueMessage);
+    connect(&m_logThread, &QThread::finished, m_logWorker, &QObject::deleteLater);
+    m_logThread.start();
+
+    // Периодический запуск обработки очереди логов
+    QTimer *timer = new QTimer(this);
+    connect(timer, &QTimer::timeout, m_logWorker, &LogWorker::processLogQueue);
+    timer->start(100); // Интервал можно настроить по необходимости
 
     m_webSocket->open(url);
 }
@@ -26,6 +39,8 @@ TriangleClient::~TriangleClient() {
     if (m_webSocket->isValid()) {
         m_webSocket->close();
     }
+    m_logThread.quit();
+    m_logThread.wait();
 }
 
 // Попытка переподключения
@@ -107,13 +122,21 @@ void TriangleClient::onErrorOccurred(QAbstractSocket::SocketError error) {
 
 // Обработчик получения текстового сообщения от сервера
 void TriangleClient::onTextMessageReceived(QString message) {
-    // Логируем полученное сообщение
-    emit logMessage("Получено сообщение: " + message);
-    qDebug() << "Получено сообщение:" << message;
+    // Логируем информацию о полученном сообщении без его полного содержания
+    emit logMessage("Получено сообщение. Размер: " + QString::number(message.size()) + " байт.");
+    qDebug() << "Получено сообщение. Размер:" << message.size() << " байт.";
 
     // Асинхронная запись в лог
     emit logToFile(message);
 
+    // Переносим разбор и обработку JSON в отдельный поток
+    QtConcurrent::run([this, message]() {
+        parseAndProcessMessage(message);
+    });
+}
+
+// Метод для разбора и обработки полученного сообщения
+void TriangleClient::parseAndProcessMessage(const QString& message) {
     // Преобразуем строку в QByteArray для минимизации копирований
     QByteArray messageData = message.toUtf8();
 
@@ -123,14 +146,20 @@ void TriangleClient::onTextMessageReceived(QString message) {
     if (parseError.error != QJsonParseError::NoError) {
         // Ошибка при разборе JSON
         qDebug() << "Ошибка разбора JSON:" << parseError.errorString();
-        emit logMessage("Ошибка разбора JSON: " + parseError.errorString());
+        // Используем QMetaObject::invokeMethod для вызова в основном потоке
+        QMetaObject::invokeMethod(this, [this, parseError]() {
+                emit logMessage("Ошибка разбора JSON: " + parseError.errorString());
+            }, Qt::QueuedConnection);
         return;
     }
 
     // Проверка, является ли JSON объектом
     if (!doc.isObject()) {
         qDebug() << "Полученный JSON не является объектом.";
-        emit logMessage("Полученный JSON не является объектом.");
+        // Используем QMetaObject::invokeMethod для вызова в основном потоке
+        QMetaObject::invokeMethod(this, [this]() {
+                emit logMessage("Полученный JSON не является объектом.");
+            }, Qt::QueuedConnection);
         return;
     }
 
@@ -145,35 +174,54 @@ void TriangleClient::onTextMessageReceived(QString message) {
         if (type == "result" && obj["content"].isObject()) {
             QJsonObject content = obj["content"].toObject();
             qDebug() << "Получены результаты от сервера:" << content;
-            emit resultsReceived(content);
+            // Используем QMetaObject::invokeMethod для передачи данных в основной поток
+            QMetaObject::invokeMethod(this, [this, content]() {
+                    emit resultsReceived(content);
+                }, Qt::QueuedConnection);
         }
         // Обработка типа "answer" с текстовым сообщением
         else if (type == "answer" && obj.contains("msg") && obj["msg"].isString()) {
             QString msg = obj["msg"].toString();
             if (msg == "клиент подключен") {
-                m_isAuthorized = true;
                 qDebug() << "Авторизация успешна";
-                emit logMessage("Авторизация успешна.");
+                // Переносим изменение m_isAuthorized в основной поток
+                QMetaObject::invokeMethod(this, [this]() {
+                        m_isAuthorized = true;
+                        emit logMessage("Авторизация успешна.");
+                    }, Qt::QueuedConnection);
+            } else {
+                // Используем QMetaObject::invokeMethod для обновления UI в основном потоке
+                QMetaObject::invokeMethod(this, [this, msg]() {
+                        emit logMessage("Получен ответ: " + msg);
+                    }, Qt::QueuedConnection);
             }
-            emit logMessage("Получен ответ: " + msg);
             qDebug() << "Ответ получен от сервера.";
         }
         // Обработка типа "progress_bar" с числовым значением
         else if (type == "progress_bar" && obj.contains("content") && obj["content"].isDouble()) {
             int progress = obj["content"].toInt();
             qDebug() << "Получено обновление прогресс-бара:" << progress;
-            emit logMessage("Прогресс: " + QString::number(progress) + "%");
+            // Используем QMetaObject::invokeMethod для обновления прогресса в основном потоке
+            QMetaObject::invokeMethod(this, [this, progress]() {
+                    emit logMessage("Прогресс: " + QString::number(progress) + "%");
+                }, Qt::QueuedConnection);
         }
         // Обработка неизвестного или некорректного типа сообщения
         else {
             qDebug() << "Получен неизвестный или некорректный тип сообщения:" << type;
-            emit logMessage("Неизвестный или некорректный тип сообщения: " + type);
+            // Используем QMetaObject::invokeMethod для вывода сообщения в основном потоке
+            QMetaObject::invokeMethod(this, [this, type]() {
+                    emit logMessage("Неизвестный или некорректный тип сообщения: " + type);
+                }, Qt::QueuedConnection);
         }
     }
     // Сообщение не содержит допустимого поля "type"
     else {
         qDebug() << "Сообщение не содержит допустимого поля type.";
-        emit logMessage("Сообщение не содержит допустимого поля type.");
+        // Используем QMetaObject::invokeMethod для вывода сообщения в основном потоке
+        QMetaObject::invokeMethod(this, [this]() {
+                emit logMessage("Сообщение не содержит допустимого поля type.");
+            }, Qt::QueuedConnection);
     }
 }
 
@@ -326,31 +374,31 @@ void TriangleClient::processResults(const QJsonObject &results) {
     }
 }
 
-void TriangleClient::logMessageToFile(const QString &message) {
-    QMutexLocker locker(&m_logMutex);
-    m_logQueue.enqueue(message);
-    // Реализация обработки очереди в отдельном потоке
-    if (!m_logThread.isRunning()) {
-        m_logThread.start();
-        connect(&m_logThread, &QThread::started, this, &TriangleClient::processLogQueue);
-    }
-}
+// void TriangleClient::logMessageToFile(const QString &message) {
+//     QMutexLocker locker(&m_logMutex);
+//     m_logQueue.enqueue(message);
+//     // Реализация обработки очереди в отдельном потоке
+//     if (!m_logThread.isRunning()) {
+//         m_logThread.start();
+//         connect(&m_logThread, &QThread::started, this, &TriangleClient::processLogQueue);
+//     }
+// }
 
-void TriangleClient::processLogQueue() {
-    while (true) {
-        m_logMutex.lock();
-        if (m_logQueue.isEmpty()) {
-            m_logMutex.unlock();
-            m_logThread.quit();
-            break;
-        }
-        QString message = m_logQueue.dequeue();
-        m_logMutex.unlock();
+// void TriangleClient::processLogQueue() {
+//     while (true) {
+//         m_logMutex.lock();
+//         if (m_logQueue.isEmpty()) {
+//             m_logMutex.unlock();
+//             m_logThread.quit();
+//             break;
+//         }
+//         QString message = m_logQueue.dequeue();
+//         m_logMutex.unlock();
 
-        QFile file("received_messages.log");
-        if (file.open(QIODevice::Append | QIODevice::Text)) {
-            QTextStream out(&file);
-            out << message << "\n";
-        }
-    }
-}
+//         QFile file("received_messages.log");
+//         if (file.open(QIODevice::Append | QIODevice::Text)) {
+//             QTextStream out(&file);
+//             out << message << "\n";
+//         }
+//     }
+// }
