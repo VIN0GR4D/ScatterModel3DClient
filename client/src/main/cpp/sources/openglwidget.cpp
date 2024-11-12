@@ -204,6 +204,9 @@ void OpenGLWidget::paintGL() {
     GLfloat lightPos[] = { lightPosition.x(), lightPosition.y(), lightPosition.z(), 1.0f };
     glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
 
+    // Отрисовка сетки
+    drawGrid();
+
     // Обновление видимости только при изменении параметров камеры или загрузке новых данных
     if (geometryChanged) {
         updateVisibility(triangles);
@@ -234,6 +237,9 @@ void OpenGLWidget::paintGL() {
     }
 
     calculatePixelOccupation();
+
+    // Отрисовка индикатора координат
+    drawCoordinateIndicator();
 }
 
 // Очистка сцены
@@ -337,4 +343,96 @@ QVector3D OpenGLWidget::projectToScreen(const QVector3D& worldCoord, const QMatr
     float x = (ndcCoord.x() + 1.0) * 0.5 * windowWidth;
     float y = (1.0 - ndcCoord.y()) * 0.5 * windowHeight;
     return QVector3D(x, y, ndcCoord.z());
+}
+
+void OpenGLWidget::drawCoordinateIndicator() {
+    // Сохраняем текущие матрицы
+    glPushMatrix();
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+
+    // Устанавливаем орфографическую проекцию
+    int width = this->width();
+    int height = this->height();
+    glOrtho(0, width, 0, height, -1, 1);
+
+    // Сбрасываем модельно-видовую матрицу
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+
+    // Отключаем глубинный тест и освещение для рисования индикатора поверх сцены
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_LIGHTING);
+
+    // Определяем размер индикатора
+    float indicatorSize = 50.0f; // Размер индикатора в пикселях
+
+    // Устанавливаем позицию индикатора в левом нижнем углу
+    glTranslatef(10 + indicatorSize / 2, 10 + indicatorSize / 2, 0);
+
+    // Применяем текущие вращения к индикатору
+    glRotatef(rotationX, 1.0f, 0.0f, 0.0f);
+    glRotatef(rotationY, 0.0f, 1.0f, 0.0f);
+    glRotatef(rotationZ, 0.0f, 0.0f, 1.0f);
+
+    // Рисуем оси координат
+    glBegin(GL_LINES);
+    // Ось X - красная
+    glColor3f(1.0f, 0.0f, 0.0f);
+    glVertex3f(0, 0, 0);
+    glVertex3f(indicatorSize, 0, 0);
+
+    // Ось Y - зеленая
+    glColor3f(0.0f, 1.0f, 0.0f);
+    glVertex3f(0, 0, 0);
+    glVertex3f(0, indicatorSize, 0);
+
+    // Ось Z - синяя
+    glColor3f(0.0f, 0.0f, 1.0f);
+    glVertex3f(0, 0, 0);
+    glVertex3f(0, 0, indicatorSize);
+    glEnd();
+
+    // Восстанавливаем состояние OpenGL
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_LIGHTING);
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+    glMatrixMode(GL_MODELVIEW);
+    glPopMatrix();
+}
+
+void OpenGLWidget::drawGrid() {
+    // Сохраняем текущее состояние матриц и атрибутов
+    glPushMatrix();
+    glPushAttrib(GL_ENABLE_BIT);
+
+    // Отключаем освещение и глубинный тест для рисования сетки
+    glDisable(GL_LIGHTING);
+    glDisable(GL_DEPTH_TEST);
+
+    // Устанавливаем цвет сетки (например, серый)
+    glColor3f(0.5f, 0.5f, 0.5f);
+
+    // Устанавливаем размер сетки и шаг
+    float gridSize = 1000.0f; // Размер сетки
+    float step = 10.0f;       // Шаг между линиями
+
+    // Рисуем сетку на плоскости XZ
+    glBegin(GL_LINES);
+    for (float i = -gridSize; i <= gridSize; i += step) {
+        // Линии параллельные оси Z
+        glVertex3f(i, 0.0f, -gridSize);
+        glVertex3f(i, 0.0f, gridSize);
+
+        // Линии параллельные оси X
+        glVertex3f(-gridSize, 0.0f, i);
+        glVertex3f(gridSize, 0.0f, i);
+    }
+    glEnd();
+
+    // Восстанавливаем состояние матриц и атрибутов
+    glPopAttrib();
+    glPopMatrix();
 }

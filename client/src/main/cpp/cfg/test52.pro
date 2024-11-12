@@ -15,6 +15,7 @@ SOURCES += \
     graph3dwindow.cpp \
     graphwindow.cpp \
     logindialog.cpp \
+    logworker.cpp \
     main.cpp \
     mainwindow.cpp \
     openglwidget.cpp \
@@ -36,6 +37,7 @@ HEADERS += \
     graph3dwindow.h \
     graphwindow.h \
     logindialog.h \
+    logworker.h \
     mainwindow.h \
     openglwidget.h \
     parser.h \

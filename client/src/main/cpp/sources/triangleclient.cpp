@@ -373,32 +373,3 @@ void TriangleClient::processResults(const QJsonObject &results) {
         qDebug() << "Unknown result type or content";
     }
 }
-
-// void TriangleClient::logMessageToFile(const QString &message) {
-//     QMutexLocker locker(&m_logMutex);
-//     m_logQueue.enqueue(message);
-//     // Реализация обработки очереди в отдельном потоке
-//     if (!m_logThread.isRunning()) {
-//         m_logThread.start();
-//         connect(&m_logThread, &QThread::started, this, &TriangleClient::processLogQueue);
-//     }
-// }
-
-// void TriangleClient::processLogQueue() {
-//     while (true) {
-//         m_logMutex.lock();
-//         if (m_logQueue.isEmpty()) {
-//             m_logMutex.unlock();
-//             m_logThread.quit();
-//             break;
-//         }
-//         QString message = m_logQueue.dequeue();
-//         m_logMutex.unlock();
-
-//         QFile file("received_messages.log");
-//         if (file.open(QIODevice::Append | QIODevice::Text)) {
-//             QTextStream out(&file);
-//             out << message << "\n";
-//         }
-//     }
-// }
