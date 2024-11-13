@@ -72,6 +72,7 @@ private slots:
     void showAboutDialog();
     void displayResults(const QJsonObject &results);
     void processResults(const QJsonObject &results, bool angleChecked, bool azimuthChecked, bool rangeChecked);
+    void onGridCheckBoxStateChanged(int state);
 
 private:
     Ui::MainWindow *ui;
@@ -88,7 +89,6 @@ private:
     QWidget *controlWidget;
     QFormLayout *formLayout;
     bool serverEnabled;
-
     QVector<double> absEout;
     QVector<double> normEout;
     QVector<QVector<double>> absEout2D;
@@ -99,10 +99,9 @@ private:
     QString storedResults;
     QComboBox *freqBandComboBox;
     QCheckBox *pplaneCheckBox;
-
     QComboBox *radiationPolarizationComboBox;
     QComboBox *receivePolarizationComboBox;
-
+    QCheckBox *gridCheckBox;
     QJsonObject vectorToJson(const QSharedPointer<const rVect>& vector);
     void extractValues(const QJsonArray &array, QVector<double> &container, int depth);
     void extract2DValues(const QJsonArray &array, QVector<QVector<double>> &container);
@@ -112,7 +111,6 @@ private:
     int freqBand;
     QJsonObject getScatteringDataFromServer();
     rVect calculateDirectVectorFromRotation();
-
     QFutureWatcher<void> *resultsWatcher;
 };
 

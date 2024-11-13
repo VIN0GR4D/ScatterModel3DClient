@@ -25,6 +25,7 @@ public:
     void setRotation(float x, float y, float z);
     const QVector<QVector3D>& getVertices() const;
     const QVector<QVector<int>>& getIndices() const;
+    void setGridVisible(bool visible);
 
 signals:
     void rotationChanged(float x, float y, float z);
@@ -72,6 +73,7 @@ private:
     QVector3D projectToScreen(const QVector3D& worldCoord, const QMatrix4x4& modelView, const QMatrix4x4& projection, int windowWidth, int windowHeight);
 
     void drawGrid();
+    bool gridVisible;
     void drawCoordinateIndicator();
 
 protected:

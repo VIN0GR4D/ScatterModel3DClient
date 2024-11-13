@@ -2,7 +2,7 @@
 #include <QMatrix4x4>
 
 OpenGLWidget::OpenGLWidget(QWidget *parent)
-    : QOpenGLWidget(parent), rotationX(0.0f), rotationY(0.0f), rotationZ(0.0f), scale(1.0f) {
+    : QOpenGLWidget(parent), rotationX(0.0f), rotationY(0.0f), rotationZ(0.0f), scale(1.0f), gridVisible(true) {
     QSurfaceFormat format;
     format.setProfile(QSurfaceFormat::CompatibilityProfile);
     format.setVersion(3, 0);
@@ -404,6 +404,8 @@ void OpenGLWidget::drawCoordinateIndicator() {
 }
 
 void OpenGLWidget::drawGrid() {
+    if (!gridVisible) return;
+
     // Сохраняем текущее состояние матриц и атрибутов
     glPushMatrix();
     glPushAttrib(GL_ENABLE_BIT);
@@ -435,4 +437,9 @@ void OpenGLWidget::drawGrid() {
     // Восстанавливаем состояние матриц и атрибутов
     glPopAttrib();
     glPopMatrix();
+}
+
+void OpenGLWidget::setGridVisible(bool visible) {
+    gridVisible = visible;
+    update(); // Запрос перерисовки
 }

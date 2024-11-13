@@ -221,21 +221,41 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Группа для диапазона частот и подстилающей поверхности
     freqBandComboBox = new QComboBox(controlWidget);
-    freqBandComboBox->addItems({"P-диапазон (400-450 МГц)", "L-диапазон (1-1.5 ГГц)", "S-диапазон (2.75-3.15 ГГц)", "C-диапазон (5-5.5 ГГц)", "X-диапазон (9-10 ГГц)", "Ka-диапазон (36.5-38.5 ГГц)"});
+    freqBandComboBox->addItems({
+        "P-диапазон (400-450 МГц)",
+        "L-диапазон (1-1.5 ГГц)",
+        "S-диапазон (2.75-3.15 ГГц)",
+        "C-диапазон (5-5.5 ГГц)",
+        "X-диапазон (9-10 ГГц)",
+        "Ka-диапазон (36.5-38.5 ГГц)"
+    });
     freqBandComboBox->setCurrentIndex(5);
 
     pplaneCheckBox = new QCheckBox("Включить подстилающую поверхность", controlWidget);
 
+    // Создание макета для группы "Параметры"
     QGroupBox *frequencyAndPlaneGroupBox = new QGroupBox("Параметры", controlWidget);
     QFormLayout *frequencyAndPlaneLayout = new QFormLayout(frequencyAndPlaneGroupBox);
+
+    // Инициализация чекбокса для сетки
+    gridCheckBox = new QCheckBox("Показать сетку", frequencyAndPlaneGroupBox);
+    gridCheckBox->setChecked(true); // Сетка отображается по умолчанию
+
+    // Добавление элементов в макет
     frequencyAndPlaneLayout->addRow(new QLabel("Диапазон частот:"), freqBandComboBox);
     frequencyAndPlaneLayout->addRow(pplaneCheckBox);
+    frequencyAndPlaneLayout->addRow(gridCheckBox);
+
     frequencyAndPlaneGroupBox->setLayout(frequencyAndPlaneLayout);
 
     // Настройка размеров элементов для диапазона частот и подстилающей поверхности
     freqBandComboBox->setFixedSize(250, 30);
     pplaneCheckBox->setFixedSize(235, 30);
-    frequencyAndPlaneGroupBox->setFixedSize(400, 100);
+    gridCheckBox->setFixedSize(235, 30);
+    frequencyAndPlaneGroupBox->setFixedSize(400, 135);
+
+    // Подключение сигнала изменения состояния чекбокса к слоту
+    connect(gridCheckBox, &QCheckBox::stateChanged, this, &MainWindow::onGridCheckBoxStateChanged);
 
     // Группа для портретных типов
     QGroupBox *portraitTypeGroupBox = new QGroupBox("Портретные типы", controlWidget);
@@ -1005,3 +1025,9 @@ void MainWindow::showAboutDialog() {
     QScopedPointer<AboutDialog> aboutDialog(new AboutDialog(this));
     aboutDialog->exec();
 }
+
+void MainWindow::onGridCheckBoxStateChanged(int state) {
+    bool visible = (state == Qt::Checked);
+    openGLWidget->setGridVisible(visible);
+}
+
