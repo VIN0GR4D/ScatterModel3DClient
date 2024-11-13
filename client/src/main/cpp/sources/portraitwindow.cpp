@@ -3,7 +3,9 @@
 #include <QWheelEvent>
 #include <QMouseEvent>
 #include <QDebug>
+#include <QFileDialog>
 #include <algorithm>
+#include <QMessageBox>
 
 PortraitWindow::PortraitWindow(QWidget *parent)
     : QDialog(parent), offset(0, 0), scale(1.0), maxDataValue(1.0) {
@@ -12,6 +14,11 @@ PortraitWindow::PortraitWindow(QWidget *parent)
 
     // Инициализируем ширину легенды
     legendWidth = 60;
+
+    // Создаем кнопку сохранения изображения
+    saveButton = new QPushButton("Сохранить изображение", this);
+    saveButton->move(10, 10); // Позиция кнопки в левом верхнем углу
+    connect(saveButton, &QPushButton::clicked, this, &PortraitWindow::savePortraitAsPNG);
 }
 
 void PortraitWindow::setData(const QVector<QVector<double>> &data) {
@@ -66,19 +73,29 @@ void PortraitWindow::paintEvent(QPaintEvent *event) {
         return;
 
     QPainter painter(this);
+
     painter.save();
 
-    // Apply offset and scaling for drawing data
+    // Применяем смещение и масштабирование для рисования данных
     painter.translate(offset);
-    painter.scale(scale, -scale); // Invert the Y-axis
+    painter.scale(scale, -scale); // Инвертируем ось Y
 
-    // Adjust the offset in Y to compensate for the inverted axis
+    // Корректируем смещение по Y для компенсации инвертированной оси
     painter.translate(0, -data.size());
 
+    // Рисуем данные
+    drawData(painter);
+
+    painter.restore();
+
+    // Рисуем цветовую шкалу после восстановления преобразований
+    drawColorScale(painter);
+}
+
+void PortraitWindow::drawData(QPainter &painter) {
     int numRows = data.size();
     int numCols = data[0].size();
 
-    // Draw the data
     for (int row = 0; row < numRows; ++row) {
         for (int col = 0; col < numCols; ++col) {
             double value = data[row][col];
@@ -86,11 +103,6 @@ void PortraitWindow::paintEvent(QPaintEvent *event) {
             painter.fillRect(col * 1.0, row * 1.0, 1.0, 1.0, color);
         }
     }
-
-    painter.restore();
-
-    // Draw the color scale after restoring transformations
-    drawColorScale(painter);
 }
 
 void PortraitWindow::drawColorScale(QPainter &painter) {
@@ -149,6 +161,100 @@ QColor PortraitWindow::getColorForValue(double value) const {
     hue = qBound(0, hue, 359); // Убедимся, что hue находится в допустимом диапазоне
 
     return QColor::fromHsv(hue, 255, 255);
+}
+
+void PortraitWindow::savePortraitAsPNG() {
+    // Создаем изображение с желаемым размером
+    QSize imageSize(1280, 720); // Или другой размер по необходимости
+    QPixmap pixmap(imageSize);
+    pixmap.fill(Qt::white); // Заполняем белым фоном
+
+    QPainter painter(&pixmap);
+
+    // Настраиваем масштаб и смещение так, чтобы данные вписались в изображение
+    int numRows = data.size();
+    int numCols = data[0].size();
+
+    double dataWidth = numCols * 1.0;  // cellWidth = 1.0
+    double dataHeight = numRows * 1.0; // cellHeight = 1.0
+
+    // Учтем ширину легенды при вычислении доступной ширины
+    double availableWidth = imageSize.width() - legendWidth - 20; // 20 пикселей на отступы
+    double availableHeight = imageSize.height();
+
+    double scaleX = availableWidth / dataWidth;
+    double scaleY = availableHeight / dataHeight;
+    double imageScale = std::min(scaleX, scaleY);
+
+    // Центрирование данных в изображении
+    double sceneWidth = dataWidth * imageScale;
+    double sceneHeight = dataHeight * imageScale;
+    QPointF imageOffset;
+    imageOffset.setX((availableWidth - sceneWidth) / 2 + 10); // 10 пикселей отступ слева
+    imageOffset.setY((availableHeight - sceneHeight) / 2);
+
+    painter.save();
+    painter.translate(imageOffset);
+    painter.scale(imageScale, -imageScale); // Инвертируем ось Y
+    painter.translate(0, -data.size());
+
+    // Рисуем данные
+    drawData(painter);
+
+    painter.restore();
+
+    // Рисуем цветовую шкалу
+    int legendHeight = static_cast<int>(imageSize.height() * 0.8); // 80% от высоты изображения
+    int legendX = imageSize.width() - legendWidth - 30; // Отступ ближе к графику
+    int legendY = (imageSize.height() - legendHeight) / 2; // Центрируем по Y
+
+    QRect legendRect(legendX, legendY, legendWidth - 10, legendHeight);
+
+    // Инвертированный градиент: от нижней к верхней части
+    QLinearGradient gradient(legendRect.bottomLeft(), legendRect.topLeft());
+
+    // Добавляем множество цветовых остановок для плавного перехода
+    const int numStops = 100; // Количество цветовых остановок
+    for (int i = 0; i <= numStops; ++i) {
+        double ratio = static_cast<double>(i) / numStops;
+        double value = minDataValue + ratio * (maxDataValue - minDataValue);
+        QColor color = getColorForValue(value);
+        gradient.setColorAt(ratio, color);
+    }
+
+    painter.fillRect(legendRect, gradient);
+    painter.setPen(Qt::black);
+    painter.drawRect(legendRect);
+
+    // Рисуем метки значений
+    painter.setPen(Qt::black);
+    QFont font = painter.font();
+    font.setPointSize(10);
+    painter.setFont(font);
+
+    int numTicks = 5; // Количество меток
+    for (int i = 0; i <= numTicks; ++i) {
+        double ratio = static_cast<double>(i) / numTicks;
+        // Инвертируем позицию y
+        int y = legendY + (1.0 - ratio) * legendHeight;
+        double value = minDataValue + ratio * (maxDataValue - minDataValue);
+        QString text = QString::number(value, 'g', 4);
+
+        // Корректируем отступ для текста, чтобы он вписывался в изображение
+        int textX = legendX + legendWidth - 30; // Увеличиваем отступ, чтобы числа не обрезались
+        painter.drawText(textX, y + 5, text);
+    }
+
+    // Сохраняем изображение
+    QString filename = QFileDialog::getSaveFileName(this, tr("Сохранить изображение"), "", tr("PNG Image (*.png)"));
+    if (!filename.isEmpty()) {
+        bool success = pixmap.save(filename);
+        if (success) {
+            QMessageBox::information(this, tr("Успех"), tr("Изображение успешно сохранено."));
+        } else {
+            QMessageBox::warning(this, tr("Ошибка"), tr("Не удалось сохранить изображение."));
+        }
+    }
 }
 
 void PortraitWindow::mousePressEvent(QMouseEvent *event) {

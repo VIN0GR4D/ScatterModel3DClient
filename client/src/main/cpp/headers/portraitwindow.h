@@ -7,6 +7,7 @@
 #include <QColor>
 #include <QMouseEvent>
 #include <QWheelEvent>
+#include <QPushButton>
 
 class PortraitWindow : public QDialog {
     Q_OBJECT
@@ -22,6 +23,12 @@ protected:
     void wheelEvent(QWheelEvent *event) override;
     void drawColorScale(QPainter &painter);
 
+private slots:
+    void savePortraitAsPNG();
+
+private:
+    void drawData(QPainter &painter);
+
 private:
     QVector<QVector<double>> data;
     QColor getColorForValue(double value) const;
@@ -31,6 +38,7 @@ private:
     double maxDataValue;
     double minDataValue;
     int legendWidth;
+    QPushButton* saveButton;
 };
 
 #endif // PORTRAITWINDOW_H
