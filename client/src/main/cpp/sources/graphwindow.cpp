@@ -1,6 +1,5 @@
 #include "graphwindow.h"
 #include <QVBoxLayout>
-#include <QPushButton>
 #include <QCheckBox>
 
 GraphWindow::GraphWindow(QWidget *parent) : QDialog(parent) {
@@ -43,9 +42,14 @@ GraphWindow::GraphWindow(QWidget *parent) : QDialog(parent) {
     layout->addWidget(logScaleCheckBox);
 
     // Добавляем кнопку сброса масштаба
-    QPushButton *resetZoomButton = new QPushButton("Сбросить до исходного положения", this);
+    resetZoomButton = new QPushButton("Сбросить до исходного положения", this);
     connect(resetZoomButton, &QPushButton::clicked, this, &GraphWindow::resetZoom);
     layout->addWidget(resetZoomButton);
+
+    // Создаем и добавляем кнопку сохранения графика
+    saveButton = new QPushButton("Сохранить график как PNG", this);
+    connect(saveButton, &QPushButton::clicked, this, &GraphWindow::saveGraphAsPNG);
+    layout->addWidget(saveButton);
 
     setWindowTitle("Одномерный график");
 
@@ -95,4 +99,37 @@ void GraphWindow::resetZoom() {
     customPlot->xAxis->setRange(xRange);
     customPlot->yAxis->setRange(yRange);
     customPlot->replot();
+}
+
+void GraphWindow::saveGraphAsPNG() {
+    // Открываем диалоговое окно для выбора места сохранения файла
+    QString fileName = QFileDialog::getSaveFileName(this, "Сохранить график", "", "PNG Files (*.png)");
+    if (fileName.isEmpty())
+        return;
+
+    // Захватываем текущий график как QPixmap
+    QPixmap pixmap = customPlot->toPixmap(customPlot->width(), customPlot->height());
+
+    // Определяем текст подписи в зависимости от типа шкалы
+    QString scaleType = logScaleCheckBox->isChecked() ? "Логарифмическая шкала" : "Линейная шкала";
+
+    // Создаем QPainter для рисования на pixmap
+    QPainter painter(&pixmap);
+    painter.setPen(Qt::black);
+    QFont font = painter.font();
+    font.setPointSize(12);
+    painter.setFont(font);
+
+    // Определяем позицию для подписи
+    int margin = 10;
+    painter.drawText(margin, margin + font.pointSize(), scaleType);
+
+    painter.end(); // Завершаем рисование
+
+    // Сохраняем pixmap в файл
+    if (!pixmap.save(fileName, "PNG")) {
+        QMessageBox::warning(this, "Ошибка", "Не удалось сохранить файл.");
+    } else {
+        QMessageBox::information(this, "Успех", "График успешно сохранен.");
+    }
 }
