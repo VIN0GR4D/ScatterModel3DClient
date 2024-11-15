@@ -22,6 +22,7 @@ SOURCES += \
     parser.cpp \
     portraitopenglwidget.cpp \
     portraitwindow.cpp \
+    projectserializer.cpp \
     qcustomplot.cpp \
     raytracer.cpp \
     resultsdialog.cpp \
@@ -43,6 +44,7 @@ HEADERS += \
     parser.h \
     portraitopenglwidget.h \
     portraitwindow.h \
+    projectserializer.h \
     qcustomplot.h \
     rVect.h \
     raytracer.h \

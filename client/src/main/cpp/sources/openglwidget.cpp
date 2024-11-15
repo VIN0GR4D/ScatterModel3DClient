@@ -2,7 +2,7 @@
 #include <QMatrix4x4>
 
 OpenGLWidget::OpenGLWidget(QWidget *parent)
-    : QOpenGLWidget(parent), rotationX(0.0f), rotationY(0.0f), rotationZ(0.0f), scale(1.0f), gridVisible(true) {
+    : QOpenGLWidget(parent), rotationX(0.0f), rotationY(0.0f), rotationZ(0.0f), scale(1.0f), objectPosition(0.0f, 0.0f, 0.0f), gridVisible(true) {
     QSurfaceFormat format;
     format.setProfile(QSurfaceFormat::CompatibilityProfile);
     format.setVersion(3, 0);
@@ -195,6 +195,9 @@ void OpenGLWidget::paintGL() {
 
     // Применение трансформаций камеры
     glTranslatef(-cameraPosition.x(), -cameraPosition.y(), cameraPosition.z());
+
+    // Применение трансформаций объекта
+    glTranslatef(objectPosition.x(), objectPosition.y(), objectPosition.z());
     glScalef(scale, scale, scale);
     glRotatef(rotationX, 1.0f, 0.0f, 0.0f);
     glRotatef(rotationY, 0.0f, 1.0f, 0.0f);
@@ -442,4 +445,43 @@ void OpenGLWidget::drawGrid() {
 void OpenGLWidget::setGridVisible(bool visible) {
     gridVisible = visible;
     update(); // Запрос перерисовки
+}
+
+void OpenGLWidget::setObjectPosition(const QVector3D& position) {
+    objectPosition = position;
+    update(); // Обновляем виджет для перерисовки
+}
+
+QVector3D OpenGLWidget::getObjectPosition() const {
+    return objectPosition;
+}
+
+void OpenGLWidget::setTriangles(const QVector<QSharedPointer<triangle>>& tri) {
+    triangles = tri;
+    vertices.clear();
+    triangleIndices.clear();
+
+    for (const auto& triangle : triangles) {
+        int index = vertices.size();
+        vertices.append(QVector3D(triangle->getV1()->getX(), triangle->getV1()->getY(), triangle->getV1()->getZ()));
+        vertices.append(QVector3D(triangle->getV2()->getX(), triangle->getV2()->getY(), triangle->getV2()->getZ()));
+        vertices.append(QVector3D(triangle->getV3()->getX(), triangle->getV3()->getY(), triangle->getV3()->getZ()));
+
+        triangleIndices.append({index, index + 1, index + 2});
+    }
+
+    computeBoundingVolume();
+    triangleColors.clear();
+    for (int i = 0; i < triangleIndices.size(); ++i) {
+        triangleColors.append(chooseColorForTriangle(i));
+    }
+
+    resetCamera();
+    geometryChanged = true;
+    update();
+}
+
+void OpenGLWidget::setScalingCoefficients(const QVector3D& scaling) {
+    scale = (scaling.x() + scaling.y() + scaling.z()) / 3.0f; // Пример усреднения
+    update();
 }

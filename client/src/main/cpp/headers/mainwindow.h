@@ -64,7 +64,7 @@ private slots:
     void disconnectFromServer();
     void showPortrait();
     void toggleTheme();
-    void saveFile();
+    void saveProject();
     void loadTheme(const QString &themePath, const QString &iconPath, QAction *action);
     void openResultsWindow();
     void openScatterPlot3DWindow();
@@ -73,6 +73,7 @@ private slots:
     void displayResults(const QJsonObject &results);
     void processResults(const QJsonObject &results, bool angleChecked, bool azimuthChecked, bool rangeChecked);
     void onGridCheckBoxStateChanged(int state);
+    void openProject();
 
 private:
     Ui::MainWindow *ui;

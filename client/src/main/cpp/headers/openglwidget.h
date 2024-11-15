@@ -27,6 +27,12 @@ public:
     const QVector<QVector<int>>& getIndices() const;
     void setGridVisible(bool visible);
 
+    void setObjectPosition(const QVector3D& position);
+    QVector3D getObjectPosition() const;
+
+    void setTriangles(const QVector<QSharedPointer<triangle>>& tri);
+    void setScalingCoefficients(const QVector3D& scaling);
+
 signals:
     void rotationChanged(float x, float y, float z);
 

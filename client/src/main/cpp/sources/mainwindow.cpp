@@ -9,6 +9,7 @@
 #include "portraitwindow.h"
 #include "graph3dwindow.h"
 #include "scatterplot3dwindow.h"
+#include "ProjectSerializer.h"
 #include <QFile>
 #include <QFileDialog>
 #include <QFormLayout>
@@ -64,6 +65,16 @@ MainWindow::MainWindow(QWidget *parent)
 
     fileMenu->addAction(openAction);
     fileMenu->addAction(saveAction);
+
+    // В конструкторе MainWindow добавьте новый пункт меню "Сохранить проект"
+    QAction *saveProjectAction = new QAction(QIcon(":/download.png"), "Сохранить проект", this);
+    fileMenu->addAction(saveProjectAction);
+    connect(saveProjectAction, &QAction::triggered, this, &MainWindow::saveProject);
+
+    QAction *openProjectAction = new QAction(QIcon(":/open.png"), "Открыть проект", this);
+    fileMenu->addAction(openProjectAction);
+    connect(openProjectAction, &QAction::triggered, this, &MainWindow::openProject);
+
     fileMenu->addSeparator();
     fileMenu->addAction(exitAction);
 
@@ -71,7 +82,7 @@ MainWindow::MainWindow(QWidget *parent)
     setMenuBar(menuBar);
 
     connect(openAction, &QAction::triggered, this, &MainWindow::loadModel);
-    connect(saveAction, &QAction::triggered, this, &MainWindow::saveFile);
+    connect(saveAction, &QAction::triggered, this, &MainWindow::saveProject);
     connect(exitAction, &QAction::triggered, this, &MainWindow::close);
 
     // Создание нового меню "Выполнить"
@@ -1001,11 +1012,30 @@ void MainWindow::loadTheme(const QString &themePath, const QString &iconPath, QA
     }
 }
 
-void MainWindow::saveFile() {
-    QString fileName = QFileDialog::getSaveFileName(this, "Сохранить файл", "", "Все файлы (*.*);;Текстовые файлы (*.txt)");
+void MainWindow::saveProject() {
+    QString fileName = QFileDialog::getSaveFileName(this, "Сохранить проект", "", "Файлы проекта (*.projjson);;Все файлы (*.*)");
     if (!fileName.isEmpty()) {
-        // Ваш код для обработки сохранения файла
-        logMessage("Файл сохранен: " + fileName);
+        ProjectData data;
+
+        // Сбор данных из OpenGLWidget и MainWindow
+        data.triangles = openGLWidget->getTriangles();
+        data.objectPosition = openGLWidget->getObjectPosition();
+        data.rotationX = inputRotationX->value();
+        data.rotationY = inputRotationY->value();
+        data.rotationZ = inputRotationZ->value();
+        data.scalingCoefficients = QVector3D(1.0f, 1.0f, 1.0f);
+        data.absEout = absEout;
+        data.normEout = normEout;
+        data.absEout2D = absEout2D;
+        data.normEout2D = normEout2D;
+        data.storedResults = storedResults;
+
+        // Сохранение проекта
+        if (ProjectSerializer::saveProject(fileName, data)) {
+            logMessage("Проект успешно сохранен: " + fileName);
+        } else {
+            logMessage("Ошибка при сохранении проекта.");
+        }
     }
 }
 
@@ -1031,3 +1061,31 @@ void MainWindow::onGridCheckBoxStateChanged(int state) {
     openGLWidget->setGridVisible(visible);
 }
 
+void MainWindow::openProject() {
+    QString fileName = QFileDialog::getOpenFileName(this, "Открыть проект", "", "Файлы проекта (*.projjson);;Все файлы (*.*)");
+    if (!fileName.isEmpty()) {
+        ProjectData data;
+        if (ProjectSerializer::loadProject(fileName, data)) {
+            // Установка треугольников в OpenGLWidget
+            openGLWidget->setTriangles(data.triangles);
+            // Установка позиции объекта
+            openGLWidget->setObjectPosition(data.objectPosition);
+            // Установка поворотов
+            inputRotationX->setValue(data.rotationX);
+            inputRotationY->setValue(data.rotationY);
+            inputRotationZ->setValue(data.rotationZ);
+            openGLWidget->setRotation(data.rotationX, data.rotationY, data.rotationZ);
+            // Установка коэффициентов масштабирования
+            openGLWidget->setScalingCoefficients(data.scalingCoefficients);
+            // Загрузка результатов расчёта
+            absEout = data.absEout;
+            normEout = data.normEout;
+            absEout2D = data.absEout2D;
+            normEout2D = data.normEout2D;
+            storedResults = data.storedResults;
+            logMessage("Проект успешно загружен: " + fileName);
+        } else {
+            logMessage("Ошибка при загрузке проекта.");
+        }
+    }
+}
