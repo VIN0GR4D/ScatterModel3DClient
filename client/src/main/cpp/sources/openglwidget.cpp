@@ -2,7 +2,7 @@
 #include <QMatrix4x4>
 
 OpenGLWidget::OpenGLWidget(QWidget *parent)
-    : QOpenGLWidget(parent), rotationX(0.0f), rotationY(0.0f), rotationZ(0.0f), scale(1.0f), objectPosition(0.0f, 0.0f, 0.0f), gridVisible(true) {
+    : QOpenGLWidget(parent), rotationX(0.0f), rotationY(0.0f), rotationZ(0.0f), scale(1.0f), objectPosition(0.0f, 0.0f, 0.0f), gridVisible(false) {
     QSurfaceFormat format;
     format.setProfile(QSurfaceFormat::CompatibilityProfile);
     format.setVersion(3, 0);

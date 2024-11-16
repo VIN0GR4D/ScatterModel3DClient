@@ -66,14 +66,21 @@ MainWindow::MainWindow(QWidget *parent)
     fileMenu->addAction(openAction);
     fileMenu->addAction(saveAction);
 
-    // В конструкторе MainWindow добавьте новый пункт меню "Сохранить проект"
-    QAction *saveProjectAction = new QAction(QIcon(":/download.png"), "Сохранить проект", this);
-    fileMenu->addAction(saveProjectAction);
-    connect(saveProjectAction, &QAction::triggered, this, &MainWindow::saveProject);
+    fileMenu->addSeparator();
+
+    // Пункт меню "Новый проект"
+    QAction *newProjectAction = new QAction(QIcon(":/new.png"), "Новый проект", this);
+    fileMenu->addAction(newProjectAction);
+    connect(newProjectAction, &QAction::triggered, this, &MainWindow::newProject);
 
     QAction *openProjectAction = new QAction(QIcon(":/open.png"), "Открыть проект", this);
     fileMenu->addAction(openProjectAction);
     connect(openProjectAction, &QAction::triggered, this, &MainWindow::openProject);
+
+    // Пункт меню "Сохранить проект"
+    QAction *saveProjectAction = new QAction(QIcon(":/download.png"), "Сохранить проект", this);
+    fileMenu->addAction(saveProjectAction);
+    connect(saveProjectAction, &QAction::triggered, this, &MainWindow::saveProject);
 
     fileMenu->addSeparator();
     fileMenu->addAction(exitAction);
@@ -250,7 +257,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Инициализация чекбокса для сетки
     gridCheckBox = new QCheckBox("Показать сетку", frequencyAndPlaneGroupBox);
-    gridCheckBox->setChecked(true); // Сетка отображается по умолчанию
+    gridCheckBox->setChecked(false);
 
     // Добавление элементов в макет
     frequencyAndPlaneLayout->addRow(new QLabel("Диапазон частот:"), freqBandComboBox);
@@ -1088,4 +1095,47 @@ void MainWindow::openProject() {
             logMessage("Ошибка при загрузке проекта.");
         }
     }
+}
+
+void MainWindow::newProject() {
+    // Очистка OpenGL сцены
+    openGLWidget->clearScene();
+
+    // Сброс данных парсера
+    parser->clearData();
+
+    // Очистка результатов
+    absEout.clear();
+    normEout.clear();
+    absEout2D.clear();
+    normEout2D.clear();
+    storedResults.clear();
+
+    // Сброс вращения модели
+    inputRotationX->setValue(0);
+    inputRotationY->setValue(0);
+    inputRotationZ->setValue(0);
+    openGLWidget->setRotation(0, 0, 0);
+
+    // Сброс позиции объекта
+    openGLWidget->setObjectPosition(QVector3D(0.0f, 0.0f, 0.0f));
+
+    // Сброс коэффициентов масштабирования
+    openGLWidget->setScalingCoefficients(QVector3D(1.0f, 1.0f, 1.0f));
+
+    // Сброс состояния чекбоксов и других элементов UI
+    anglePortraitCheckBox->setChecked(false);
+    azimuthPortraitCheckBox->setChecked(false);
+    rangePortraitCheckBox->setChecked(false);
+    pplaneCheckBox->setChecked(false);
+    gridCheckBox->setChecked(false);
+    freqBandComboBox->setCurrentIndex(5);
+    radiationPolarizationComboBox->setCurrentIndex(0);
+    receivePolarizationComboBox->setCurrentIndex(0);
+
+    // Очистка журнала действий
+    logDisplay->clear();
+
+    // Вывод сообщения в журнал
+    logMessage("Создан новый проект.");
 }

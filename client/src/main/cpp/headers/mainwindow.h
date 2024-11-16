@@ -74,6 +74,7 @@ private slots:
     void processResults(const QJsonObject &results, bool angleChecked, bool azimuthChecked, bool rangeChecked);
     void onGridCheckBoxStateChanged(int state);
     void openProject();
+    void newProject();
 
 private:
     Ui::MainWindow *ui;
