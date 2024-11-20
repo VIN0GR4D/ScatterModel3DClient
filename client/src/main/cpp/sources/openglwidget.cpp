@@ -26,6 +26,7 @@ void OpenGLWidget::setGeometry(const QVector<QVector3D> &v, const QVector<QVecto
     }
 
     resetCamera(); // Сброс параметров камеры
+    gridParametersChanged = true; // Устанавливаем флаг обновления сетки
     geometryChanged = true;
     update(); // Обновление виджета для перерисовки
 }
@@ -78,7 +79,17 @@ void OpenGLWidget::computeBoundingVolume() {
         maxRadiusSq = qMax(maxRadiusSq, currentRadiusSq);
     }
 
-    updateCameraPosition(center, std::sqrt(maxRadiusSq)); // Обновление позиции камеры
+    float boundingSphereRadius = std::sqrt(maxRadiusSq);
+
+    // Обновление позиции камеры
+    updateCameraPosition(center, boundingSphereRadius);
+
+    // Обновление размеров сетки на основе ограничивающего объема
+    gridSize = boundingSphereRadius * 3.0f; // Например, сетка 3 раза больше радиуса сферы
+    gridStep = boundingSphereRadius / 10.0f; // Шаг сетки 1/10 радиуса
+
+    // Устанавливаем флаг, что параметры сетки изменились
+    gridParametersChanged = true;
 }
 
 // Получение текущей позиции камеры
@@ -90,11 +101,14 @@ QVector3D OpenGLWidget::getCameraPosition() const {
 void OpenGLWidget::updateCameraPosition(const QVector3D& center, float radius) {
     const float fieldOfView = 45.0f;
     float viewAngleRadians = qDegreesToRadians(fieldOfView / 2.0f);
-    float distance = radius / sin(viewAngleRadians) * 2.0f;
+    float distance = radius / std::sin(viewAngleRadians) * 2.0f;
     cameraPosition = QVector3D(center.x(), center.y(), center.z() - distance);
 
     // Обновление позиции источника света, прикрепленного к камере
     lightPosition = cameraPosition + QVector3D(0.0f, 0.0f, 10.0f);
+
+    // Устанавливаем флаг обновления сетки
+    gridParametersChanged = true;
 
     // qDebug() << "Camera position updated:" << cameraPosition;
     update();
@@ -130,7 +144,7 @@ void OpenGLWidget::setRotation(float x, float y, float z) {
 // Инициализация OpenGL
 void OpenGLWidget::initializeGL() {
     initializeOpenGLFunctions();
-    glClearColor(0.0, 0.0, 0.0, 1.0); // Черный фон
+    glClearColor(0.1f, 0.1f, 0.1f, 1.0f); // Темно-серый фон
     glEnable(GL_DEPTH_TEST); // Включить тест глубины
     glEnable(GL_LIGHTING); // Включить освещение
     glEnable(GL_LIGHT0); // Включить источник света 0
@@ -168,7 +182,26 @@ void OpenGLWidget::initializeGL() {
     glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, matSpecular);
     glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, matShininess);
 
-    qDebug() << "OpenGL initialized with multiple lights.";
+    // Инициализация цветов основных осей
+    axisColors[0] = QColor::fromRgbF(1.0f, 0.0f, 0.0f); // X - Красный
+    axisColors[1] = QColor::fromRgbF(0.0f, 1.0f, 0.0f); // Y - Зеленый
+    axisColors[2] = QColor::fromRgbF(0.0f, 0.0f, 1.0f); // Z - Синий
+
+    // Инициализация размеров сетки и шага
+    gridSize = 1000.0f;
+    gridStep = 10.0f;
+
+    // Инициализация прозрачности сетки
+    gridAlpha = maxAlpha;
+
+    // Флаг обновления сетки
+    gridParametersChanged = true;
+
+    // Включение смешивания для прозрачности
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    qDebug() << "OpenGL initialized with multiple lights and blending enabled.";
 }
 
 // Изменение размера окна OpenGL
@@ -409,37 +442,97 @@ void OpenGLWidget::drawCoordinateIndicator() {
 void OpenGLWidget::drawGrid() {
     if (!gridVisible) return;
 
-    // Сохраняем текущее состояние матриц и атрибутов
-    glPushMatrix();
-    glPushAttrib(GL_ENABLE_BIT);
+    // Вычисление направления камеры
+    QVector3D cameraDir = (cameraPosition - objectPosition).normalized();
 
-    // Отключаем освещение и глубинный тест для рисования сетки
+    // Нормаль плоскости XZ
+    QVector3D gridNormal(0.0f, 1.0f, 0.0f);
+
+    // Вычисляем косинус угла между направлением камеры и нормалью сетки
+    float dotProduct = QVector3D::dotProduct(cameraDir, gridNormal);
+
+    // Вычисляем альфа на основе угла (чем ближе к 0, тем более прозрачная)
+    // При косинусе 1 (угол 0°) альфа = maxAlpha
+    // При косинусе 0 (угол 90°) альфа = minAlpha
+    gridAlpha = minAlpha + (maxAlpha - minAlpha) * dotProduct;
+
+    // Вычисление расстояния между камерой и объектом
+    float distance = (cameraPosition - objectPosition).length();
+
+    // Увеличиваем прозрачность с отдалением (чем дальше, тем прозрачнее)
+    // Можно настроить коэффициенты по необходимости
+    gridAlpha *= qBound(minAlpha, 1.0f - distance / 1000.0f, maxAlpha);
+
+    // Обновление размеров сетки на основе размера объекта
+    if (gridParametersChanged) {
+        // Вычисляем размер сетки на основе ограничивающего объема
+        float sizeX = gridSize; // Или использовать другие параметры
+        float sizeZ = gridSize;
+
+        // Настройка шага сетки
+        gridStep = gridSize / 20.0f; // Разделение на 20 шагов
+
+        gridParametersChanged = false;
+    }
+
+    // Включаем смешивание и настраиваем альфа-значение для сетки
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // Отрисовка сетки с использованием gridAlpha
+    glPushMatrix();
+    glPushAttrib(GL_ENABLE_BIT | GL_COLOR_BUFFER_BIT | GL_LINE_BIT);
+
     glDisable(GL_LIGHTING);
     glDisable(GL_DEPTH_TEST);
 
-    // Устанавливаем цвет сетки (например, серый)
-    glColor3f(0.5f, 0.5f, 0.5f);
+    // Устанавливаем цвет сетки с альфа-прозрачностью
+    glColor4f(0.5f, 0.5f, 0.5f, gridAlpha);
 
-    // Устанавливаем размер сетки и шаг
-    float gridSize = 1000.0f; // Размер сетки
-    float step = 10.0f;       // Шаг между линиями
-
-    // Рисуем сетку на плоскости XZ
     glBegin(GL_LINES);
-    for (float i = -gridSize; i <= gridSize; i += step) {
-        // Линии параллельные оси Z
+    for (float i = -gridSize; i <= gridSize; i += gridStep) {
+        // Линии параллельные Z
         glVertex3f(i, 0.0f, -gridSize);
         glVertex3f(i, 0.0f, gridSize);
 
-        // Линии параллельные оси X
+        // Линии параллельные X
         glVertex3f(-gridSize, 0.0f, i);
         glVertex3f(gridSize, 0.0f, i);
     }
     glEnd();
 
-    // Восстанавливаем состояние матриц и атрибутов
     glPopAttrib();
     glPopMatrix();
+
+    // Отрисовка осей координат
+    glPushAttrib(GL_ENABLE_BIT | GL_COLOR_BUFFER_BIT | GL_LINE_BIT);
+    glLineWidth(2.0f); // Фиксированная толщина линий
+
+    glDisable(GL_LIGHTING); // Отключаем освещение для корректного отображения цветов
+
+    // Ось X - красная
+    glColor4f(axisColors[0].redF(), axisColors[0].greenF(), axisColors[0].blueF(), 1.0f);
+    glBegin(GL_LINES);
+    glVertex3f(-gridSize, 0.0f, 0.0f);
+    glVertex3f(gridSize, 0.0f, 0.0f);
+    glEnd();
+
+    // Ось Y - зеленая
+    glColor4f(axisColors[1].redF(), axisColors[1].greenF(), axisColors[1].blueF(), 1.0f);
+    glBegin(GL_LINES);
+    glVertex3f(0.0f, -gridSize, 0.0f);
+    glVertex3f(0.0f, gridSize, 0.0f);
+    glEnd();
+
+    // Ось Z - синяя
+    glColor4f(axisColors[2].redF(), axisColors[2].greenF(), axisColors[2].blueF(), 1.0f);
+    glBegin(GL_LINES);
+    glVertex3f(0.0f, 0.0f, -gridSize);
+    glVertex3f(0.0f, 0.0f, gridSize);
+    glEnd();
+
+    glEnable(GL_LIGHTING); // Включаем освещение обратно
+    glPopAttrib();
 }
 
 void OpenGLWidget::setGridVisible(bool visible) {

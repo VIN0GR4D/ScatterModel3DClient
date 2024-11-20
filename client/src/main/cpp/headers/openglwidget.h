@@ -82,6 +82,24 @@ private:
     bool gridVisible;
     void drawCoordinateIndicator();
 
+    // Размеры сетки и шаг
+    float gridSize;
+    float gridStep;
+
+    // Цвета основных осей (X, Y, Z)
+    QColor axisColors[3];
+
+    // Минимальное и максимальное значение альфа для сетки
+    const float minAlpha = 0.2f;
+    const float maxAlpha = 1.0f;
+
+    // Переменные для хранения прозрачности
+    float gridAlpha;
+
+    // Флаг для обновления сетки
+    bool gridParametersChanged;
+
+
 protected:
     void initializeGL() override;
     void resizeGL(int w, int h) override;
