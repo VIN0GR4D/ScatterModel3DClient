@@ -81,6 +81,7 @@ private:
     void drawGrid();
     bool gridVisible;
     void drawCoordinateIndicator();
+    void drawAxisWithArrow(float axisLength);
 
     // Размеры сетки и шаг
     float gridSize;

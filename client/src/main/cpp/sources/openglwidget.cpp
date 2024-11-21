@@ -1,5 +1,7 @@
 #include "openglwidget.h"
+#include "qpainter.h"
 #include <QMatrix4x4>
+#include <GL/glu.h>
 
 OpenGLWidget::OpenGLWidget(QWidget *parent)
     : QOpenGLWidget(parent), rotationX(0.0f), rotationY(0.0f), rotationZ(0.0f), scale(1.0f), objectPosition(0.0f, 0.0f, 0.0f), gridVisible(false) {
@@ -382,61 +384,67 @@ QVector3D OpenGLWidget::projectToScreen(const QVector3D& worldCoord, const QMatr
 }
 
 void OpenGLWidget::drawCoordinateIndicator() {
-    // Сохраняем текущие матрицы
     glPushMatrix();
     glMatrixMode(GL_PROJECTION);
     glPushMatrix();
     glLoadIdentity();
 
-    // Устанавливаем орфографическую проекцию
     int width = this->width();
     int height = this->height();
-    glOrtho(0, width, 0, height, -1, 1);
+    glOrtho(0, width, 0, height, -100, 100);
 
-    // Сбрасываем модельно-видовую матрицу
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
-    // Отключаем глубинный тест и освещение для рисования индикатора поверх сцены
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_LIGHTING);
 
-    // Определяем размер индикатора
-    float indicatorSize = 50.0f; // Размер индикатора в пикселях
+    glEnable(GL_LINE_SMOOTH);
+    glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
 
-    // Устанавливаем позицию индикатора в левом нижнем углу
-    glTranslatef(10 + indicatorSize / 2, 10 + indicatorSize / 2, 0);
+    glTranslatef(width - 60, 60, 0);
+    glRotatef(-rotationZ, 0.0f, 0.0f, 1.0f);
+    glRotatef(-rotationY, 0.0f, 1.0f, 0.0f);
+    glRotatef(-rotationX, 1.0f, 0.0f, 0.0f);
 
-    // Применяем текущие вращения к индикатору
-    glRotatef(rotationX, 1.0f, 0.0f, 0.0f);
-    glRotatef(rotationY, 0.0f, 1.0f, 0.0f);
-    glRotatef(rotationZ, 0.0f, 0.0f, 1.0f);
+    drawAxisWithArrow(40.0f);
 
-    // Рисуем оси координат
-    glBegin(GL_LINES);
-    // Ось X - красная
-    glColor3f(1.0f, 0.0f, 0.0f);
-    glVertex3f(0, 0, 0);
-    glVertex3f(indicatorSize, 0, 0);
-
-    // Ось Y - зеленая
-    glColor3f(0.0f, 1.0f, 0.0f);
-    glVertex3f(0, 0, 0);
-    glVertex3f(0, indicatorSize, 0);
-
-    // Ось Z - синяя
-    glColor3f(0.0f, 0.0f, 1.0f);
-    glVertex3f(0, 0, 0);
-    glVertex3f(0, 0, indicatorSize);
-    glEnd();
-
-    // Восстанавливаем состояние OpenGL
+    glDisable(GL_LINE_SMOOTH);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_LIGHTING);
     glMatrixMode(GL_PROJECTION);
     glPopMatrix();
     glMatrixMode(GL_MODELVIEW);
     glPopMatrix();
+}
+
+void OpenGLWidget::drawAxisWithArrow(float axisLength) {
+    glEnable(GL_LINE_SMOOTH);
+    glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+    glLineWidth(2.0f);
+
+    // Ось X
+    glColor3f(1.0f, 0.0f, 0.0f);
+    glBegin(GL_LINES);
+    glVertex3f(0, 0, 0);
+    glVertex3f(axisLength, 0, 0);
+    glEnd();
+
+    // Ось Y
+    glColor3f(0.0f, 1.0f, 0.0f);
+    glBegin(GL_LINES);
+    glVertex3f(0, 0, 0);
+    glVertex3f(0, axisLength, 0);
+    glEnd();
+
+    // Ось Z
+    glColor3f(0.0f, 0.0f, 1.0f);
+    glBegin(GL_LINES);
+    glVertex3f(0, 0, 0);
+    glVertex3f(0, 0, axisLength);
+    glEnd();
+
+    glDisable(GL_LINE_SMOOTH);
 }
 
 void OpenGLWidget::drawGrid() {
