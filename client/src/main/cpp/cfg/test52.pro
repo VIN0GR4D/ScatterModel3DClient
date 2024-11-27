@@ -12,7 +12,6 @@ CONFIG += c++17
 
 SOURCES += \
     aboutdialog.cpp \
-    graph3dwindow.cpp \
     graphwindow.cpp \
     logindialog.cpp \
     logworker.cpp \
@@ -20,13 +19,11 @@ SOURCES += \
     mainwindow.cpp \
     openglwidget.cpp \
     parser.cpp \
-    portraitopenglwidget.cpp \
     portraitwindow.cpp \
     projectserializer.cpp \
     qcustomplot.cpp \
     raytracer.cpp \
     resultsdialog.cpp \
-    scatterplot3dwindow.cpp \
     triangleclient.cpp
 
 HEADERS += \
@@ -35,21 +32,18 @@ HEADERS += \
     Triangle.h \
     aboutdialog.h \
     cVect.h \
-    graph3dwindow.h \
     graphwindow.h \
     logindialog.h \
     logworker.h \
     mainwindow.h \
     openglwidget.h \
     parser.h \
-    portraitopenglwidget.h \
     portraitwindow.h \
     projectserializer.h \
     qcustomplot.h \
     rVect.h \
     raytracer.h \
     resultsdialog.h \
-    scatterplot3dwindow.h \
     triangleclient.h
 
 FORMS += \

@@ -6,7 +6,6 @@
 #include "raytracer.h"
 #include "triangleclient.h"
 #include "portraitwindow.h"
-#include "graph3dwindow.h"
 #include <QMainWindow>
 #include <QPushButton>
 #include <QLineEdit>
@@ -60,14 +59,12 @@ private slots:
     void authorizeClient();
     void sendDataAfterAuthorization(std::function<void()> sendDataFunc);
     void openGraphWindow();
-    void showGraph3D();
     void disconnectFromServer();
     void showPortrait();
     void toggleTheme();
     void saveProject();
     void loadTheme(const QString &themePath, const QString &iconPath, QAction *action);
     void openResultsWindow();
-    void openScatterPlot3DWindow();
     void saveLog();
     void showAboutDialog();
     void displayResults(const QJsonObject &results);
@@ -107,7 +104,6 @@ private:
     QJsonObject vectorToJson(const QSharedPointer<const rVect>& vector);
     void extractValues(const QJsonArray &array, QVector<double> &container, int depth);
     void extract2DValues(const QJsonArray &array, QVector<QVector<double>> &container);
-    Graph3DWindow *graph3DWindow;
     PortraitWindow *portraitWindow;
     bool isDarkTheme;
     int freqBand;

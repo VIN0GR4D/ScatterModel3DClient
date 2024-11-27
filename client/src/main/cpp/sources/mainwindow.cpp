@@ -7,8 +7,6 @@
 #include "graphwindow.h"
 #include "logindialog.h"
 #include "portraitwindow.h"
-#include "graph3dwindow.h"
-#include "scatterplot3dwindow.h"
 #include "ProjectSerializer.h"
 #include <QFile>
 #include <QFileDialog>
@@ -47,7 +45,6 @@ MainWindow::MainWindow(QWidget *parent)
     , pplaneCheckBox(new QCheckBox("Включить подстилающую поверхность", this))
     , radiationPolarizationComboBox(new QComboBox(this))
     , receivePolarizationComboBox(new QComboBox(this))
-    , graph3DWindow(new Graph3DWindow(this))
     , portraitWindow(new PortraitWindow(this))
     , isDarkTheme(true)
     , resultsWatcher(new QFutureWatcher<void>(this))
@@ -121,17 +118,6 @@ MainWindow::MainWindow(QWidget *parent)
     showPortraitAction->setEnabled(true);
     resultsMenu->addAction(showPortraitAction);
     connect(showPortraitAction, &QAction::triggered, this, &MainWindow::showPortrait);
-
-    QAction *showGraph3DAction = new QAction("Показать 3D Модель", this);
-    showGraph3DAction->setEnabled(true);
-    resultsMenu->addAction(showGraph3DAction);
-    connect(showGraph3DAction, &QAction::triggered, this, &MainWindow::showGraph3D);
-
-    // Пункт меню "Показать Scatter Plot 3D"
-    QAction *openScatterPlot3DAction = new QAction("Показать Scatter Plot 3D", this);
-    openScatterPlot3DAction->setEnabled(true);
-    resultsMenu->addAction(openScatterPlot3DAction);
-    connect(openScatterPlot3DAction, &QAction::triggered, this, &MainWindow::openScatterPlot3DWindow);
 
     menuBar->addMenu(resultsMenu);
 
@@ -959,40 +945,6 @@ void MainWindow::showPortrait() {
 
     portraitWindow->setData(absEout2D);
     portraitWindow->show();
-}
-
-
-void MainWindow::showGraph3D() {
-    if (absEout2D.isEmpty() || normEout2D.isEmpty()) {
-        // Сообщение об ошибке, если данных нет
-        return;
-    }
-
-    graph3DWindow->clearData();
-    graph3DWindow->setData(absEout2D, normEout2D);
-    graph3DWindow->show();
-}
-
-// Реализация метода для открытия окна 3D Scatter Plot
-void MainWindow::openScatterPlot3DWindow() {
-    // Создаем новое окно для отображения Scatter Plot 3D
-    ScatterPlot3DWindow *scatterPlot3DWindow = new ScatterPlot3DWindow(this);
-
-    // Получаем вершины и индексы из OpenGL виджета для отображения объекта
-    QVector<QVector3D> vertices = openGLWidget->getVertices();
-    QVector<QVector<int>> indices = openGLWidget->getIndices();
-
-    // Устанавливаем данные о вершинах и индексах в окно Scatter Plot 3D
-    scatterPlot3DWindow->setData(vertices, indices);
-
-    // Передаем уже полученные данные о рассеивании в Scatter Plot 3D
-    scatterPlot3DWindow->setScatteringData(absEout, normEout);
-
-    // Устанавливаем атрибут, чтобы окно закрылось и память освободилась при закрытии
-    scatterPlot3DWindow->setAttribute(Qt::WA_DeleteOnClose);
-
-    // Показываем окно Scatter Plot 3D
-    scatterPlot3DWindow->show();
 }
 
 // Метод для переключения темы
