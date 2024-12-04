@@ -23,6 +23,7 @@
 #include <QJsonArray>
 #include <QRadioButton>
 #include <QFutureWatcher>
+#include <QAction>
 
 class OpenGLWidget;
 class Parser;
@@ -65,6 +66,9 @@ private slots:
     void saveProject();
     void loadTheme(const QString &themePath, const QString &iconPath, QAction *action);
     void openResultsWindow();
+    void handleDataReceived(const QJsonObject &results);
+    void updateMenuActions();
+    void onPortraitTypeChanged();
     void saveLog();
     void showAboutDialog();
     void displayResults(const QJsonObject &results);
@@ -85,6 +89,15 @@ private:
     QDoubleSpinBox *inputWavelength, *inputResolution;
     QDoubleSpinBox *inputRotationX, *inputRotationY, *inputRotationZ;
     QComboBox *inputPolarizationRadiation, *inputPolarizationReceive;
+    // Действия меню "Результаты"
+    QAction *openResultsAction;
+    QAction *openGraphAction;
+    QAction *showPortraitAction;
+
+    // Хранение состояния данных
+    bool hasNumericalData;
+    bool hasGraphData;
+
     QWidget *controlWidget;
     QFormLayout *formLayout;
     bool serverEnabled;

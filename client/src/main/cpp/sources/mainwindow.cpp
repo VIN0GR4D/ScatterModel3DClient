@@ -32,6 +32,8 @@ MainWindow::MainWindow(QWidget *parent)
     , parser(new Parser(this))
     , rayTracer(std::make_unique<RayTracer>())
     , triangleClient(nullptr) // Инициализируем указатель нулевым значением
+    , hasNumericalData(false)
+    , hasGraphData(false)
     , serverEnabled(false)
     , absEout()
     , normEout()
@@ -102,20 +104,20 @@ MainWindow::MainWindow(QWidget *parent)
     QMenu *resultsMenu = new QMenu("Результаты", this);
 
     // Пункт меню "Открыть числовые значения"
-    QAction *openResultsAction = new QAction("Открыть числовые значения", this);
-    openResultsAction->setEnabled(true);
+    openResultsAction = new QAction("Открыть числовые значения", this);
+    openResultsAction->setEnabled(false);
     resultsMenu->addAction(openResultsAction);
     connect(openResultsAction, &QAction::triggered, this, &MainWindow::openResultsWindow);
 
     // Пункт меню "Открыть график"
-    QAction *openGraphAction = new QAction("Открыть график", this);
-    openGraphAction->setEnabled(true);
+    openGraphAction = new QAction("Открыть график", this);
+    openGraphAction->setEnabled(false);
     resultsMenu->addAction(openGraphAction);
     connect(openGraphAction, &QAction::triggered, this, &MainWindow::openGraphWindow);
 
     // Пункт меню "Показать 2D портрет"
-    QAction *showPortraitAction = new QAction("Показать 2D портрет", this);
-    showPortraitAction->setEnabled(true);
+    showPortraitAction = new QAction("Показать 2D портрет", this);
+    showPortraitAction->setEnabled(false);
     resultsMenu->addAction(showPortraitAction);
     connect(showPortraitAction, &QAction::triggered, this, &MainWindow::showPortrait);
 
@@ -374,7 +376,12 @@ MainWindow::MainWindow(QWidget *parent)
     connect(buttonResetRotation, &QPushButton::clicked, this, &MainWindow::resetRotation);
     connect(connectButton, &QPushButton::clicked, this, &MainWindow::connectToServer);
     connect(disconnectButton, &QPushButton::clicked, this, &MainWindow::disconnectFromServer);
-    // connect(triangleClient, &TriangleClient::resultsReceived, this, QOverload<const QJsonObject &>::of(&MainWindow::displayResults));
+    connect(triangleClient, &TriangleClient::resultsReceived, this, &MainWindow::handleDataReceived);
+    // Подключение сигналов изменения состояния чекбоксов портретных типов
+    connect(anglePortraitCheckBox, &QCheckBox::stateChanged, this, &MainWindow::onPortraitTypeChanged);
+    connect(azimuthPortraitCheckBox, &QCheckBox::stateChanged, this, &MainWindow::onPortraitTypeChanged);
+    connect(rangePortraitCheckBox, &QCheckBox::stateChanged, this, &MainWindow::onPortraitTypeChanged);
+
     connect(resultsWatcher, &QFutureWatcher<void>::finished, this, [this]() {
         logMessage("Обработка результатов завершена.");
         // Дополнительные действия после завершения
@@ -570,6 +577,9 @@ void MainWindow::processResults(const QJsonObject &results, bool angleChecked, b
             absEout2D = localAbsEout2D;
             normEout2D = localNormEout2D;
             logMessage("Числовые значения с сервера получены и сохранены.");
+
+            // Вызов метода для обновления состояния кнопок
+            updateMenuActions();
         }, Qt::QueuedConnection);
 }
 
@@ -893,6 +903,11 @@ void MainWindow::saveResults() {
 }
 
 void MainWindow::openResultsWindow() {
+    if (!hasNumericalData) {
+        logMessage("Нет доступных числовых значений.");
+        return;
+    }
+
     if (storedResults.isEmpty()) {
         logMessage("Нет доступных числовых значений.");
         return;
@@ -904,6 +919,11 @@ void MainWindow::openResultsWindow() {
 }
 
 void MainWindow::openGraphWindow() {
+    if (!hasGraphData) {
+        logMessage("Нет данных для графика.");
+        return;
+    }
+
     GraphWindow *graphWindow = new GraphWindow(this);
 
     // Определение шага по оси X в зависимости от freqBand
@@ -933,6 +953,11 @@ void MainWindow::openGraphWindow() {
 }
 
 void MainWindow::showPortrait() {
+    if (!showPortraitAction->isEnabled()) {
+        logMessage("Недостаточно данных или типов портретов для отображения 2D портрета.");
+        return;
+    }
+
     if (absEout2D.isEmpty() || normEout2D.isEmpty()) {
         logMessage("Нет данных для отображения.");
         return;
@@ -1090,4 +1115,45 @@ void MainWindow::newProject() {
 
     // Вывод сообщения в журнал
     logMessage("Создан новый проект.");
+}
+
+void MainWindow::handleDataReceived(const QJsonObject &results) {
+    // Обработка результатов и обновление внутренних состояний
+    displayResults(results);
+}
+
+void MainWindow::updateMenuActions() {
+    // Логика для "Открыть числовые значения"
+    if (!absEout.isEmpty() && !normEout.isEmpty()) {
+        hasNumericalData = true;
+        openResultsAction->setEnabled(true);
+    } else {
+        hasNumericalData = false;
+        openResultsAction->setEnabled(false);
+    }
+
+    // Логика для "Открыть график"
+    if (!absEout.isEmpty() && !normEout.isEmpty()) {
+        hasGraphData = true;
+        openGraphAction->setEnabled(true);
+    } else {
+        hasGraphData = false;
+        openGraphAction->setEnabled(false);
+    }
+
+    // Логика для "Показать 2D портрет"
+    int selectedPortraits = 0;
+    if (anglePortraitCheckBox->isChecked()) selectedPortraits++;
+    if (azimuthPortraitCheckBox->isChecked()) selectedPortraits++;
+    if (rangePortraitCheckBox->isChecked()) selectedPortraits++;
+
+    if (selectedPortraits == 2 && !absEout2D.isEmpty() && !normEout2D.isEmpty()) {
+        showPortraitAction->setEnabled(true);
+    } else {
+        showPortraitAction->setEnabled(false);
+    }
+}
+
+void MainWindow::onPortraitTypeChanged() {
+    updateMenuActions();
 }
