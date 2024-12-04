@@ -7,7 +7,7 @@
 #include "graphwindow.h"
 #include "logindialog.h"
 #include "portraitwindow.h"
-#include "ProjectSerializer.h"
+#include "newprojectdialog.h"
 #include <QFile>
 #include <QFileDialog>
 #include <QFormLayout>
@@ -24,6 +24,8 @@
 #include <QMenuBar>
 #include <QScopedPointer>
 #include <memory>
+#include <QMessageBox>
+#include <QCloseEvent>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -48,6 +50,7 @@ MainWindow::MainWindow(QWidget *parent)
     , radiationPolarizationComboBox(new QComboBox(this))
     , receivePolarizationComboBox(new QComboBox(this))
     , portraitWindow(new PortraitWindow(this))
+    , isModified(false)
     , isDarkTheme(true)
     , resultsWatcher(new QFutureWatcher<void>(this))
 {
@@ -394,6 +397,9 @@ MainWindow::MainWindow(QWidget *parent)
         openGLWidget->setGeometry(v, t, tri);
     });
 
+    // Создание статусной строки
+    statusBar()->showMessage("Нет активного проекта");
+
 }
 
 MainWindow::~MainWindow() {
@@ -441,6 +447,7 @@ void MainWindow::loadModel() {
                         logMessage("Ошибка: файл не содержит корректных данных объекта. Пожалуйста, загрузите корректный файл.");
                     } else {
                         logMessage("Файл успешно загружен.");
+                        setModified(true); // Установка флага изменений
                     }
                 }, Qt::QueuedConnection);
         });
@@ -580,6 +587,8 @@ void MainWindow::processResults(const QJsonObject &results, bool angleChecked, b
 
             // Вызов метода для обновления состояния кнопок
             updateMenuActions();
+
+            setModified(true); // Установка флага изменений после получения данных
         }, Qt::QueuedConnection);
 }
 
@@ -607,6 +616,7 @@ void MainWindow::applyRotation() {
     float rotationZ = inputRotationZ->value();
 
     openGLWidget->setRotation(rotationX, rotationY, rotationZ);
+    setModified(true); // Установка флага изменений
 }
 
 void MainWindow::resetRotation() {
@@ -615,6 +625,7 @@ void MainWindow::resetRotation() {
     inputRotationZ->setValue(0);
 
     openGLWidget->setRotation(0, 0, 0);
+    setModified(true); // Установка флага изменений
 }
 
 rVect MainWindow::calculateDirectVectorFromRotation() {
@@ -660,7 +671,7 @@ void MainWindow::authorizeClient() {
 
 void MainWindow::sendDataAfterAuthorization(std::function<void()> sendDataFunc) {
     if (!triangleClient || !triangleClient->isConnected()) {
-        logDisplay->setText("Для начала подключитесь к серверу.");
+        logMessage("Для начала подключитесь к серверу.");
         return;
     }
 
@@ -670,7 +681,7 @@ void MainWindow::sendDataAfterAuthorization(std::function<void()> sendDataFunc) 
             if (triangleClient->isConnected() && triangleClient->isAuthorized()) {
                 sendDataFunc();  // Отправляем данные после успешной авторизации
             } else {
-                logDisplay->setText("Ошибка авторизации.");
+                logMessage("Ошибка авторизации.");
             }
         });
     } else {
@@ -834,6 +845,7 @@ void MainWindow::performCalculation() {
 
     sendDataAfterAuthorization([this, modelData]() {
         triangleClient->sendModelData(modelData);
+        setModified(true); // Установка флага изменений после отправки данных
     });
 }
 
@@ -996,31 +1008,39 @@ void MainWindow::loadTheme(const QString &themePath, const QString &iconPath, QA
     }
 }
 
-void MainWindow::saveProject() {
+bool MainWindow::saveProject() {
     QString fileName = QFileDialog::getSaveFileName(this, "Сохранить проект", "", "Файлы проекта (*.projjson);;Все файлы (*.*)");
     if (!fileName.isEmpty()) {
-        ProjectData data;
-
         // Сбор данных из OpenGLWidget и MainWindow
-        data.triangles = openGLWidget->getTriangles();
-        data.objectPosition = openGLWidget->getObjectPosition();
-        data.rotationX = inputRotationX->value();
-        data.rotationY = inputRotationY->value();
-        data.rotationZ = inputRotationZ->value();
-        data.scalingCoefficients = QVector3D(1.0f, 1.0f, 1.0f);
-        data.absEout = absEout;
-        data.normEout = normEout;
-        data.absEout2D = absEout2D;
-        data.normEout2D = normEout2D;
-        data.storedResults = storedResults;
+        currentProjectData.triangles = openGLWidget->getTriangles();
+        currentProjectData.objectPosition = openGLWidget->getObjectPosition();
+        currentProjectData.rotationX = inputRotationX->value();
+        currentProjectData.rotationY = inputRotationY->value();
+        currentProjectData.rotationZ = inputRotationZ->value();
+        currentProjectData.scalingCoefficients = QVector3D(1.0f, 1.0f, 1.0f);
+        currentProjectData.absEout = absEout;
+        currentProjectData.normEout = normEout;
+        currentProjectData.absEout2D = absEout2D;
+        currentProjectData.normEout2D = normEout2D;
+        // currentProjectData.storedResults уже обновляется в displayResults
 
         // Сохранение проекта
-        if (ProjectSerializer::saveProject(fileName, data)) {
+        if (ProjectSerializer::saveProject(fileName, currentProjectData)) {
             logMessage("Проект успешно сохранен: " + fileName);
+
+            statusBar()->showMessage(QString("Проект: %1 | Рабочая директория: %2")
+                                         .arg(currentProjectData.projectName.isEmpty() ? "Без названия" : currentProjectData.projectName)
+                                         .arg(currentProjectData.workingDirectory.isEmpty() ? "Не задано" : currentProjectData.workingDirectory));
+
+            setModified(false); // Сброс флага после успешного сохранения
+            return true;
         } else {
             logMessage("Ошибка при сохранении проекта.");
+            QMessageBox::critical(this, "Ошибка", "Не удалось сохранить проект.");
+            return false;
         }
     }
+    return false;
 }
 
 void MainWindow::saveLog() {
@@ -1046,6 +1066,9 @@ void MainWindow::onGridCheckBoxStateChanged(int state) {
 }
 
 void MainWindow::openProject() {
+    if (!maybeSave()) // Проверка на несохраненные изменения перед открытием нового проекта
+        return;
+
     QString fileName = QFileDialog::getOpenFileName(this, "Открыть проект", "", "Файлы проекта (*.projjson);;Все файлы (*.*)");
     if (!fileName.isEmpty()) {
         ProjectData data;
@@ -1067,14 +1090,66 @@ void MainWindow::openProject() {
             absEout2D = data.absEout2D;
             normEout2D = data.normEout2D;
             storedResults = data.storedResults;
-            logMessage("Проект успешно загружен: " + fileName);
+
+            currentProjectData.projectName = data.projectName;
+            currentProjectData.workingDirectory = data.workingDirectory;
+
+            // Обновление статусной строки
+            statusBar()->showMessage(QString("Проект: %1 | Рабочая директория: %2")
+                                         .arg(data.projectName.isEmpty() ? "Без названия" : data.projectName)
+                                         .arg(data.workingDirectory.isEmpty() ? "Не задано" : data.workingDirectory));
+
+            logMessage(QString("Проект успешно загружен: %1\nРабочая директория: %2")
+                           .arg(data.projectName.isEmpty() ? "Без названия" : data.projectName)
+                           .arg(data.workingDirectory.isEmpty() ? "Не задано" : data.workingDirectory));
+
+            setModified(false); // Сброс флага после загрузки
         } else {
             logMessage("Ошибка при загрузке проекта.");
+            QMessageBox::critical(this, "Ошибка", "Не удалось загрузить проект.");
         }
     }
 }
 
 void MainWindow::newProject() {
+    if (!maybeSave()) // Проверка на несохраненные изменения перед созданием нового проекта
+        return;
+
+    // Создание и отображение диалога для нового проекта
+    NewProjectDialog dialog(this);
+    if (dialog.exec() == QDialog::Accepted) {
+        QString projectName = dialog.getProjectName();
+        QString workingDirectory = dialog.getWorkingDirectory();
+
+        // Проверка ввода
+        if (projectName.isEmpty()) {
+            QMessageBox::warning(this, "Ошибка", "Название проекта не может быть пустым.");
+            return;
+        }
+
+        if (workingDirectory.isEmpty()) {
+            QMessageBox::warning(this, "Ошибка", "Рабочая директория не выбрана.");
+            return;
+        }
+
+        // Установка значений в ProjectData
+        currentProjectData.projectName = projectName;
+        currentProjectData.workingDirectory = workingDirectory;
+
+        // Обновление статусной строки
+        statusBar()->showMessage(QString("Проект: %1 | Рабочая директория: %2")
+                                     .arg(projectName)
+                                     .arg(workingDirectory));
+
+        // Вывод информации о проекте в журнал
+        logMessage(QString("Создан новый проект: %1\nРабочая директория: %2")
+                       .arg(projectName)
+                       .arg(workingDirectory));
+    } else {
+        // Если пользователь отменил создание нового проекта
+        return;
+    }
+
     // Очистка OpenGL сцены
     openGLWidget->clearScene();
 
@@ -1115,11 +1190,14 @@ void MainWindow::newProject() {
 
     // Вывод сообщения в журнал
     logMessage("Создан новый проект.");
+
+    setModified(false); // Сброс флага после создания нового проекта
 }
 
 void MainWindow::handleDataReceived(const QJsonObject &results) {
     // Обработка результатов и обновление внутренних состояний
     displayResults(results);
+    setModified(true); // Установка флага изменений после получения данных
 }
 
 void MainWindow::updateMenuActions() {
@@ -1156,4 +1234,43 @@ void MainWindow::updateMenuActions() {
 
 void MainWindow::onPortraitTypeChanged() {
     updateMenuActions();
+}
+
+// Метод для установки флага isModified
+void MainWindow::setModified(bool modified) {
+    if (isModified != modified) {
+        isModified = modified;
+        // Обновление заголовка окна, чтобы отразить состояние модификации
+        if (isModified) {
+            setWindowTitle(QString("%1* - ScatterModel3DClient").arg(currentProjectData.projectName.isEmpty() ? "Без названия" : currentProjectData.projectName));
+        } else {
+            setWindowTitle(QString("%1 - ScatterModel3DClient").arg(currentProjectData.projectName.isEmpty() ? "Без названия" : currentProjectData.projectName));
+        }
+    }
+}
+
+// Метод для запроса сохранения изменений
+bool MainWindow::maybeSave() {
+    if (!isModified)
+        return true;
+
+    QMessageBox::StandardButton ret;
+    ret = QMessageBox::warning(this, tr("ScatterModel3DClient"),
+                               tr("Текущий проект был изменен.\nХотите сохранить изменения?"),
+                               QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel);
+    if (ret == QMessageBox::Save) {
+        return saveProject();
+    } else if (ret == QMessageBox::Cancel) {
+        return false;
+    }
+    return true;
+}
+
+// Переопределение события закрытия окна
+void MainWindow::closeEvent(QCloseEvent *event) {
+    if (maybeSave()) {
+        event->accept();
+    } else {
+        event->ignore();
+    }
 }

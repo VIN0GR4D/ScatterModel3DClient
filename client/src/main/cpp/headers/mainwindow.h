@@ -6,6 +6,7 @@
 #include "raytracer.h"
 #include "triangleclient.h"
 #include "portraitwindow.h"
+#include "projectserializer.h"
 #include <QMainWindow>
 #include <QPushButton>
 #include <QLineEdit>
@@ -43,6 +44,10 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+protected:
+    // Переопределение события закрытия окна
+    void closeEvent(QCloseEvent *event) override;
+
 public slots:
     void updateRotationX(double x);
     void updateRotationY(double y);
@@ -63,7 +68,7 @@ private slots:
     void disconnectFromServer();
     void showPortrait();
     void toggleTheme();
-    void saveProject();
+    bool saveProject();
     void loadTheme(const QString &themePath, const QString &iconPath, QAction *action);
     void openResultsWindow();
     void handleDataReceived(const QJsonObject &results);
@@ -118,6 +123,10 @@ private:
     void extractValues(const QJsonArray &array, QVector<double> &container, int depth);
     void extract2DValues(const QJsonArray &array, QVector<QVector<double>> &container);
     PortraitWindow *portraitWindow;
+    ProjectData currentProjectData;
+    bool isModified;
+    void setModified(bool modified = true);
+    bool maybeSave();
     bool isDarkTheme;
     int freqBand;
     QJsonObject getScatteringDataFromServer();

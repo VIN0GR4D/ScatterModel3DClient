@@ -87,6 +87,9 @@ bool ProjectSerializer::saveProject(const QString& fileName, const ProjectData& 
     // Сохранение сохраненных результатов
     rootObject["storedResults"] = data.storedResults; // Добавление строки с результатами в корневой объект
 
+    rootObject["projectName"] = data.projectName;
+    rootObject["workingDirectory"] = data.workingDirectory;
+
     // Создание документа JSON из корневого объекта
     QJsonDocument doc(rootObject);
 
@@ -215,6 +218,9 @@ bool ProjectSerializer::loadProject(const QString& fileName, ProjectData& data) 
 
     // Загрузка сохраненных результатов из JSON
     data.storedResults = rootObject["storedResults"].toString(); // Установка строки с результатами
+
+    data.projectName = rootObject["projectName"].toString();
+    data.workingDirectory = rootObject["workingDirectory"].toString();
 
     return true; // Возврат true при успешной загрузке
 }

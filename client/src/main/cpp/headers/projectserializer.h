@@ -22,6 +22,9 @@ public:
     QString storedResults;
     QVector<QSharedPointer<triangle>> shellTriangles;
     QVector<QSharedPointer<triangle>> shadowShellTriangles;
+
+    QString projectName;
+    QString workingDirectory;
 };
 
 class ProjectSerializer {
