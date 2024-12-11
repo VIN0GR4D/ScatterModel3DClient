@@ -8,7 +8,7 @@
 #include <QMessageBox>
 
 PortraitWindow::PortraitWindow(QWidget *parent)
-    : QDialog(parent), offset(0, 0), scale(1.0), maxDataValue(1.0) {
+    : QDialog(parent), offset(0, 0), scale(1.0), maxDataValue(1.0), isLogarithmicScale(false) {
     setWindowTitle("2D Портрет");
     resize(1280, 720);
 
@@ -19,6 +19,18 @@ PortraitWindow::PortraitWindow(QWidget *parent)
     saveButton = new QPushButton("Сохранить изображение", this);
     saveButton->move(10, 10); // Позиция кнопки в левом верхнем углу
     connect(saveButton, &QPushButton::clicked, this, &PortraitWindow::savePortraitAsPNG);
+
+    // Кнопка переключения масштаба
+    toggleScaleButton = new QPushButton("Логарифмический масштаб", this);
+    toggleScaleButton->setCheckable(true);
+    toggleScaleButton->move(10, 50);
+    connect(toggleScaleButton, &QPushButton::clicked, this, &PortraitWindow::toggleScale);
+}
+
+void PortraitWindow::toggleScale() {
+    isLogarithmicScale = toggleScaleButton->isChecked();
+    toggleScaleButton->setText(isLogarithmicScale ? "Обычный масштаб" : "Логарифмический масштаб");
+    update();
 }
 
 void PortraitWindow::setData(const QVector<QVector<double>> &data) {
@@ -106,21 +118,25 @@ void PortraitWindow::drawData(QPainter &painter) {
 }
 
 void PortraitWindow::drawColorScale(QPainter &painter) {
-    int legendHeight = static_cast<int>(height() * 0.8); // Высота легенды занимает 80% высоты окна
-    int legendX = width() - legendWidth - 30; // Отступ ближе к графику
-    int legendY = (height() - legendHeight) / 2; // Центрируем по Y
+    int legendHeight = static_cast<int>(height() * 0.8);
+    int legendX = width() - legendWidth - 30;
+    int legendY = (height() - legendHeight) / 2;
 
-    // Рисуем градиентную шкалу с инвертированным направлением
     QRect legendRect(legendX, legendY, legendWidth - 10, legendHeight);
-
-    // Инвертированный градиент: от нижней к верхней части
     QLinearGradient gradient(legendRect.bottomLeft(), legendRect.topLeft());
 
-    // Добавляем множество цветовых остановок для плавного перехода
-    const int numStops = 100; // Количество цветовых остановок
+    const int numStops = 100;
     for (int i = 0; i <= numStops; ++i) {
         double ratio = static_cast<double>(i) / numStops;
-        double value = minDataValue + ratio * (maxDataValue - minDataValue);
+        double value;
+        if (isLogarithmicScale) {
+            double minPositive = std::max(minDataValue, 1e-10);
+            double logMin = std::log10(minPositive);
+            double logMax = std::log10(std::max(maxDataValue, minPositive * 1.1));
+            value = std::pow(10.0, logMin + ratio * (logMax - logMin));
+        } else {
+            value = minDataValue + ratio * (maxDataValue - minDataValue);
+        }
         QColor color = getColorForValue(value);
         gradient.setColorAt(ratio, color);
     }
@@ -129,36 +145,51 @@ void PortraitWindow::drawColorScale(QPainter &painter) {
     painter.setPen(Qt::black);
     painter.drawRect(legendRect);
 
-    // Рисуем метки значений
     painter.setPen(Qt::black);
     QFont font = painter.font();
     font.setPointSize(10);
     painter.setFont(font);
 
-    int numTicks = 5; // Количество меток
+    int numTicks = 5;
     for (int i = 0; i <= numTicks; ++i) {
         double ratio = static_cast<double>(i) / numTicks;
-        // Инвертируем позицию y
         int y = legendY + (1.0 - ratio) * legendHeight;
-        double value = minDataValue + ratio * (maxDataValue - minDataValue);
+        double value;
+        if (isLogarithmicScale) {
+            double minPositive = std::max(minDataValue, 1e-10);
+            double logMin = std::log10(minPositive);
+            double logMax = std::log10(std::max(maxDataValue, minPositive * 1.1));
+            value = std::pow(10.0, logMin + ratio * (logMax - logMin));
+        } else {
+            value = minDataValue + ratio * (maxDataValue - minDataValue);
+        }
         QString text = QString::number(value, 'g', 4);
-
-        // Корректируем отступ для текста, чтобы он вписывался в окно
-        int textX = legendX + legendWidth - 30; // Увеличиваем отступ, чтобы числа не обрезались
+        int textX = legendX + legendWidth - 30;
         painter.drawText(textX, y + 5, text);
     }
 }
 
 QColor PortraitWindow::getColorForValue(double value) const {
     if (maxDataValue == minDataValue) {
-        return QColor::fromHsv(240, 255, 255); // Возвращаем синий, если нет вариации
+        return QColor::fromHsv(240, 255, 255);
     }
 
-    double normalizedValue = (value - minDataValue) / (maxDataValue - minDataValue);
-    normalizedValue = qBound(0.0, normalizedValue, 1.0); // Ограничиваем диапазон [0, 1]
+    double normalizedValue;
+    if (isLogarithmicScale) {
+        // Защита от отрицательных и нулевых значений в логарифмическом масштабе
+        double minPositive = std::max(minDataValue, 1e-10);
+        double logMin = std::log10(minPositive);
+        double logMax = std::log10(std::max(maxDataValue, minPositive * 1.1));
+        double logVal = std::log10(std::max(value, minPositive));
 
-    int hue = static_cast<int>(240 - normalizedValue * 240); // От синего (240) к красному (0)
-    hue = qBound(0, hue, 359); // Убедимся, что hue находится в допустимом диапазоне
+        normalizedValue = (logVal - logMin) / (logMax - logMin);
+    } else {
+        normalizedValue = (value - minDataValue) / (maxDataValue - minDataValue);
+    }
+
+    normalizedValue = qBound(0.0, normalizedValue, 1.0);
+    int hue = static_cast<int>(240 - normalizedValue * 240);
+    hue = qBound(0, hue, 359);
 
     return QColor::fromHsv(hue, 255, 255);
 }

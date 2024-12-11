@@ -25,6 +25,7 @@ protected:
 
 private slots:
     void savePortraitAsPNG();
+    void toggleScale();
 
 private:
     void drawData(QPainter &painter);
@@ -39,6 +40,9 @@ private:
     double minDataValue;
     int legendWidth;
     QPushButton* saveButton;
+
+    bool isLogarithmicScale;
+    QPushButton* toggleScaleButton;
 };
 
 #endif // PORTRAITWINDOW_H

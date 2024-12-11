@@ -1,5 +1,4 @@
 #include "openglwidget.h"
-#include "qpainter.h"
 #include <QMatrix4x4>
 #include <GL/glu.h>
 
