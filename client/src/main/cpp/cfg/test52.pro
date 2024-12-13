@@ -17,6 +17,7 @@ SOURCES += \
     logworker.cpp \
     main.cpp \
     mainwindow.cpp \
+    meshfilter.cpp \
     newprojectdialog.cpp \
     openglwidget.cpp \
     parser.cpp \
@@ -37,6 +38,7 @@ HEADERS += \
     logindialog.h \
     logworker.h \
     mainwindow.h \
+    meshfilter.h \
     newprojectdialog.h \
     openglwidget.h \
     parser.h \

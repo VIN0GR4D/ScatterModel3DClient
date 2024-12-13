@@ -7,6 +7,7 @@
 #include "triangleclient.h"
 #include "portraitwindow.h"
 #include "projectserializer.h"
+#include "meshfilter.h"
 #include <QMainWindow>
 #include <QPushButton>
 #include <QLineEdit>
@@ -25,6 +26,8 @@
 #include <QRadioButton>
 #include <QFutureWatcher>
 #include <QAction>
+#include <QTreeWidget>
+#include <QTreeWidgetItem>
 
 class OpenGLWidget;
 class Parser;
@@ -132,6 +135,14 @@ private:
     QJsonObject getScatteringDataFromServer();
     rVect calculateDirectVectorFromRotation();
     QFutureWatcher<void> *resultsWatcher;
+
+    QTreeWidget* filterTreeWidget;
+    MeshFilter meshFilter;
+    void setupFilterWidget();
+    void performFiltering();
+    void updateFilterStats(const MeshFilter::FilterStats& stats);
+    QTreeWidgetItem* shellStatsItem;
+    QTreeWidgetItem* visibilityStatsItem;
 };
 
 #endif // MAINWINDOW_H

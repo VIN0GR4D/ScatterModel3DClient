@@ -397,6 +397,8 @@ MainWindow::MainWindow(QWidget *parent)
         openGLWidget->setGeometry(v, t, tri);
     });
 
+    setupFilterWidget();
+
     // Создание статусной строки
     statusBar()->showMessage("Нет активного проекта");
 
@@ -1273,4 +1275,57 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     } else {
         event->ignore();
     }
+}
+
+void MainWindow::setupFilterWidget() {
+    // Создание виджета дерева для фильтрации
+    QWidget* filterWidget = new QWidget(controlWidget);
+    QVBoxLayout* filterLayout = new QVBoxLayout(filterWidget);
+
+    filterTreeWidget = new QTreeWidget(filterWidget);
+    filterTreeWidget->setHeaderHidden(true);
+    filterTreeWidget->setAnimated(true);
+
+    QTreeWidgetItem* filterRoot = new QTreeWidgetItem(filterTreeWidget, QStringList("Фильтрация"));
+    filterRoot->setExpanded(true);
+
+    shellStatsItem = new QTreeWidgetItem(filterRoot, QStringList("Оболочка: 0"));
+    visibilityStatsItem = new QTreeWidgetItem(filterRoot, QStringList("Не в тени: 0"));
+
+    QPushButton* filterButton = new QPushButton("Выполнить фильтрацию", filterWidget);
+    connect(filterButton, &QPushButton::clicked, this, &MainWindow::performFiltering);
+
+    filterLayout->addWidget(filterTreeWidget);
+    filterLayout->addWidget(filterButton);
+
+    formLayout->addRow(filterWidget);
+}
+
+void MainWindow::performFiltering() {
+    // if (triangles.isEmpty()) {
+    //     logMessage("Ошибка: не загружен 3D объект для фильтрации.");
+    //     return;
+    // }
+
+    QVector<QSharedPointer<triangle>> filteredTriangles = openGLWidget->getTriangles();
+    MeshFilter::FilterStats stats = meshFilter.filterMesh(filteredTriangles);
+
+    // Обновление OpenGL виджета с отфильтрованными треугольниками
+    openGLWidget->setTriangles(filteredTriangles);
+
+    // Обновление статистики
+    updateFilterStats(stats);
+
+    logMessage(QString("Фильтрация завершена. Всего треугольников: %1, "
+                       "Оболочка: %2, Видимые: %3")
+                   .arg(stats.totalTriangles)
+                   .arg(stats.shellTriangles)
+                   .arg(stats.visibleTriangles));
+
+    setModified(true);
+}
+
+void MainWindow::updateFilterStats(const MeshFilter::FilterStats& stats) {
+    shellStatsItem->setText(0, QString("Оболочка: %1").arg(stats.shellTriangles));
+    visibilityStatsItem->setText(0, QString("Не в тени: %1").arg(stats.visibleTriangles));
 }
