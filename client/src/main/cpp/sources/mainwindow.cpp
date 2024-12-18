@@ -446,6 +446,13 @@ void MainWindow::loadModel() {
             // Очищаем текущую сцену и данные парсера
             openGLWidget->clearScene();
             parser->clearData();
+
+            // Сброс статистики фильтрации перед загрузкой новой модели
+            QMetaObject::invokeMethod(this, [=]() {
+                    MeshFilter::FilterStats emptyStats = {0, 0, 0};
+                    updateFilterStats(emptyStats);
+                }, Qt::QueuedConnection);
+
             // Парсим содержимое файла и загружаем данные в OpenGL виджет
             parser->readFromObjFile(fileName);
 
@@ -1332,14 +1339,21 @@ void MainWindow::performFiltering() {
 }
 
 void MainWindow::updateFilterStats(const MeshFilter::FilterStats& stats) {
-    shellStatsItem->setText(0, QString("Оболочка: %1").arg(stats.shellTriangles));
-    visibilityStatsItem->setText(0, QString("Не в тени: %1").arg(stats.visibleTriangles));
+    if (shellStatsItem && visibilityStatsItem) {
+        shellStatsItem->setText(0, QString("Оболочка: %1").arg(stats.shellTriangles));
+        visibilityStatsItem->setText(0, QString("Не в тени: %1").arg(stats.visibleTriangles));
+    }
 }
 
 void MainWindow::closeModel() {
     if (openGLWidget) {
         openGLWidget->clearScene();  // Очищаем сцену OpenGL
         parser->clearData();         // Очищаем данные парсера
+
+        // Сброс статистики фильтрации при закрытии модели
+        MeshFilter::FilterStats emptyStats = {0, 0, 0};
+        updateFilterStats(emptyStats);
+
         logMessage("3D модель закрыта");
         setModified(true);          // Устанавливаем флаг изменений
     }
