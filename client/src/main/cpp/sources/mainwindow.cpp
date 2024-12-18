@@ -65,7 +65,12 @@ MainWindow::MainWindow(QWidget *parent)
     QAction *saveAction = new QAction(QIcon(":/download.png"), "Сохранить", this);
     QAction *exitAction = new QAction("Выход", this);
 
+    QAction *closeAction = new QAction(QIcon(":/close.png"), "Закрыть", this);
+    fileMenu->addAction(closeAction);
+    connect(closeAction, &QAction::triggered, this, &MainWindow::closeModel);
+
     fileMenu->addAction(openAction);
+    fileMenu->addAction(closeAction);
     fileMenu->addAction(saveAction);
 
     fileMenu->addSeparator();
@@ -384,6 +389,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(anglePortraitCheckBox, &QCheckBox::stateChanged, this, &MainWindow::onPortraitTypeChanged);
     connect(azimuthPortraitCheckBox, &QCheckBox::stateChanged, this, &MainWindow::onPortraitTypeChanged);
     connect(rangePortraitCheckBox, &QCheckBox::stateChanged, this, &MainWindow::onPortraitTypeChanged);
+    connect(pplaneCheckBox, &QCheckBox::toggled, openGLWidget, &OpenGLWidget::setUnderlyingSurfaceVisible);
 
     connect(resultsWatcher, &QFutureWatcher<void>::finished, this, [this]() {
         logMessage("Обработка результатов завершена.");
@@ -1328,4 +1334,13 @@ void MainWindow::performFiltering() {
 void MainWindow::updateFilterStats(const MeshFilter::FilterStats& stats) {
     shellStatsItem->setText(0, QString("Оболочка: %1").arg(stats.shellTriangles));
     visibilityStatsItem->setText(0, QString("Не в тени: %1").arg(stats.visibleTriangles));
+}
+
+void MainWindow::closeModel() {
+    if (openGLWidget) {
+        openGLWidget->clearScene();  // Очищаем сцену OpenGL
+        parser->clearData();         // Очищаем данные парсера
+        logMessage("3D модель закрыта");
+        setModified(true);          // Устанавливаем флаг изменений
+    }
 }

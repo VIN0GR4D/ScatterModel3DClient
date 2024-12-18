@@ -33,6 +33,9 @@ public:
     void setTriangles(const QVector<QSharedPointer<triangle>>& tri);
     void setScalingCoefficients(const QVector3D& scaling);
 
+public slots:
+    void setUnderlyingSurfaceVisible(bool visible);
+
 signals:
     void rotationChanged(float x, float y, float z);
 
@@ -100,6 +103,9 @@ private:
     // Флаг для обновления сетки
     bool gridParametersChanged;
 
+    bool showUnderlyingSurface;
+    float surfaceAlpha = 0.3f;
+    void drawUnderlyingSurface();
 
 protected:
     void initializeGL() override;

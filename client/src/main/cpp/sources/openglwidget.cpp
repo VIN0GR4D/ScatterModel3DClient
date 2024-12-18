@@ -3,7 +3,7 @@
 #include <GL/glu.h>
 
 OpenGLWidget::OpenGLWidget(QWidget *parent)
-    : QOpenGLWidget(parent), rotationX(0.0f), rotationY(0.0f), rotationZ(0.0f), scale(1.0f), objectPosition(0.0f, 0.0f, 0.0f), gridVisible(false) {
+    : QOpenGLWidget(parent), rotationX(0.0f), rotationY(0.0f), rotationZ(0.0f), scale(1.0f), objectPosition(0.0f, 0.0f, 0.0f), gridVisible(false), showUnderlyingSurface(false) {
     QSurfaceFormat format;
     format.setProfile(QSurfaceFormat::CompatibilityProfile);
     format.setVersion(3, 0);
@@ -238,6 +238,9 @@ void OpenGLWidget::paintGL() {
     // Установка позиции источника света, прикрепленного к камере
     GLfloat lightPos[] = { lightPosition.x(), lightPosition.y(), lightPosition.z(), 1.0f };
     glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
+
+    // Отрисовка pplane
+    drawUnderlyingSurface();
 
     // Отрисовка сетки
     drawGrid();
@@ -582,4 +585,38 @@ void OpenGLWidget::setTriangles(const QVector<QSharedPointer<triangle>>& tri) {
 void OpenGLWidget::setScalingCoefficients(const QVector3D& scaling) {
     scale = (scaling.x() + scaling.y() + scaling.z()) / 3.0f; // Пример усреднения
     update();
+}
+
+void OpenGLWidget::setUnderlyingSurfaceVisible(bool visible) {
+    showUnderlyingSurface = visible;
+    update();
+}
+
+void OpenGLWidget::drawUnderlyingSurface() {
+    if (!showUnderlyingSurface) return;
+
+    glPushAttrib(GL_ENABLE_BIT | GL_COLOR_BUFFER_BIT);
+
+    // Enable blending for transparency
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // Disable lighting temporarily
+    glDisable(GL_LIGHTING);
+
+    // Set color for the underlying surface (light gray with transparency)
+    glColor4f(0.8f, 0.8f, 0.8f, surfaceAlpha);
+
+    // Draw the underlying surface as a large quad
+    glBegin(GL_QUADS);
+    float size = gridSize * 2.0f; // Use the same size as the grid
+    glNormal3f(0.0f, 1.0f, 0.0f); // Normal pointing up
+    glVertex3f(-size, 0.0f, -size);
+    glVertex3f(-size, 0.0f, size);
+    glVertex3f(size, 0.0f, size);
+    glVertex3f(size, 0.0f, -size);
+    glEnd();
+
+    // Restore previous attributes
+    glPopAttrib();
 }

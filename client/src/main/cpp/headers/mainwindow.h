@@ -84,6 +84,7 @@ private slots:
     void onGridCheckBoxStateChanged(int state);
     void openProject();
     void newProject();
+    void closeModel();
 
 private:
     Ui::MainWindow *ui;
