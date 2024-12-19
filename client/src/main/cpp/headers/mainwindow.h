@@ -28,6 +28,7 @@
 #include <QAction>
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
+#include <QStackedWidget>
 
 class OpenGLWidget;
 class Parser;
@@ -144,6 +145,16 @@ private:
     void updateFilterStats(const MeshFilter::FilterStats& stats);
     QTreeWidgetItem* shellStatsItem;
     QTreeWidgetItem* visibilityStatsItem;
+
+    QStackedWidget *stackedWidget;
+    QWidget *parametersWidget;    // Для параметров
+    QWidget *filteringWidget;     // Для фильтрации
+    QWidget *serverWidget;        // Для сервера
+
+    void createToolBar();
+    void setupParametersWidget();
+    void setupFilteringWidget();
+    void setupServerWidget();
 };
 
 #endif // MAINWINDOW_H

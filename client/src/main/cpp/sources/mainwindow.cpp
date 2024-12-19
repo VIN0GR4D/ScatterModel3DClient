@@ -405,6 +405,39 @@ MainWindow::MainWindow(QWidget *parent)
 
     setupFilterWidget();
 
+    // Создаем стек виджетов
+    stackedWidget = new QStackedWidget(this);
+
+    // Инициализируем виджеты для каждой вкладки
+    parametersWidget = new QWidget;
+    filteringWidget = new QWidget;
+    serverWidget = new QWidget;
+
+    // Настраиваем содержимое каждого виджета
+    setupParametersWidget();
+    setupFilteringWidget();
+    setupServerWidget();
+
+    // Добавляем виджеты в стек
+    stackedWidget->addWidget(parametersWidget);
+    stackedWidget->addWidget(filteringWidget);
+    stackedWidget->addWidget(serverWidget);
+
+    // Устанавливаем параметры как активную вкладку по умолчанию
+    stackedWidget->setCurrentWidget(parametersWidget);
+
+    // Создаем тулбар
+    createToolBar();
+
+    // Устанавливаем центральный виджет
+    QWidget* centralWidget = new QWidget;
+    QHBoxLayout* mainLayout = new QHBoxLayout(centralWidget);
+    mainLayout->addWidget(openGLWidget);
+    mainLayout->addWidget(stackedWidget);
+    mainLayout->setStretch(0, 1);  // OpenGLWidget растягивается
+    mainLayout->setStretch(1, 0);  // stackedWidget фиксированной ширины
+    setCentralWidget(centralWidget);
+
     // Создание статусной строки
     statusBar()->showMessage("Нет активного проекта");
 
@@ -412,6 +445,69 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow() {
     delete ui;
+}
+
+void MainWindow::createToolBar()
+{
+    QToolBar *toolBar = addToolBar("Main Tools");
+    toolBar->setMovable(false);
+    toolBar->setIconSize(QSize(32, 32));
+
+    // Создаем группу действий для взаимного исключения
+    QActionGroup *actionGroup = new QActionGroup(this);
+    actionGroup->setExclusive(true);
+
+    // Создаем действия для каждой вкладки
+    struct ToolButton {
+        QString name;
+        bool isChecked;
+    };
+
+    ToolButton buttons[] = {
+        {"Параметры", true},
+        {"Фильтрация", false},
+        {"Сервер", false}
+    };
+
+    for (const auto& btn : buttons) {
+        QAction* action = new QAction(btn.name, this);
+        action->setCheckable(true);
+        action->setChecked(btn.isChecked);
+        actionGroup->addAction(action);
+        toolBar->addAction(action);
+
+        // Настраиваем внешний вид кнопки
+        if (QToolButton* button = qobject_cast<QToolButton*>(
+                toolBar->widgetForAction(action))) {
+            button->setToolButtonStyle(Qt::ToolButtonTextOnly);
+            button->setMinimumWidth(80);
+        }
+    }
+
+    // Подключаем обработчик переключения
+    connect(actionGroup, &QActionGroup::triggered, this, [this](QAction* action) {
+        if (action->text() == "Параметры")
+            stackedWidget->setCurrentWidget(parametersWidget);
+        else if (action->text() == "Фильтрация")
+            stackedWidget->setCurrentWidget(filteringWidget);
+        else if (action->text() == "Сервер")
+            stackedWidget->setCurrentWidget(serverWidget);
+    });
+}
+
+void MainWindow::setupParametersWidget()
+{
+    QVBoxLayout* layout = new QVBoxLayout(parametersWidget);
+}
+
+void MainWindow::setupFilteringWidget()
+{
+    QVBoxLayout* layout = new QVBoxLayout(filteringWidget);
+}
+
+void MainWindow::setupServerWidget()
+{
+    QVBoxLayout* layout = new QVBoxLayout(serverWidget);
 }
 
 // Функция для загрузки модели
