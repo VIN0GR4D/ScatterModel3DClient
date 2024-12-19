@@ -164,232 +164,18 @@ MainWindow::MainWindow(QWidget *parent)
         changeThemeAction->setIcon(QIcon(":/light-theme.png"));
     }
 
-    // Настройка компонентов пользовательского интерфейса
-    QDockWidget *dockWidget = new QDockWidget("Панель управления", this);
-    addDockWidget(Qt::LeftDockWidgetArea, dockWidget);
-
-    // Создание QScrollArea
-    QScrollArea *scrollArea = new QScrollArea(dockWidget);
-    scrollArea->setWidgetResizable(true);
-    dockWidget->setWidget(scrollArea);
-
-    controlWidget = new QWidget();
-    scrollArea->setWidget(controlWidget);
-    formLayout = new QFormLayout(controlWidget);
-
-    // Элементы для подключения к серверу
-    QGroupBox *serverConnectionGroupBox = new QGroupBox("Подключение к серверу", controlWidget);
-    QVBoxLayout *serverConnectionLayout = new QVBoxLayout(serverConnectionGroupBox);
-
-    QHBoxLayout *serverLayout = new QHBoxLayout();
-    serverAddressInput = new QLineEdit(serverConnectionGroupBox);
-    serverAddressInput->setPlaceholderText("ws://serveraddress:port");
-    serverAddressInput->setAlignment(Qt::AlignCenter);
-    connectButton = new QPushButton(QIcon(":/connect.png"), "Подключиться", serverConnectionGroupBox);
-    QPushButton *disconnectButton = new QPushButton(QIcon(":/disconnect.png"), "Отключиться", serverConnectionGroupBox);
-
-    serverLayout->addWidget(serverAddressInput);
-    serverLayout->addWidget(connectButton);
-    serverLayout->addWidget(disconnectButton);
-
-    serverConnectionLayout->addLayout(serverLayout);
-    serverConnectionGroupBox->setLayout(serverConnectionLayout);
-
-    // Размеры элементов для подключения к серверу
-    serverAddressInput->setFixedSize(150, 30);
-    connectButton->setFixedSize(110, 30);
-    disconnectButton->setFixedSize(110, 30);
-    serverConnectionGroupBox->setFixedSize(400, 75);
-
-    formLayout->addRow(serverConnectionGroupBox);
-
-    // Элементы пользовательского интерфейса для ввода параметров
-    // Создаем компоновку для "Поляризации"
-    QVBoxLayout *polarizationLayout = new QVBoxLayout();
-
-    // Добавляем "Излучения"
-    QLabel *radiationLabel = new QLabel("Излучения:", controlWidget);
-    radiationPolarizationComboBox = new QComboBox();
-    radiationPolarizationComboBox->addItems({"Горизонтальный", "Вертикальный", "Круговой"});
-
-    polarizationLayout->addWidget(radiationLabel);
-    polarizationLayout->addWidget(radiationPolarizationComboBox);
-
-    // Добавляем "Приёма"
-    QLabel *receiveLabel = new QLabel("Приёма:", controlWidget);
-    receivePolarizationComboBox = new QComboBox();
-    receivePolarizationComboBox->addItems({"Горизонтальный", "Вертикальный", "Круговой"});
-
-    polarizationLayout->addWidget(receiveLabel);
-    polarizationLayout->addWidget(receivePolarizationComboBox);
-
-    // Создаем QGroupBox для "Поляризации" и устанавливаем компоновку
-    QGroupBox *polarizationGroupBox = new QGroupBox("Поляризация", controlWidget);
-    polarizationGroupBox->setLayout(polarizationLayout);
-
-    // Получаем рекомендованный размер по оси X
-    // int recommendedWidth = polarizationGroupBox->sizeHint().width();
-
-    // Устанавливаем фиксированный размер для группы "Поляризация"
-    polarizationGroupBox->setFixedSize(250, 150);
-
-    // Группа для диапазона частот и подстилающей поверхности
-    freqBandComboBox = new QComboBox(controlWidget);
-    freqBandComboBox->addItems({
-        "P-диапазон (400-450 МГц)",
-        "L-диапазон (1-1.5 ГГц)",
-        "S-диапазон (2.75-3.15 ГГц)",
-        "C-диапазон (5-5.5 ГГц)",
-        "X-диапазон (9-10 ГГц)",
-        "Ka-диапазон (36.5-38.5 ГГц)"
-    });
-    freqBandComboBox->setCurrentIndex(5);
-
-    pplaneCheckBox = new QCheckBox("Включить подстилающую поверхность", controlWidget);
-
-    // Создание макета для группы "Параметры"
-    QGroupBox *frequencyAndPlaneGroupBox = new QGroupBox("Параметры", controlWidget);
-    QFormLayout *frequencyAndPlaneLayout = new QFormLayout(frequencyAndPlaneGroupBox);
-
-    // Инициализация чекбокса для сетки
-    gridCheckBox = new QCheckBox("Показать сетку", frequencyAndPlaneGroupBox);
-    gridCheckBox->setChecked(false);
-
-    // Добавление элементов в макет
-    frequencyAndPlaneLayout->addRow(new QLabel("Диапазон частот:"), freqBandComboBox);
-    frequencyAndPlaneLayout->addRow(pplaneCheckBox);
-    frequencyAndPlaneLayout->addRow(gridCheckBox);
-
-    frequencyAndPlaneGroupBox->setLayout(frequencyAndPlaneLayout);
-
-    // Настройка размеров элементов для диапазона частот и подстилающей поверхности
-    freqBandComboBox->setFixedSize(250, 30);
-    pplaneCheckBox->setFixedSize(235, 30);
-    gridCheckBox->setFixedSize(235, 30);
-    frequencyAndPlaneGroupBox->setFixedSize(400, 135);
-
-    // Подключение сигнала изменения состояния чекбокса к слоту
-    connect(gridCheckBox, &QCheckBox::stateChanged, this, &MainWindow::onGridCheckBoxStateChanged);
-
-    // Группа для портретных типов
-    QGroupBox *portraitTypeGroupBox = new QGroupBox("Портретные типы", controlWidget);
-    QVBoxLayout *portraitTypeLayout = new QVBoxLayout(portraitTypeGroupBox);
-
-    azimuthPortraitCheckBox = new QCheckBox("Азимутальный", portraitTypeGroupBox);
-    anglePortraitCheckBox = new QCheckBox("Угломестный", portraitTypeGroupBox);
-    rangePortraitCheckBox = new QCheckBox("Дальностный", portraitTypeGroupBox);
-
-    portraitTypeLayout->addWidget(anglePortraitCheckBox);
-    portraitTypeLayout->addWidget(azimuthPortraitCheckBox);
-    portraitTypeLayout->addWidget(rangePortraitCheckBox);
-
-    azimuthPortraitCheckBox->setFixedSize(180, 30);
-    anglePortraitCheckBox->setFixedSize(180, 30);
-    rangePortraitCheckBox->setFixedSize(180, 30);
-    portraitTypeGroupBox->setFixedSize(125, 150);
-
-    portraitTypeGroupBox->setLayout(portraitTypeLayout);
-
-    // Компоновка параметров и портретных типов в одну строку
-    QHBoxLayout *parametersAndPortraitLayout = new QHBoxLayout();
-    parametersAndPortraitLayout->addWidget(portraitTypeGroupBox);
-    parametersAndPortraitLayout->addWidget(polarizationGroupBox);
-
-    QWidget *parametersAndPortraitWidget = new QWidget();
-    parametersAndPortraitWidget->setLayout(parametersAndPortraitLayout);
-
-    // Устанавливаем фиксированный размер для parametersAndPortraitWidget
-    parametersAndPortraitWidget->setFixedSize(parametersAndPortraitLayout->sizeHint());
-    formLayout->addRow(parametersAndPortraitWidget);
-
-    // Добавляем группу для диапазона частот и подстилающей поверхности в основной макет
-    formLayout->addRow(frequencyAndPlaneGroupBox);
-
-    // Элементы для ввода углов поворота
-    inputRotationX = new QDoubleSpinBox(controlWidget);
-    inputRotationX->setRange(-360, 360);
-    inputRotationX->setSuffix(" °");
-
-    inputRotationY = new QDoubleSpinBox(controlWidget);
-    inputRotationY->setRange(-360, 360);
-    inputRotationY->setSuffix(" °");
-
-    inputRotationZ = new QDoubleSpinBox(controlWidget);
-    inputRotationZ->setRange(-360, 360);
-    inputRotationZ->setSuffix(" °");
-
-    buttonApplyRotation = new QPushButton(QIcon(":/apply.png"), "Применить поворот", controlWidget);
-    buttonResetRotation = new QPushButton(QIcon(":/reset.png"), "Сбросить поворот", controlWidget);
-
-    QGroupBox *rotationGroupBox = new QGroupBox("Поворот", controlWidget);
-    QHBoxLayout *rotationMainLayout = new QHBoxLayout(rotationGroupBox);
-
-    // Создаем QGridLayout для меток и ввода поворота
-    QGridLayout *rotationGridLayout = new QGridLayout();
-    rotationGridLayout->addWidget(new QLabel("Поворот по X:"), 0, 0);
-    rotationGridLayout->addWidget(inputRotationX, 0, 1);
-    rotationGridLayout->addWidget(new QLabel("Поворот по Y:"), 1, 0);
-    rotationGridLayout->addWidget(inputRotationY, 1, 1);
-    rotationGridLayout->addWidget(new QLabel("Поворот по Z:"), 2, 0);
-    rotationGridLayout->addWidget(inputRotationZ, 2, 1);
-
-    // Создаем QVBoxLayout для кнопок
-    QVBoxLayout *buttonLayout = new QVBoxLayout();
-    buttonLayout->addStretch(); // Добавляем растягивающий элемент сверху
-    buttonLayout->addWidget(buttonApplyRotation);
-    buttonLayout->addWidget(buttonResetRotation);
-    buttonLayout->addStretch(); // Добавляем растягивающий элемент снизу
-
-    // Добавляем оба layout в rotationMainLayout
-    rotationMainLayout->addLayout(rotationGridLayout);
-    rotationMainLayout->addSpacing(10); // Добавляем расстояние между столбцами
-    rotationMainLayout->addLayout(buttonLayout);
-
-    // Устанавливаем layout для группы
-    rotationGroupBox->setLayout(rotationMainLayout);
-    formLayout->addRow(rotationGroupBox);
-
-    rotationGroupBox->setFixedSize(400, 125);
-
     connect(openGLWidget, &OpenGLWidget::rotationChanged, this, [this](float x, float y, float z) {
         updateRotationX(x);
         updateRotationY(y);
         updateRotationZ(z);
     });
 
-    // Журнал действий
-    QGroupBox *logGroupBox = new QGroupBox("Журнал действий", controlWidget);
-    QVBoxLayout *logLayout = new QVBoxLayout(logGroupBox);
-    logDisplay = new QTextEdit(logGroupBox);
-    logDisplay->setReadOnly(true);
-    logLayout->addWidget(logDisplay);
-
-    // Кнопка для сохранения журнала действий
-    QPushButton *saveLogButton = new QPushButton("Сохранить журнал действий", logGroupBox);
-    logLayout->addWidget(saveLogButton);
-    connect(saveLogButton, &QPushButton::clicked, this, &MainWindow::saveLog);
-
-    logGroupBox->setLayout(logLayout);
-    formLayout->addRow(logGroupBox);
-    logGroupBox->setFixedSize(400, 230);
-    logDisplay->setFixedSize(380, 150);
-    saveLogButton->setFixedSize(380, 30);
-
     setWindowTitle("ScatterModel3DClient");
 
     this->resize(1280, 720);
 
     // Соединения
-    connect(buttonApplyRotation, &QPushButton::clicked, this, &MainWindow::applyRotation);
-    connect(buttonResetRotation, &QPushButton::clicked, this, &MainWindow::resetRotation);
-    connect(connectButton, &QPushButton::clicked, this, &MainWindow::connectToServer);
-    connect(disconnectButton, &QPushButton::clicked, this, &MainWindow::disconnectFromServer);
     connect(triangleClient, &TriangleClient::resultsReceived, this, &MainWindow::handleDataReceived);
-    // Подключение сигналов изменения состояния чекбоксов портретных типов
-    connect(anglePortraitCheckBox, &QCheckBox::stateChanged, this, &MainWindow::onPortraitTypeChanged);
-    connect(azimuthPortraitCheckBox, &QCheckBox::stateChanged, this, &MainWindow::onPortraitTypeChanged);
-    connect(rangePortraitCheckBox, &QCheckBox::stateChanged, this, &MainWindow::onPortraitTypeChanged);
-    connect(pplaneCheckBox, &QCheckBox::toggled, openGLWidget, &OpenGLWidget::setUnderlyingSurfaceVisible);
 
     connect(resultsWatcher, &QFutureWatcher<void>::finished, this, [this]() {
         logMessage("Обработка результатов завершена.");
@@ -402,8 +188,6 @@ MainWindow::MainWindow(QWidget *parent)
         rayTracer->determineVisibility(tri, observerPosition);
         openGLWidget->setGeometry(v, t, tri);
     });
-
-    setupFilterWidget();
 
     // Создаем стек виджетов
     stackedWidget = new QStackedWidget(this);
@@ -432,10 +216,20 @@ MainWindow::MainWindow(QWidget *parent)
     // Устанавливаем центральный виджет
     QWidget* centralWidget = new QWidget;
     QHBoxLayout* mainLayout = new QHBoxLayout(centralWidget);
-    mainLayout->addWidget(openGLWidget);
+    mainLayout->setSpacing(10);
+    mainLayout->setContentsMargins(10, 10, 10, 10);
+
+    // Устанавливаем фиксированную ширину для stackedWidget
+    stackedWidget->setFixedWidth(400);  // Можно настроить нужную ширину
+
+    // Сначала добавляем stackedWidget (левая часть)
     mainLayout->addWidget(stackedWidget);
-    mainLayout->setStretch(0, 1);  // OpenGLWidget растягивается
-    mainLayout->setStretch(1, 0);  // stackedWidget фиксированной ширины
+    // Затем добавляем openGLWidget (правая часть)
+    mainLayout->addWidget(openGLWidget);
+
+    mainLayout->setStretch(0, 0);  // stackedWidget фиксированной ширины
+    mainLayout->setStretch(1, 1);  // OpenGLWidget растягивается
+
     setCentralWidget(centralWidget);
 
     // Создание статусной строки
@@ -447,8 +241,7 @@ MainWindow::~MainWindow() {
     delete ui;
 }
 
-void MainWindow::createToolBar()
-{
+void MainWindow::createToolBar() {
     QToolBar *toolBar = addToolBar("Main Tools");
     toolBar->setMovable(false);
     toolBar->setIconSize(QSize(32, 32));
@@ -484,6 +277,20 @@ void MainWindow::createToolBar()
         }
     }
 
+    // Добавляем разделитель
+    toolBar->addSeparator();
+
+    // Добавляем кнопку журнала
+    QAction* logAction = new QAction("Журнал", this);
+    logAction->setCheckable(false);
+    toolBar->addAction(logAction);
+
+    if (QToolButton* button = qobject_cast<QToolButton*>(
+            toolBar->widgetForAction(logAction))) {
+        button->setToolButtonStyle(Qt::ToolButtonTextOnly);
+        button->setMinimumWidth(80);
+    }
+
     // Подключаем обработчик переключения
     connect(actionGroup, &QActionGroup::triggered, this, [this](QAction* action) {
         if (action->text() == "Параметры")
@@ -493,21 +300,239 @@ void MainWindow::createToolBar()
         else if (action->text() == "Сервер")
             stackedWidget->setCurrentWidget(serverWidget);
     });
+
+    connect(logAction, &QAction::triggered, this, &MainWindow::showLogWindow);
 }
 
-void MainWindow::setupParametersWidget()
-{
+void MainWindow::setupParametersWidget() {
     QVBoxLayout* layout = new QVBoxLayout(parametersWidget);
+    layout->setSpacing(10);
+    layout->setContentsMargins(10, 10, 10, 10);
+
+    // Группа для поляризации
+    QGroupBox *polarizationGroupBox = new QGroupBox("Поляризация", parametersWidget);
+    QVBoxLayout *polarizationLayout = new QVBoxLayout(polarizationGroupBox);
+
+    QLabel *radiationLabel = new QLabel("Излучения:", polarizationGroupBox);
+    radiationPolarizationComboBox = new QComboBox(polarizationGroupBox);
+    radiationPolarizationComboBox->addItems({"Горизонтальный", "Вертикальный", "Круговой"});
+
+    QLabel *receiveLabel = new QLabel("Приёма:", polarizationGroupBox);
+    receivePolarizationComboBox = new QComboBox(polarizationGroupBox);
+    receivePolarizationComboBox->addItems({"Горизонтальный", "Вертикальный", "Круговой"});
+
+    polarizationLayout->addWidget(radiationLabel);
+    polarizationLayout->addWidget(radiationPolarizationComboBox);
+    polarizationLayout->addWidget(receiveLabel);
+    polarizationLayout->addWidget(receivePolarizationComboBox);
+
+    // Группа для частот и поверхности
+    QGroupBox *frequencyAndPlaneGroupBox = new QGroupBox("Параметры", parametersWidget);
+    QVBoxLayout *frequencyAndPlaneLayout = new QVBoxLayout(frequencyAndPlaneGroupBox);
+
+    freqBandComboBox = new QComboBox(frequencyAndPlaneGroupBox);
+    freqBandComboBox->addItems({
+        "P-диапазон (400-450 МГц)",
+        "L-диапазон (1-1.5 ГГц)",
+        "S-диапазон (2.75-3.15 ГГц)",
+        "C-диапазон (5-5.5 ГГц)",
+        "X-диапазон (9-10 ГГц)",
+        "Ka-диапазон (36.5-38.5 ГГц)"
+    });
+    freqBandComboBox->setCurrentIndex(5);
+
+    pplaneCheckBox = new QCheckBox("Включить подстилающую поверхность", frequencyAndPlaneGroupBox);
+    gridCheckBox = new QCheckBox("Показать сетку", frequencyAndPlaneGroupBox);
+
+    frequencyAndPlaneLayout->addWidget(new QLabel("Диапазон частот:"));
+    frequencyAndPlaneLayout->addWidget(freqBandComboBox);
+    frequencyAndPlaneLayout->addWidget(pplaneCheckBox);
+    frequencyAndPlaneLayout->addWidget(gridCheckBox);
+
+    // Группа для портретных типов
+    QGroupBox *portraitTypeGroupBox = new QGroupBox("Портретные типы", parametersWidget);
+    QVBoxLayout *portraitTypeLayout = new QVBoxLayout(portraitTypeGroupBox);
+
+    anglePortraitCheckBox = new QCheckBox("Угломестный", portraitTypeGroupBox);
+    azimuthPortraitCheckBox = new QCheckBox("Азимутальный", portraitTypeGroupBox);
+    rangePortraitCheckBox = new QCheckBox("Дальностный", portraitTypeGroupBox);
+
+    portraitTypeLayout->addWidget(anglePortraitCheckBox);
+    portraitTypeLayout->addWidget(azimuthPortraitCheckBox);
+    portraitTypeLayout->addWidget(rangePortraitCheckBox);
+
+    // Группа для поворота
+    QGroupBox *rotationGroupBox = new QGroupBox("Поворот", parametersWidget);
+    QGridLayout *rotationLayout = new QGridLayout(rotationGroupBox);
+
+    inputRotationX = new QDoubleSpinBox(rotationGroupBox);
+    inputRotationX->setRange(-360, 360);
+    inputRotationX->setSuffix(" °");
+
+    inputRotationY = new QDoubleSpinBox(rotationGroupBox);
+    inputRotationY->setRange(-360, 360);
+    inputRotationY->setSuffix(" °");
+
+    inputRotationZ = new QDoubleSpinBox(rotationGroupBox);
+    inputRotationZ->setRange(-360, 360);
+    inputRotationZ->setSuffix(" °");
+
+    rotationLayout->addWidget(new QLabel("Поворот по X:"), 0, 0);
+    rotationLayout->addWidget(inputRotationX, 0, 1);
+    rotationLayout->addWidget(new QLabel("Поворот по Y:"), 1, 0);
+    rotationLayout->addWidget(inputRotationY, 1, 1);
+    rotationLayout->addWidget(new QLabel("Поворот по Z:"), 2, 0);
+    rotationLayout->addWidget(inputRotationZ, 2, 1);
+
+    QHBoxLayout *rotationButtonLayout = new QHBoxLayout();
+    buttonApplyRotation = new QPushButton(QIcon(":/apply.png"), "Применить", rotationGroupBox);
+    buttonResetRotation = new QPushButton(QIcon(":/reset.png"), "Сбросить", rotationGroupBox);
+    rotationButtonLayout->addWidget(buttonApplyRotation);
+    rotationButtonLayout->addWidget(buttonResetRotation);
+    rotationLayout->addLayout(rotationButtonLayout, 3, 0, 1, 2);
+
+    // Добавляем все группы в основной layout
+    layout->addWidget(polarizationGroupBox);
+    layout->addWidget(frequencyAndPlaneGroupBox);
+    layout->addWidget(portraitTypeGroupBox);
+    layout->addWidget(rotationGroupBox);
+    layout->addStretch();
+
+    // Переподключаем сигналы
+    disconnect(buttonApplyRotation, nullptr, nullptr, nullptr);
+    disconnect(buttonResetRotation, nullptr, nullptr, nullptr);
+    disconnect(gridCheckBox, nullptr, nullptr, nullptr);
+    disconnect(anglePortraitCheckBox, nullptr, nullptr, nullptr);
+    disconnect(azimuthPortraitCheckBox, nullptr, nullptr, nullptr);
+    disconnect(rangePortraitCheckBox, nullptr, nullptr, nullptr);
+    disconnect(pplaneCheckBox, nullptr, nullptr, nullptr);
+
+    connect(buttonApplyRotation, &QPushButton::clicked, this, &MainWindow::applyRotation);
+    connect(buttonResetRotation, &QPushButton::clicked, this, &MainWindow::resetRotation);
+    connect(gridCheckBox, &QCheckBox::stateChanged, this, &MainWindow::onGridCheckBoxStateChanged);
+    connect(anglePortraitCheckBox, &QCheckBox::stateChanged, this, &MainWindow::onPortraitTypeChanged);
+    connect(azimuthPortraitCheckBox, &QCheckBox::stateChanged, this, &MainWindow::onPortraitTypeChanged);
+    connect(rangePortraitCheckBox, &QCheckBox::stateChanged, this, &MainWindow::onPortraitTypeChanged);
+    connect(pplaneCheckBox, &QCheckBox::toggled, openGLWidget, &OpenGLWidget::setUnderlyingSurfaceVisible);
 }
 
-void MainWindow::setupFilteringWidget()
-{
+void MainWindow::setupFilteringWidget() {
     QVBoxLayout* layout = new QVBoxLayout(filteringWidget);
+    layout->setSpacing(10);
+    layout->setContentsMargins(10, 10, 10, 10);
+
+    // Группа для фильтрации
+    QGroupBox* filterGroupBox = new QGroupBox("Фильтрация", filteringWidget);
+    QVBoxLayout* filterBoxLayout = new QVBoxLayout(filterGroupBox);
+
+    // Дерево фильтрации
+    filterTreeWidget = new QTreeWidget(filterGroupBox);
+    filterTreeWidget->setHeaderHidden(true);
+    filterTreeWidget->setAnimated(true);
+
+    QTreeWidgetItem* filterRoot = new QTreeWidgetItem(filterTreeWidget, QStringList("Фильтрация"));
+    filterRoot->setExpanded(true);
+
+    shellStatsItem = new QTreeWidgetItem(filterRoot, QStringList("Оболочка: 0"));
+    visibilityStatsItem = new QTreeWidgetItem(filterRoot, QStringList("Не в тени: 0"));
+
+    // Кнопка фильтрации
+    QPushButton* filterButton = new QPushButton("Выполнить фильтрацию", filterGroupBox);
+
+    filterBoxLayout->addWidget(filterTreeWidget);
+    filterBoxLayout->addWidget(filterButton);
+
+    // Очищаем старые соединения
+    disconnect(filterButton, nullptr, nullptr, nullptr);
+
+    // Создаем новое соединение
+    connect(filterButton, &QPushButton::clicked, this, &MainWindow::performFiltering);
+
+    // Добавляем группы в основной layout
+    layout->addWidget(filterGroupBox);
+    layout->addStretch();
 }
 
-void MainWindow::setupServerWidget()
-{
+void MainWindow::setupServerWidget() {
     QVBoxLayout* layout = new QVBoxLayout(serverWidget);
+    layout->setSpacing(10);
+    layout->setContentsMargins(10, 10, 10, 10);
+
+    // Группа для подключения к серверу
+    QGroupBox *serverConnectionGroupBox = new QGroupBox("Подключение к серверу", serverWidget);
+    QVBoxLayout *serverConnectionLayout = new QVBoxLayout(serverConnectionGroupBox);
+
+    // Поле ввода адреса сервера
+    serverAddressInput = new QLineEdit(serverConnectionGroupBox);
+    serverAddressInput->setPlaceholderText("ws://serveraddress:port");
+    serverAddressInput->setAlignment(Qt::AlignCenter);
+    serverAddressInput->setFixedWidth(250);
+
+    // Кнопки подключения/отключения
+    QHBoxLayout *buttonLayout = new QHBoxLayout();
+    connectButton = new QPushButton(QIcon(":/connect.png"), "Подключиться", serverConnectionGroupBox);
+    QPushButton *disconnectButton = new QPushButton(QIcon(":/disconnect.png"), "Отключиться", serverConnectionGroupBox);
+
+    // Устанавливаем фиксированные размеры для кнопок
+    connectButton->setFixedSize(120, 30);
+    disconnectButton->setFixedSize(120, 30);
+
+    buttonLayout->addWidget(connectButton);
+    buttonLayout->addWidget(disconnectButton);
+    buttonLayout->setAlignment(Qt::AlignCenter);
+
+    // Добавляем элементы в layout группы
+    serverConnectionLayout->addWidget(serverAddressInput);
+    serverConnectionLayout->addLayout(buttonLayout);
+    serverConnectionLayout->setAlignment(Qt::AlignTop);
+
+    // Очищаем старые соединения
+    disconnect(connectButton, nullptr, nullptr, nullptr);
+    disconnect(disconnectButton, nullptr, nullptr, nullptr);
+
+    // Создаем новые соединения
+    connect(connectButton, &QPushButton::clicked, this, &MainWindow::connectToServer);
+    connect(disconnectButton, &QPushButton::clicked, this, &MainWindow::disconnectFromServer);
+
+    // Добавляем группы в основной layout
+    layout->addWidget(serverConnectionGroupBox);
+    layout->addStretch();
+}
+
+void MainWindow::showLogWindow()
+{
+    // Если окно журнала еще не создано, создаем его
+    if (!logWindow) {
+        logWindow = new QDialog(this);
+        logWindow->setWindowTitle("Журнал действий");
+        logWindow->setMinimumSize(500, 400);
+
+        QVBoxLayout* layout = new QVBoxLayout(logWindow);
+
+        // Переносим logDisplay в окно журнала
+        if (!logDisplay) {
+            logDisplay = new QTextEdit(logWindow);
+            logDisplay->setReadOnly(true);
+        }
+        layout->addWidget(logDisplay);
+
+        // Кнопка сохранения журнала
+        QPushButton* saveButton = new QPushButton("Сохранить журнал", logWindow);
+        connect(saveButton, &QPushButton::clicked, this, &MainWindow::saveLog);
+        layout->addWidget(saveButton);
+
+        // Кнопка закрытия
+        QPushButton* closeButton = new QPushButton("Закрыть", logWindow);
+        connect(closeButton, &QPushButton::clicked, logWindow, &QDialog::close);
+        layout->addWidget(closeButton);
+
+        // При закрытии окна не удаляем его
+        logWindow->setAttribute(Qt::WA_DeleteOnClose, false);
+    }
+
+    logWindow->show();
+    logWindow->raise();
+    logWindow->activateWindow();
 }
 
 // Функция для загрузки модели
@@ -1002,16 +1027,25 @@ void MainWindow::disconnectFromServer() {
     }
 }
 
-void MainWindow::logMessage(const QString& message) {
-    // Ограничиваем длину сообщения, чтобы предотвратить зависание UI
-    QString displayedMessage = message;
-    int maxLength = 500; // Устанавливаем максимальную длину отображаемого сообщения
-    if (displayedMessage.length() > maxLength) {
-        displayedMessage = displayedMessage.left(maxLength) + "... [сообщение обрезано]";
+void MainWindow::logMessage(const QString& message)
+{
+    if (!logDisplay) {
+        return;
     }
-    logDisplay->append(QTime::currentTime().toString("HH:mm:ss") + " - " + displayedMessage);
-}
 
+    QString displayedMessage = message;
+    if (displayedMessage.length() > 500) {
+        displayedMessage = displayedMessage.left(500) + "... [сообщение обрезано]";
+    }
+
+    QString timeStamp = QTime::currentTime().toString("HH:mm:ss");
+    logDisplay->append(timeStamp + " - " + displayedMessage);
+
+    // Если окно журнала существует, делаем его заметным
+    if (logWindow && !logWindow->isVisible()) {
+        logWindow->setWindowState((logWindow->windowState() & ~Qt::WindowMinimized) | Qt::WindowActive);
+    }
+}
 
 // Функция для сохранения результатов
 void MainWindow::saveResults() {
@@ -1384,30 +1418,6 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     } else {
         event->ignore();
     }
-}
-
-void MainWindow::setupFilterWidget() {
-    // Создание виджета дерева для фильтрации
-    QWidget* filterWidget = new QWidget(controlWidget);
-    QVBoxLayout* filterLayout = new QVBoxLayout(filterWidget);
-
-    filterTreeWidget = new QTreeWidget(filterWidget);
-    filterTreeWidget->setHeaderHidden(true);
-    filterTreeWidget->setAnimated(true);
-
-    QTreeWidgetItem* filterRoot = new QTreeWidgetItem(filterTreeWidget, QStringList("Фильтрация"));
-    filterRoot->setExpanded(true);
-
-    shellStatsItem = new QTreeWidgetItem(filterRoot, QStringList("Оболочка: 0"));
-    visibilityStatsItem = new QTreeWidgetItem(filterRoot, QStringList("Не в тени: 0"));
-
-    QPushButton* filterButton = new QPushButton("Выполнить фильтрацию", filterWidget);
-    connect(filterButton, &QPushButton::clicked, this, &MainWindow::performFiltering);
-
-    filterLayout->addWidget(filterTreeWidget);
-    filterLayout->addWidget(filterButton);
-
-    formLayout->addRow(filterWidget);
 }
 
 void MainWindow::performFiltering() {

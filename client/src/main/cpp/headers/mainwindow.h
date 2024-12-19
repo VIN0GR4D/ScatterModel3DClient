@@ -3,6 +3,7 @@
 
 #include "openglwidget.h"
 #include "parser.h"
+#include "qgroupbox.h"
 #include "raytracer.h"
 #include "triangleclient.h"
 #include "portraitwindow.h"
@@ -108,8 +109,6 @@ private:
     bool hasNumericalData;
     bool hasGraphData;
 
-    QWidget *controlWidget;
-    QFormLayout *formLayout;
     bool serverEnabled;
     QVector<double> absEout;
     QVector<double> normEout;
@@ -140,7 +139,6 @@ private:
 
     QTreeWidget* filterTreeWidget;
     MeshFilter meshFilter;
-    void setupFilterWidget();
     void performFiltering();
     void updateFilterStats(const MeshFilter::FilterStats& stats);
     QTreeWidgetItem* shellStatsItem;
@@ -155,6 +153,8 @@ private:
     void setupParametersWidget();
     void setupFilteringWidget();
     void setupServerWidget();
+    QDialog* logWindow = nullptr;
+    void showLogWindow();
 };
 
 #endif // MAINWINDOW_H
