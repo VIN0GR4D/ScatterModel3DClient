@@ -170,24 +170,6 @@ MainWindow::MainWindow(QWidget *parent)
         updateRotationZ(z);
     });
 
-    // // Журнал действий
-    // QGroupBox *logGroupBox = new QGroupBox("Журнал действий", controlWidget);
-    // QVBoxLayout *logLayout = new QVBoxLayout(logGroupBox);
-    // logDisplay = new QTextEdit(logGroupBox);
-    // logDisplay->setReadOnly(true);
-    // logLayout->addWidget(logDisplay);
-
-    // // Кнопка для сохранения журнала действий
-    // QPushButton *saveLogButton = new QPushButton("Сохранить журнал действий", logGroupBox);
-    // logLayout->addWidget(saveLogButton);
-    // connect(saveLogButton, &QPushButton::clicked, this, &MainWindow::saveLog);
-
-    // logGroupBox->setLayout(logLayout);
-    // formLayout->addRow(logGroupBox);
-    // logGroupBox->setFixedSize(400, 230);
-    // logDisplay->setFixedSize(380, 150);
-    // saveLogButton->setFixedSize(380, 30);
-
     setWindowTitle("ScatterModel3DClient");
 
     this->resize(1280, 720);
@@ -259,8 +241,7 @@ MainWindow::~MainWindow() {
     delete ui;
 }
 
-void MainWindow::createToolBar()
-{
+void MainWindow::createToolBar() {
     QToolBar *toolBar = addToolBar("Main Tools");
     toolBar->setMovable(false);
     toolBar->setIconSize(QSize(32, 32));
@@ -296,6 +277,20 @@ void MainWindow::createToolBar()
         }
     }
 
+    // Добавляем разделитель
+    toolBar->addSeparator();
+
+    // Добавляем кнопку журнала
+    QAction* logAction = new QAction("Журнал", this);
+    logAction->setCheckable(false);
+    toolBar->addAction(logAction);
+
+    if (QToolButton* button = qobject_cast<QToolButton*>(
+            toolBar->widgetForAction(logAction))) {
+        button->setToolButtonStyle(Qt::ToolButtonTextOnly);
+        button->setMinimumWidth(80);
+    }
+
     // Подключаем обработчик переключения
     connect(actionGroup, &QActionGroup::triggered, this, [this](QAction* action) {
         if (action->text() == "Параметры")
@@ -305,10 +300,11 @@ void MainWindow::createToolBar()
         else if (action->text() == "Сервер")
             stackedWidget->setCurrentWidget(serverWidget);
     });
+
+    connect(logAction, &QAction::triggered, this, &MainWindow::showLogWindow);
 }
 
-void MainWindow::setupParametersWidget()
-{
+void MainWindow::setupParametersWidget() {
     QVBoxLayout* layout = new QVBoxLayout(parametersWidget);
     layout->setSpacing(10);
     layout->setContentsMargins(10, 10, 10, 10);
@@ -403,6 +399,14 @@ void MainWindow::setupParametersWidget()
     layout->addStretch();
 
     // Переподключаем сигналы
+    disconnect(buttonApplyRotation, nullptr, nullptr, nullptr);
+    disconnect(buttonResetRotation, nullptr, nullptr, nullptr);
+    disconnect(gridCheckBox, nullptr, nullptr, nullptr);
+    disconnect(anglePortraitCheckBox, nullptr, nullptr, nullptr);
+    disconnect(azimuthPortraitCheckBox, nullptr, nullptr, nullptr);
+    disconnect(rangePortraitCheckBox, nullptr, nullptr, nullptr);
+    disconnect(pplaneCheckBox, nullptr, nullptr, nullptr);
+
     connect(buttonApplyRotation, &QPushButton::clicked, this, &MainWindow::applyRotation);
     connect(buttonResetRotation, &QPushButton::clicked, this, &MainWindow::resetRotation);
     connect(gridCheckBox, &QCheckBox::stateChanged, this, &MainWindow::onGridCheckBoxStateChanged);
@@ -412,8 +416,7 @@ void MainWindow::setupParametersWidget()
     connect(pplaneCheckBox, &QCheckBox::toggled, openGLWidget, &OpenGLWidget::setUnderlyingSurfaceVisible);
 }
 
-void MainWindow::setupFilteringWidget()
-{
+void MainWindow::setupFilteringWidget() {
     QVBoxLayout* layout = new QVBoxLayout(filteringWidget);
     layout->setSpacing(10);
     layout->setContentsMargins(10, 10, 10, 10);
@@ -435,30 +438,22 @@ void MainWindow::setupFilteringWidget()
 
     // Кнопка фильтрации
     QPushButton* filterButton = new QPushButton("Выполнить фильтрацию", filterGroupBox);
-    connect(filterButton, &QPushButton::clicked, this, &MainWindow::performFiltering);
 
     filterBoxLayout->addWidget(filterTreeWidget);
     filterBoxLayout->addWidget(filterButton);
 
-    // Группа для журнала фильтрации
-    QGroupBox* filterLogGroupBox = new QGroupBox("Журнал фильтрации", filteringWidget);
-    QVBoxLayout* logLayout = new QVBoxLayout(filterLogGroupBox);
+    // Очищаем старые соединения
+    disconnect(filterButton, nullptr, nullptr, nullptr);
 
-    QTextEdit* filterLogDisplay = new QTextEdit(filterLogGroupBox);
-    filterLogDisplay->setReadOnly(true);
-    filterLogDisplay->setFixedHeight(200);
-
-    logLayout->addWidget(filterLogDisplay);
+    // Создаем новое соединение
+    connect(filterButton, &QPushButton::clicked, this, &MainWindow::performFiltering);
 
     // Добавляем группы в основной layout
     layout->addWidget(filterGroupBox);
-    layout->addWidget(filterLogGroupBox);
     layout->addStretch();
-
 }
 
-void MainWindow::setupServerWidget()
-{
+void MainWindow::setupServerWidget() {
     QVBoxLayout* layout = new QVBoxLayout(serverWidget);
     layout->setSpacing(10);
     layout->setContentsMargins(10, 10, 10, 10);
@@ -491,25 +486,53 @@ void MainWindow::setupServerWidget()
     serverConnectionLayout->addLayout(buttonLayout);
     serverConnectionLayout->setAlignment(Qt::AlignTop);
 
-    // Добавляем группу в основной layout
-    layout->addWidget(serverConnectionGroupBox);
+    // Очищаем старые соединения
+    disconnect(connectButton, nullptr, nullptr, nullptr);
+    disconnect(disconnectButton, nullptr, nullptr, nullptr);
 
-    // Добавляем журнал действий сервера
-    QGroupBox *serverLogGroupBox = new QGroupBox("Журнал сервера", serverWidget);
-    QVBoxLayout *logLayout = new QVBoxLayout(serverLogGroupBox);
-
-    QTextEdit *serverLogDisplay = new QTextEdit(serverLogGroupBox);
-    serverLogDisplay->setReadOnly(true);
-    serverLogDisplay->setFixedHeight(200);
-
-    logLayout->addWidget(serverLogDisplay);
-    layout->addWidget(serverLogGroupBox);
-
-    // Добавляем растягивающийся элемент, чтобы прижать все виджеты к верху
-    layout->addStretch();
-
+    // Создаем новые соединения
     connect(connectButton, &QPushButton::clicked, this, &MainWindow::connectToServer);
     connect(disconnectButton, &QPushButton::clicked, this, &MainWindow::disconnectFromServer);
+
+    // Добавляем группы в основной layout
+    layout->addWidget(serverConnectionGroupBox);
+    layout->addStretch();
+}
+
+void MainWindow::showLogWindow()
+{
+    // Если окно журнала еще не создано, создаем его
+    if (!logWindow) {
+        logWindow = new QDialog(this);
+        logWindow->setWindowTitle("Журнал действий");
+        logWindow->setMinimumSize(500, 400);
+
+        QVBoxLayout* layout = new QVBoxLayout(logWindow);
+
+        // Переносим logDisplay в окно журнала
+        if (!logDisplay) {
+            logDisplay = new QTextEdit(logWindow);
+            logDisplay->setReadOnly(true);
+        }
+        layout->addWidget(logDisplay);
+
+        // Кнопка сохранения журнала
+        QPushButton* saveButton = new QPushButton("Сохранить журнал", logWindow);
+        connect(saveButton, &QPushButton::clicked, this, &MainWindow::saveLog);
+        layout->addWidget(saveButton);
+
+        // Кнопка закрытия
+        QPushButton* closeButton = new QPushButton("Закрыть", logWindow);
+        connect(closeButton, &QPushButton::clicked, logWindow, &QDialog::close);
+        layout->addWidget(closeButton);
+
+        // При закрытии окна не удаляем его
+        logWindow->setAttribute(Qt::WA_DeleteOnClose, false);
+    }
+
+    logWindow->show();
+    logWindow->raise();
+    logWindow->activateWindow();
 }
 
 // Функция для загрузки модели
@@ -1004,16 +1027,25 @@ void MainWindow::disconnectFromServer() {
     }
 }
 
-void MainWindow::logMessage(const QString& message) {
-    // Ограничиваем длину сообщения, чтобы предотвратить зависание UI
-    QString displayedMessage = message;
-    int maxLength = 500; // Устанавливаем максимальную длину отображаемого сообщения
-    if (displayedMessage.length() > maxLength) {
-        displayedMessage = displayedMessage.left(maxLength) + "... [сообщение обрезано]";
+void MainWindow::logMessage(const QString& message)
+{
+    if (!logDisplay) {
+        return;
     }
-    logDisplay->append(QTime::currentTime().toString("HH:mm:ss") + " - " + displayedMessage);
-}
 
+    QString displayedMessage = message;
+    if (displayedMessage.length() > 500) {
+        displayedMessage = displayedMessage.left(500) + "... [сообщение обрезано]";
+    }
+
+    QString timeStamp = QTime::currentTime().toString("HH:mm:ss");
+    logDisplay->append(timeStamp + " - " + displayedMessage);
+
+    // Если окно журнала существует, делаем его заметным
+    if (logWindow && !logWindow->isVisible()) {
+        logWindow->setWindowState((logWindow->windowState() & ~Qt::WindowMinimized) | Qt::WindowActive);
+    }
+}
 
 // Функция для сохранения результатов
 void MainWindow::saveResults() {

@@ -3,6 +3,7 @@
 
 #include "openglwidget.h"
 #include "parser.h"
+#include "qgroupbox.h"
 #include "raytracer.h"
 #include "triangleclient.h"
 #include "portraitwindow.h"
@@ -152,6 +153,8 @@ private:
     void setupParametersWidget();
     void setupFilteringWidget();
     void setupServerWidget();
+    QDialog* logWindow = nullptr;
+    void showLogWindow();
 };
 
 #endif // MAINWINDOW_H
