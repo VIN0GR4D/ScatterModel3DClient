@@ -108,8 +108,6 @@ private:
     bool hasNumericalData;
     bool hasGraphData;
 
-    QWidget *controlWidget;
-    QFormLayout *formLayout;
     bool serverEnabled;
     QVector<double> absEout;
     QVector<double> normEout;
@@ -140,7 +138,6 @@ private:
 
     QTreeWidget* filterTreeWidget;
     MeshFilter meshFilter;
-    void setupFilterWidget();
     void performFiltering();
     void updateFilterStats(const MeshFilter::FilterStats& stats);
     QTreeWidgetItem* shellStatsItem;
