@@ -30,6 +30,9 @@
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
 #include <QStackedWidget>
+#include <QToolBar>
+#include <QToolButton>
+#include <QActionGroup>
 
 class OpenGLWidget;
 class Parser;
