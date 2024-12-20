@@ -2,7 +2,7 @@ QT       += core gui websockets opengl openglwidgets widgets charts printsupport
 LIBS += -lopengl32
 LIBS += -lglu32
 
-greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
+greaterThan(QT_MAJOR_VERSION, 4): QT += widgets charts
 
 CONFIG += c++17
 
@@ -23,7 +23,6 @@ SOURCES += \
     parser.cpp \
     portraitwindow.cpp \
     projectserializer.cpp \
-    qcustomplot.cpp \
     raytracer.cpp \
     resultsdialog.cpp \
     triangleclient.cpp
@@ -44,7 +43,6 @@ HEADERS += \
     parser.h \
     portraitwindow.h \
     projectserializer.h \
-    qcustomplot.h \
     rVect.h \
     raytracer.h \
     resultsdialog.h \

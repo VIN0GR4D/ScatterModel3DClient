@@ -1,135 +1,222 @@
 #include "graphwindow.h"
 #include <QVBoxLayout>
-#include <QCheckBox>
+#include <QMessageBox>
+#include <QFileDialog>
+#include <QPainter>
+#include <QtMath>
+#include <algorithm>
 
-GraphWindow::GraphWindow(QWidget *parent) : QDialog(parent) {
-    customPlot = new QCustomPlot(this);
-    QVBoxLayout *layout = new QVBoxLayout(this);
-    layout->addWidget(customPlot);
+GraphWindow::GraphWindow(QWidget *parent)
+    : QDialog(parent)
+    , chart(new QChart())
+    , absEoutSeries(new QLineSeries())
+    , normEoutSeries(new QLineSeries())
+    , axisX(new QValueAxis())
+    , axisY(new QValueAxis())
+    , logAxisY(new QLogValueAxis())
+{
+    setupUI();
+    createChart();
+    setupControls();
 
-    // Оси
-    customPlot->xAxis->setLabel("Index");
-    customPlot->yAxis->setLabel("Value");
-
-    // Добавляем графики для absEout и normEout
-    customPlot->addGraph(); // График для absEout
-    customPlot->addGraph(); // График для normEout
-
-    // Устанавливаем цвета для графиков
-    QPen absEoutPen(Qt::blue); // Синий цвет для absEout
-    QPen normEoutPen(Qt::red); // Красный цвет для normEout
-    customPlot->graph(0)->setPen(absEoutPen);
-    customPlot->graph(1)->setPen(normEoutPen);
-
-    // Включаем масштабирование колесиком мыши
-    customPlot->setInteraction(QCP::iRangeZoom, true);
-    customPlot->setInteraction(QCP::iRangeDrag, true);
-    customPlot->axisRect()->setRangeZoom(Qt::Horizontal | Qt::Vertical);  // Масштабирование по обеим осям
-    customPlot->axisRect()->setRangeDrag(Qt::Horizontal | Qt::Vertical);  // Перемещение по обеим осям
-
-    absEoutCheckBox = new QCheckBox("Показать absEout", this);
-    absEoutCheckBox->setChecked(true);
-    connect(absEoutCheckBox, &QCheckBox::toggled, this, &GraphWindow::toggleAbsEout);
-    layout->addWidget(absEoutCheckBox);
-
-    normEoutCheckBox = new QCheckBox("Показать normEout", this);
-    normEoutCheckBox->setChecked(true);
-    connect(normEoutCheckBox, &QCheckBox::toggled, this, &GraphWindow::toggleNormEout);
-    layout->addWidget(normEoutCheckBox);
-
-    logScaleCheckBox = new QCheckBox("Логарифмическая шкала", this);
-    connect(logScaleCheckBox, &QCheckBox::toggled, this, &GraphWindow::toggleLogarithmicScale);
-    layout->addWidget(logScaleCheckBox);
-
-    // Добавляем кнопку сброса масштаба
-    resetZoomButton = new QPushButton("Сбросить до исходного положения", this);
-    connect(resetZoomButton, &QPushButton::clicked, this, &GraphWindow::resetZoom);
-    layout->addWidget(resetZoomButton);
-
-    // Создаем и добавляем кнопку сохранения графика
-    saveButton = new QPushButton("Сохранить график как PNG", this);
-    connect(saveButton, &QPushButton::clicked, this, &GraphWindow::saveGraphAsPNG);
-    layout->addWidget(saveButton);
-
-    setWindowTitle("Одномерный график");
-
-    // Задаем размер окна
-    this->resize(800, 600);
+    setWindowTitle(tr("Одномерный график"));
+    resize(800, 600);
 }
 
-void GraphWindow::setData(const QVector<double> &x, const QVector<double> &absY, const QVector<double> &normY) {
-    customPlot->graph(0)->setData(x, absY);
-    customPlot->graph(1)->setData(x, normY);
+void GraphWindow::setupUI() {
+    QVBoxLayout* layout = new QVBoxLayout(this);
 
-    customPlot->rescaleAxes();
+    // Create chart view
+    chartView = new QChartView(chart);
+    chartView->setRenderHint(QPainter::Antialiasing);
+    layout->addWidget(chartView);
 
-    // Сохраняем начальные диапазоны осей после вызова rescaleAxes
-    xRange = customPlot->xAxis->range();
-    yRange = customPlot->yAxis->range();
+    // Create control widgets
+    absEoutCheckBox = new QCheckBox(tr("Показать absEout"), this);
+    absEoutCheckBox->setChecked(true);
+    layout->addWidget(absEoutCheckBox);
 
-    customPlot->replot();
+    normEoutCheckBox = new QCheckBox(tr("Показать normEout"), this);
+    normEoutCheckBox->setChecked(true);
+    layout->addWidget(normEoutCheckBox);
 
-    // Для отладки
+    logScaleCheckBox = new QCheckBox(tr("Логарифмическая шкала"), this);
+    layout->addWidget(logScaleCheckBox);
+
+    resetZoomButton = new QPushButton(tr("Сбросить до исходного положения"), this);
+    layout->addWidget(resetZoomButton);
+
+    saveButton = new QPushButton(tr("Сохранить график как PNG"), this);
+    layout->addWidget(saveButton);
+
+    // Connect signals
+    connect(absEoutCheckBox, &QCheckBox::toggled, this, &GraphWindow::toggleAbsEout);
+    connect(normEoutCheckBox, &QCheckBox::toggled, this, &GraphWindow::toggleNormEout);
+    connect(logScaleCheckBox, &QCheckBox::toggled, this, &GraphWindow::toggleLogarithmicScale);
+    connect(resetZoomButton, &QPushButton::clicked, this, &GraphWindow::resetZoom);
+    connect(saveButton, &QPushButton::clicked, this, &GraphWindow::saveGraphAsPNG);
+}
+
+void GraphWindow::createChart() {
+    // Setup series
+    absEoutSeries->setName(tr("absEout"));
+    absEoutSeries->setPen(QPen(Qt::blue, 2));
+    normEoutSeries->setName(tr("normEout"));
+    normEoutSeries->setPen(QPen(Qt::red, 2));
+
+    chart->addSeries(absEoutSeries);
+    chart->addSeries(normEoutSeries);
+
+    // Setup axes
+    axisX->setTitleText(tr("Index"));
+    axisY->setTitleText(tr("Value"));
+    logAxisY->setTitleText(tr("Value"));
+    logAxisY->setBase(10.0);
+    logAxisY->setMinorTickCount(-1);
+
+    // Add axes to chart
+    chart->addAxis(axisX, Qt::AlignBottom);
+    chart->addAxis(axisY, Qt::AlignLeft);
+
+    absEoutSeries->attachAxis(axisX);
+    absEoutSeries->attachAxis(axisY);
+    normEoutSeries->attachAxis(axisX);
+    normEoutSeries->attachAxis(axisY);
+
+    // Enable zooming and panning
+    chartView->setRubberBand(QChartView::RectangleRubberBand);
+}
+
+void GraphWindow::setupControls() {
+    chartView->setInteractive(true);
+    chartView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    chartView->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+}
+
+void GraphWindow::setData(const QVector<double>& x, const QVector<double>& absY, const QVector<double>& normY) {
+    // Clear existing data
+    absEoutSeries->clear();
+    normEoutSeries->clear();
+
+    // Find data ranges
+    minX = x.isEmpty() ? 0 : *std::min_element(x.begin(), x.end());
+    maxX = x.isEmpty() ? 1 : *std::max_element(x.begin(), x.end());
+
+    auto minMaxY = std::minmax_element(absY.begin(), absY.end());
+    minY = *minMaxY.first;
+    maxY = *minMaxY.second;
+
+    auto minMaxNormY = std::minmax_element(normY.begin(), normY.end());
+    minY = qMin(minY, *minMaxNormY.first);
+    maxY = qMax(maxY, *minMaxNormY.second);
+
+    // Add data points
+    for(int i = 0; i < x.size(); ++i) {
+        absEoutSeries->append(x[i], absY[i]);
+        normEoutSeries->append(x[i], normY[i]);
+    }
+
+    updateAxisRanges();
+    initialPlotArea = chart->plotArea();
+
+    // Debug output
     qDebug() << "Graph data X:" << x;
     qDebug() << "Graph data absY:" << absY;
     qDebug() << "Graph data normY:" << normY;
 }
 
 void GraphWindow::toggleAbsEout(bool checked) {
-    customPlot->graph(0)->setVisible(checked);
-    customPlot->replot();
+    absEoutSeries->setVisible(checked);
+    updateAxisRanges();
 }
 
 void GraphWindow::toggleNormEout(bool checked) {
-    customPlot->graph(1)->setVisible(checked);
-    customPlot->replot();
+    normEoutSeries->setVisible(checked);
+    updateAxisRanges();
 }
 
-void GraphWindow::toggleLogarithmicScale(bool checked) {
-    if (checked) {
-        customPlot->yAxis->setScaleType(QCPAxis::stLogarithmic);
-    } else {
-        customPlot->yAxis->setScaleType(QCPAxis::stLinear);
+void GraphWindow::updateAxisRanges() {
+    // Calculate visible data ranges
+    double visibleMinY = maxY;
+    double visibleMaxY = minY;
+
+    if (absEoutSeries->isVisible()) {
+        const auto& points = absEoutSeries->points();
+        for (const auto& point : points) {
+            visibleMinY = qMin(visibleMinY, point.y());
+            visibleMaxY = qMax(visibleMaxY, point.y());
+        }
     }
-    customPlot->rescaleAxes();
-    customPlot->replot();
+
+    if (normEoutSeries->isVisible()) {
+        const auto& points = normEoutSeries->points();
+        for (const auto& point : points) {
+            visibleMinY = qMin(visibleMinY, point.y());
+            visibleMaxY = qMax(visibleMaxY, point.y());
+        }
+    }
+
+    // Add margins
+    double xMargin = (maxX - minX) * 0.05;
+    double yMargin = (visibleMaxY - visibleMinY) * 0.05;
+
+    axisX->setRange(minX - xMargin, maxX + xMargin);
+
+    if (logScaleCheckBox->isChecked()) {
+        logAxisY->setRange(qMax(visibleMinY, 0.00001), visibleMaxY * 1.1);
+    } else {
+        axisY->setRange(visibleMinY - yMargin, visibleMaxY + yMargin);
+    }
+}
+
+void GraphWindow::toggleLogarithmicScale(bool logarithmic) {
+    QAbstractAxis* currentYAxis = chart->axes(Qt::Vertical).first();
+    chart->removeAxis(currentYAxis);
+
+    if (logarithmic) {
+        chart->addAxis(logAxisY, Qt::AlignLeft);
+        absEoutSeries->attachAxis(logAxisY);
+        normEoutSeries->attachAxis(logAxisY);
+    } else {
+        chart->addAxis(axisY, Qt::AlignLeft);
+        absEoutSeries->attachAxis(axisY);
+        normEoutSeries->attachAxis(axisY);
+    }
+
+    updateAxisRanges();
 }
 
 void GraphWindow::resetZoom() {
-    customPlot->xAxis->setRange(xRange);
-    customPlot->yAxis->setRange(yRange);
-    customPlot->replot();
+    chart->zoomReset();
+    updateAxisRanges();
 }
 
 void GraphWindow::saveGraphAsPNG() {
-    // Открываем диалоговое окно для выбора места сохранения файла
-    QString fileName = QFileDialog::getSaveFileName(this, "Сохранить график", "", "PNG Files (*.png)");
-    if (fileName.isEmpty())
+    QString fileName = QFileDialog::getSaveFileName(this, tr("Сохранить график"), "", tr("PNG Files (*.png)"));
+    if (fileName.isEmpty()) {
         return;
+    }
 
-    // Захватываем текущий график как QPixmap
-    QPixmap pixmap = customPlot->toPixmap(customPlot->width(), customPlot->height());
-
-    // Определяем текст подписи в зависимости от типа шкалы
-    QString scaleType = logScaleCheckBox->isChecked() ? "Логарифмическая шкала" : "Линейная шкала";
-
-    // Создаем QPainter для рисования на pixmap
+    QPixmap pixmap(chartView->size());
+    pixmap.fill(Qt::white);
     QPainter painter(&pixmap);
+
+    // Render chart
+    chartView->render(&painter);
+
+    // Add scale type text
     painter.setPen(Qt::black);
     QFont font = painter.font();
     font.setPointSize(12);
     painter.setFont(font);
+    QString scaleType = logScaleCheckBox->isChecked() ? tr("Логарифмическая шкала") : tr("Линейная шкала");
+    painter.drawText(10, font.pointSize() + 10, scaleType);
 
-    // Определяем позицию для подписи
-    int margin = 10;
-    painter.drawText(margin, margin + font.pointSize(), scaleType);
+    painter.end();
 
-    painter.end(); // Завершаем рисование
-
-    // Сохраняем pixmap в файл
     if (!pixmap.save(fileName, "PNG")) {
-        QMessageBox::warning(this, "Ошибка", "Не удалось сохранить файл.");
+        QMessageBox::warning(this, tr("Ошибка"), tr("Не удалось сохранить файл."));
     } else {
-        QMessageBox::information(this, "Успех", "График успешно сохранен.");
+        QMessageBox::information(this, tr("Успех"), tr("График успешно сохранен."));
     }
 }
