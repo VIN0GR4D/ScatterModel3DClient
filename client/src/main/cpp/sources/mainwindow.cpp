@@ -99,15 +99,6 @@ MainWindow::MainWindow(QWidget *parent)
     connect(saveAction, &QAction::triggered, this, &MainWindow::saveProject);
     connect(exitAction, &QAction::triggered, this, &MainWindow::close);
 
-    // Создание нового меню "Выполнить"
-    QMenu *executeMenu = new QMenu("Выполнить", this);
-    QAction *performCalculationAction = new QAction(QIcon(":/calculator.png"), "Выполнить расчёт", this);
-
-    executeMenu->addAction(performCalculationAction);
-    menuBar->addMenu(executeMenu);
-
-    connect(performCalculationAction, &QAction::triggered, this, &MainWindow::performCalculation);
-
     // Создание нового меню "Результаты"
     QMenu *resultsMenu = new QMenu("Результаты", this);
 
@@ -494,8 +485,21 @@ void MainWindow::setupServerWidget() {
     connect(connectButton, &QPushButton::clicked, this, &MainWindow::connectToServer);
     connect(disconnectButton, &QPushButton::clicked, this, &MainWindow::disconnectFromServer);
 
-    // Добавляем группы в основной layout
-    layout->addWidget(serverConnectionGroupBox);
+    // Добавляем группу подключения к серверу в основной layout
+    layout->addWidget(serverConnectionGroupBox, 0, Qt::AlignTop);
+
+    // Группа для выполнения расчета
+    QGroupBox *calculationGroupBox = new QGroupBox("Выполнение расчета", serverWidget);
+    QVBoxLayout *calculationLayout = new QVBoxLayout(calculationGroupBox);
+
+    QPushButton *performCalculationButton = new QPushButton(QIcon(":/calculator.png"), "Выполнить расчёт", calculationGroupBox);
+    performCalculationButton->setFixedSize(160, 30);
+    calculationLayout->addWidget(performCalculationButton, 0, Qt::AlignCenter);
+
+    connect(performCalculationButton, &QPushButton::clicked, this, &MainWindow::performCalculation);
+
+    // Добавляем группу выполнения расчета в основной layout
+    layout->addWidget(calculationGroupBox);
     layout->addStretch();
 }
 
