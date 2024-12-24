@@ -26,6 +26,7 @@
 #include <memory>
 #include <QMessageBox>
 #include <QCloseEvent>
+#include <QGroupBox>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -1005,11 +1006,14 @@ void MainWindow::connectToServer() {
 
             serverEnabled = true;
             logMessage("Connecting to server: " + serverAddress);
+            showNotification("Подключение к серверу...", Notification::Info);
         } else {
             logMessage("Failed to create TriangleClient.");
+            showNotification("Ошибка создания клиента", Notification::Error);
         }
     } else {
         logMessage("Server address is empty.");
+        showNotification("Укажите адрес сервера", Notification::Warning);
     }
 }
 
@@ -1467,4 +1471,9 @@ void MainWindow::closeModel() {
         logMessage("3D модель закрыта");
         setModified(true);          // Устанавливаем флаг изменений
     }
+}
+
+void MainWindow::showNotification(const QString &message, Notification::Type type) {
+    Notification *notification = new Notification(this);
+    notification->showMessage(message, type);
 }

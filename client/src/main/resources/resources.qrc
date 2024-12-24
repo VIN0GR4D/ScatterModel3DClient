@@ -14,5 +14,9 @@
         <file>lighttheme.qss</file>
         <file>apply.png</file>
         <file>reset.png</file>
+        <file>success.png</file>
+        <file>error.png</file>
+        <file>warning.png</file>
+        <file>information.png</file>
     </qresource>
 </RCC>

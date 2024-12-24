@@ -19,6 +19,7 @@ SOURCES += \
     mainwindow.cpp \
     meshfilter.cpp \
     newprojectdialog.cpp \
+    notification.cpp \
     openglwidget.cpp \
     parser.cpp \
     portraitwindow.cpp \
@@ -39,6 +40,7 @@ HEADERS += \
     mainwindow.h \
     meshfilter.h \
     newprojectdialog.h \
+    notification.h \
     openglwidget.h \
     parser.h \
     portraitwindow.h \
@@ -74,10 +76,12 @@ DISTFILES += \
     disc.obj \
     disconnect.png \
     download.png \
+    error.png \
     footballPlayer.obj \
     heart.obj \
     helicopter.obj \
     icon.png \
+    information.png \
     light-theme.png \
     lighttheme.qss \
     load.png \
@@ -87,8 +91,10 @@ DISTFILES += \
     reset.png \
     simple_triangle.obj \
     styles.css \
+    success.png \
     t34.obj \
-    test.obj
+    test.obj \
+    warning.png
 
 RESOURCES += \
     resources.qrc

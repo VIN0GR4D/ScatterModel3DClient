@@ -3,12 +3,12 @@
 
 #include "openglwidget.h"
 #include "parser.h"
-#include "qgroupbox.h"
 #include "raytracer.h"
 #include "triangleclient.h"
 #include "portraitwindow.h"
 #include "projectserializer.h"
 #include "meshfilter.h"
+#include "notification.h"
 #include <QMainWindow>
 #include <QPushButton>
 #include <QLineEdit>
@@ -158,6 +158,7 @@ private:
     void setupServerWidget();
     QDialog* logWindow = nullptr;
     void showLogWindow();
+    void showNotification(const QString &message, Notification::Type type);
 };
 
 #endif // MAINWINDOW_H
