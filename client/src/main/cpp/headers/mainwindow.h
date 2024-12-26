@@ -90,6 +90,7 @@ private slots:
     void openProject();
     void newProject();
     void closeModel();
+    void toggleShadowTriangles();
 
 private:
     Ui::MainWindow *ui;

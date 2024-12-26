@@ -32,6 +32,7 @@ public:
 
     void setTriangles(const QVector<QSharedPointer<triangle>>& tri);
     void setScalingCoefficients(const QVector3D& scaling);
+    void setShadowTrianglesFiltering(bool enable);
 
 public slots:
     void setUnderlyingSurfaceVisible(bool visible);
@@ -106,6 +107,8 @@ private:
     bool showUnderlyingSurface;
     float surfaceAlpha = 0.3f;
     void drawUnderlyingSurface();
+
+    bool filterShadowTriangles = false;  // Флаг фильтрации теневых треугольников
 
 protected:
     void initializeGL() override;

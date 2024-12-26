@@ -32,6 +32,16 @@ void OpenGLWidget::setGeometry(const QVector<QVector3D> &v, const QVector<QVecto
     update(); // Обновление виджета для перерисовки
 }
 
+void OpenGLWidget::setShadowTrianglesFiltering(bool enable) {
+    filterShadowTriangles = enable;
+    update();
+}
+
+void OpenGLWidget::updateScene() {
+    geometryChanged = true;  // Устанавливаем флаг для перерисовки
+    update();  // Запрашиваем перерисовку
+}
+
 // Вычисление оптимального коэффициента отдаления камеры
 float OpenGLWidget::calculateOptimalZoomOutFactor(float boundingSphereRadius) {
     float baseDistance = 10.0f + boundingSphereRadius;
@@ -254,7 +264,7 @@ void OpenGLWidget::paintGL() {
     // Отрисовка видимых треугольников
     for (int i = 0; i < triangles.size(); ++i) {
         auto triangle = triangles[i];
-        if (!triangle->getVisible()) continue; // Пропускаем невидимые треугольники
+        if (filterShadowTriangles && !triangle->getVisible()) continue; // Пропускаем невидимые треугольники
 
         QColor color = triangleColors[i];
         glColor3f(color.redF(), color.greenF(), color.blueF());

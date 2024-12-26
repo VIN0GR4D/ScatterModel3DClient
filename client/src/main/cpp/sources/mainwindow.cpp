@@ -428,10 +428,23 @@ void MainWindow::setupFilteringWidget() {
     shellStatsItem = new QTreeWidgetItem(filterRoot, QStringList("Оболочка: 0"));
     visibilityStatsItem = new QTreeWidgetItem(filterRoot, QStringList("Не в тени: 0"));
 
+    // Кнопка управления видимостью теневых треугольников
+    QPushButton* toggleShadowTrianglesButton = new QPushButton("Скрыть теневые треугольники", filterGroupBox);
+    QPushButton* showAllTrianglesButton = new QPushButton("Показать все треугольники", filterGroupBox);
+
+    connect(toggleShadowTrianglesButton, &QPushButton::clicked, this, &MainWindow::toggleShadowTriangles);
+    connect(showAllTrianglesButton, &QPushButton::clicked, this, [this]() {
+        openGLWidget->setShadowTrianglesFiltering(false);
+        logMessage("Отображены все треугольники.");
+        setModified(true);
+    });
+
     // Кнопка фильтрации
     QPushButton* filterButton = new QPushButton("Выполнить фильтрацию", filterGroupBox);
 
     filterBoxLayout->addWidget(filterTreeWidget);
+    filterBoxLayout->addWidget(toggleShadowTrianglesButton);
+    filterBoxLayout->addWidget(showAllTrianglesButton);
     filterBoxLayout->addWidget(filterButton);
 
     // Очищаем старые соединения
@@ -1476,4 +1489,25 @@ void MainWindow::closeModel() {
 void MainWindow::showNotification(const QString &message, Notification::Type type) {
     Notification *notification = new Notification(this);
     notification->showMessage(message, type);
+}
+
+void MainWindow::toggleShadowTriangles() {
+    QVector<QSharedPointer<triangle>> currentTriangles = openGLWidget->getTriangles();
+    if (currentTriangles.isEmpty()) {
+        logMessage("Ошибка: не загружен 3D объект для обработки.");
+        return;
+    }
+
+    // Получаем позицию камеры
+    QVector3D cameraPositionQVector = openGLWidget->getCameraPosition();
+    rVect observerPosition = openGLWidget->QVector3DToRVect(cameraPositionQVector);
+
+    // Определяем видимость треугольников с помощью RayTracer
+    rayTracer->determineVisibility(currentTriangles, observerPosition);
+
+    // Включаем фильтрацию теневых треугольников
+    openGLWidget->setShadowTrianglesFiltering(true);
+
+    logMessage("Обработка теневых треугольников завершена.");
+    setModified(true);
 }
