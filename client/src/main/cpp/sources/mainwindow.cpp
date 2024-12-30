@@ -162,13 +162,17 @@ MainWindow::MainWindow(QWidget *parent)
         updateRotationZ(z);
     });
 
+    logDisplay = new QTextEdit(this);
+    logDisplay->setReadOnly(true);
+    logDisplay->hide();
+
     setWindowTitle("ScatterModel3DClient");
 
     this->resize(1280, 720);
 
     // Соединения
     connect(triangleClient, &TriangleClient::resultsReceived, this, &MainWindow::handleDataReceived);
-
+    connect(triangleClient, &TriangleClient::showNotification, this, &MainWindow::showNotification);
     connect(resultsWatcher, &QFutureWatcher<void>::finished, this, [this]() {
         logMessage("Обработка результатов завершена.");
         // Дополнительные действия после завершения
@@ -525,13 +529,14 @@ void MainWindow::showLogWindow()
         logWindow->setWindowTitle("Журнал действий");
         logWindow->setMinimumSize(500, 400);
 
-        QVBoxLayout* layout = new QVBoxLayout(logWindow);
-
-        // Переносим logDisplay в окно журнала
+        // Создаем новый QTextEdit специально для окна журнала
         if (!logDisplay) {
-            logDisplay = new QTextEdit(logWindow);
+            logDisplay = new QTextEdit();
             logDisplay->setReadOnly(true);
         }
+
+        QVBoxLayout* layout = new QVBoxLayout(logWindow);
+        logDisplay->show();
         layout->addWidget(logDisplay);
 
         // Кнопка сохранения журнала
@@ -560,6 +565,7 @@ void MainWindow::loadModel() {
     if (!fileName.isEmpty()) {
         // Выводим сообщение в лог о начале загрузки файла
         logMessage("Начата загрузка файла: " + fileName);
+        showNotification("Начата загрузка файла", Notification::Info);
 
         // Создаем объект QFutureWatcher для отслеживания завершения асинхронной задачи
         QFutureWatcher<void> *watcher = new QFutureWatcher<void>(this);
@@ -576,6 +582,7 @@ void MainWindow::loadModel() {
             if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
                 QMetaObject::invokeMethod(this, [=]() {
                         logMessage("Ошибка: не удалось открыть файл.");
+                        showNotification("Ошибка загрузки файла", Notification::Error);
                     }, Qt::QueuedConnection);
                 return;
             }
@@ -601,6 +608,7 @@ void MainWindow::loadModel() {
                         logMessage("Ошибка: файл не содержит корректных данных объекта. Пожалуйста, загрузите корректный файл.");
                     } else {
                         logMessage("Файл успешно загружен.");
+                        showNotification("Файл успешно загружен", Notification::Success);
                         setModified(true); // Установка флага изменений
                     }
                 }, Qt::QueuedConnection);
@@ -932,6 +940,7 @@ void MainWindow::performCalculation() {
     QVector<QSharedPointer<triangle>> triangles = openGLWidget->getTriangles();
     if (triangles.isEmpty()) {
         logMessage("Ошибка: загруженный файл не содержит корректных данных объекта.");
+        showNotification("Нет данных для расчёта", Notification::Error);
         return;
     }
 
@@ -1193,6 +1202,7 @@ bool MainWindow::saveProject() {
         // Сохранение проекта
         if (ProjectSerializer::saveProject(fileName, currentProjectData)) {
             logMessage("Проект успешно сохранен: " + fileName);
+            showNotification("Проект сохранен", Notification::Success);
 
             statusBar()->showMessage(QString("Проект: %1 | Рабочая директория: %2")
                                          .arg(currentProjectData.projectName.isEmpty() ? "Без названия" : currentProjectData.projectName)
@@ -1203,6 +1213,7 @@ bool MainWindow::saveProject() {
         } else {
             logMessage("Ошибка при сохранении проекта.");
             QMessageBox::critical(this, "Ошибка", "Не удалось сохранить проект.");
+            showNotification("Ошибка сохранения", Notification::Error);
             return false;
         }
     }
@@ -1351,9 +1362,6 @@ void MainWindow::newProject() {
     radiationPolarizationComboBox->setCurrentIndex(0);
     receivePolarizationComboBox->setCurrentIndex(0);
 
-    // Очистка журнала действий
-    logDisplay->clear();
-
     // Вывод сообщения в журнал
     logMessage("Создан новый проект.");
 
@@ -1363,6 +1371,7 @@ void MainWindow::newProject() {
 void MainWindow::handleDataReceived(const QJsonObject &results) {
     // Обработка результатов и обновление внутренних состояний
     displayResults(results);
+    showNotification("Получены новые результаты", Notification::Success);
     setModified(true); // Установка флага изменений после получения данных
 }
 

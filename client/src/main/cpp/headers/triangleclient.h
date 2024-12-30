@@ -15,6 +15,7 @@
 #include <QQueue>
 #include "Triangle.h"
 #include "logworker.h"
+#include "notification.h"
 
 class TriangleClient : public QObject {
     Q_OBJECT
@@ -43,6 +44,7 @@ signals:
     void resultsReceived(const QJsonObject &results);
     void logMessage(const QString &message);
     void logToFile(const QString &message);
+    void showNotification(const QString &message, Notification::Type type);
 
 public slots:
     void onConnected();

@@ -62,6 +62,7 @@ void TriangleClient::attemptReconnect() {
 // Обработчик события успешного подключения к серверу
 void TriangleClient::onConnected() {
     emit logMessage("WebSocket connected");
+    emit showNotification("Подключено к серверу", Notification::Success);
     qDebug() << "WebSocket connected, preparing to send data...";
     m_reconnectAttempts = 0;
     m_intentionalDisconnect = false; // сброс флага при успешном подключении
@@ -85,7 +86,8 @@ void TriangleClient::disconnectFromServer() {
 // Обработчик события отключения от сервера
 void TriangleClient::onDisconnected() {
     emit logMessage("WebSocket disconnected");
-    if (!m_intentionalDisconnect) { // добавлено
+    emit showNotification("Отключено от сервера", Notification::Warning);
+    if (!m_intentionalDisconnect) {
         qDebug() << "WebSocket disconnected, attempting to reconnect...";
         attemptReconnect();
     } else {
@@ -96,6 +98,7 @@ void TriangleClient::onDisconnected() {
 // Обработчик ошибок соединения
 void TriangleClient::onErrorOccurred(QAbstractSocket::SocketError error) {
     emit logMessage("WebSocket error occurred, code: " + QString::number(error));
+    emit showNotification("Ошибка подключения", Notification::Error);
     qDebug() << "WebSocket error occurred, code:" << error;
     switch (error) {
     case QAbstractSocket::ConnectionRefusedError:
@@ -249,6 +252,7 @@ bool TriangleClient::isAuthorized() const {
 // Функция для отправки данных о треугольниках на сервер
 void TriangleClient::sendTriangleData(const QVector<QSharedPointer<triangle>>& triangles) {
     if (!m_webSocket->isValid()) {
+        emit showNotification("Ошибка отправки данных", Notification::Error);
         qDebug() << "WebSocket is not connected. Attempting to resend data...";
         QTimer::singleShot(5000, this, [this, triangles]() { sendTriangleData(triangles); });
         return;
@@ -280,9 +284,11 @@ void TriangleClient::sendTriangleData(const QVector<QSharedPointer<triangle>>& t
     qDebug() << "Sending triangle data to server:" << message;
 
     if (m_webSocket->sendTextMessage(message) == -1) {
+        emit showNotification("Ошибка отправки данных на сервер", Notification::Error);
         qDebug() << "Error sending triangle data to server";
         emit logMessage("Error sending triangle data to server");
     } else {
+        emit showNotification("Данные успешно отправлены", Notification::Info);
         qDebug() << "Sending triangle data to server...";
     }
 }
