@@ -152,6 +152,8 @@ private:
     QWidget *parametersWidget;    // Для параметров
     QWidget *filteringWidget;     // Для фильтрации
     QWidget *serverWidget;        // Для сервера
+    QLabel* shellCountDisplay;  // Отображение количества оболочек
+    QLabel* visibleCountDisplay;  // Отображение количества видимых объектов
 
     void createToolBar();
     void setupParametersWidget();

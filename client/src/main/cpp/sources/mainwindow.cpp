@@ -417,49 +417,54 @@ void MainWindow::setupFilteringWidget() {
     layout->setSpacing(10);
     layout->setContentsMargins(10, 10, 10, 10);
 
-    // Группа для фильтрации
-    QGroupBox* filterGroupBox = new QGroupBox("Фильтрация", filteringWidget);
-    QVBoxLayout* filterBoxLayout = new QVBoxLayout(filterGroupBox);
+    // Группа для управления оболочкой объекта
+    QGroupBox* shellGroupBox = new QGroupBox("Управление оболочкой объекта", filteringWidget);
+    QVBoxLayout* shellLayout = new QVBoxLayout(shellGroupBox);
 
-    // Дерево фильтрации
-    filterTreeWidget = new QTreeWidget(filterGroupBox);
-    filterTreeWidget->setHeaderHidden(true);
-    filterTreeWidget->setAnimated(true);
+    QPushButton* toggleShellButton = new QPushButton("Переключить видимость оболочки", shellGroupBox);
+    QPushButton* showAllTrianglesButton = new QPushButton("Показать все треугольники", shellGroupBox);
 
-    QTreeWidgetItem* filterRoot = new QTreeWidgetItem(filterTreeWidget, QStringList("Фильтрация"));
-    filterRoot->setExpanded(true);
+    shellLayout->addWidget(toggleShellButton);
+    shellLayout->addWidget(showAllTrianglesButton);
 
-    shellStatsItem = new QTreeWidgetItem(filterRoot, QStringList("Оболочка: 0"));
-    visibilityStatsItem = new QTreeWidgetItem(filterRoot, QStringList("Не в тени: 0"));
+    // Группа для анализа и оптимизации
+    QGroupBox* analysisGroupBox = new QGroupBox("Анализ и оптимизация", filteringWidget);
+    QGridLayout* analysisLayout = new QGridLayout(analysisGroupBox);
 
-    // Кнопка управления видимостью теневых треугольников
-    QPushButton* toggleShadowTrianglesButton = new QPushButton("Скрыть теневые треугольники", filterGroupBox);
-    QPushButton* showAllTrianglesButton = new QPushButton("Показать все треугольники", filterGroupBox);
+    // Статистика
+    QLabel* shellCountLabel = new QLabel("Оболочка:", analysisGroupBox);
+    QLabel* visibleCountLabel = new QLabel("Не в тени:", analysisGroupBox);
 
-    connect(toggleShadowTrianglesButton, &QPushButton::clicked, this, &MainWindow::toggleShadowTriangles);
+    shellCountDisplay = new QLabel("0", analysisGroupBox);
+    visibleCountDisplay = new QLabel("0", analysisGroupBox);
+
+    // Стилизация меток статистики
+    shellCountDisplay->setStyleSheet("font-weight: bold;");
+    visibleCountDisplay->setStyleSheet("font-weight: bold;");
+
+    analysisLayout->addWidget(shellCountLabel, 0, 0);
+    analysisLayout->addWidget(shellCountDisplay, 0, 1);
+    analysisLayout->addWidget(visibleCountLabel, 1, 0);
+    analysisLayout->addWidget(visibleCountDisplay, 1, 1);
+
+    // Кнопка оптимизации
+    QPushButton* optimizeButton = new QPushButton("Оптимизировать структуру объекта", analysisGroupBox);
+    optimizeButton->setToolTip("Анализ и удаление внутренних треугольников для оптимизации расчётов");
+    analysisLayout->addWidget(optimizeButton, 2, 0, 1, 2);
+
+    // Добавляем группы в основной layout
+    layout->addWidget(shellGroupBox);
+    layout->addWidget(analysisGroupBox);
+    layout->addStretch();
+
+    // Подключение сигналов
+    connect(toggleShellButton, &QPushButton::clicked, this, &MainWindow::toggleShadowTriangles);
     connect(showAllTrianglesButton, &QPushButton::clicked, this, [this]() {
         openGLWidget->setShadowTrianglesFiltering(false);
         logMessage("Отображены все треугольники.");
         setModified(true);
     });
-
-    // Кнопка фильтрации
-    QPushButton* filterButton = new QPushButton("Выполнить фильтрацию", filterGroupBox);
-
-    filterBoxLayout->addWidget(filterTreeWidget);
-    filterBoxLayout->addWidget(toggleShadowTrianglesButton);
-    filterBoxLayout->addWidget(showAllTrianglesButton);
-    filterBoxLayout->addWidget(filterButton);
-
-    // Очищаем старые соединения
-    disconnect(filterButton, nullptr, nullptr, nullptr);
-
-    // Создаем новое соединение
-    connect(filterButton, &QPushButton::clicked, this, &MainWindow::performFiltering);
-
-    // Добавляем группы в основной layout
-    layout->addWidget(filterGroupBox);
-    layout->addStretch();
+    connect(optimizeButton, &QPushButton::clicked, this, &MainWindow::performFiltering);
 }
 
 void MainWindow::setupServerWidget() {
@@ -1475,10 +1480,8 @@ void MainWindow::performFiltering() {
 }
 
 void MainWindow::updateFilterStats(const MeshFilter::FilterStats& stats) {
-    if (shellStatsItem && visibilityStatsItem) {
-        shellStatsItem->setText(0, QString("Оболочка: %1").arg(stats.shellTriangles));
-        visibilityStatsItem->setText(0, QString("Не в тени: %1").arg(stats.visibleTriangles));
-    }
+    shellCountDisplay->setText(QString::number(stats.shellTriangles));
+    visibleCountDisplay->setText(QString::number(stats.visibleTriangles));
 }
 
 void MainWindow::closeModel() {
