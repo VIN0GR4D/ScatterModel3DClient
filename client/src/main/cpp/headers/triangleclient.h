@@ -40,6 +40,8 @@ public:
 
     void disconnectFromServer();
 
+    QWebSocket* getWebSocket() const { return m_webSocket.get(); }
+
 signals:
     void resultsReceived(const QJsonObject &results);
     void logMessage(const QString &message);

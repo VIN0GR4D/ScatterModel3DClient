@@ -165,6 +165,7 @@ private:
     QDialog* logWindow = nullptr;
     void showLogWindow();
     void showNotification(const QString &message, Notification::Type type);
+    void updateConnectionStatus(QLabel* connectionLabel, QLabel* authLabel);
 };
 
 #endif // MAINWINDOW_H

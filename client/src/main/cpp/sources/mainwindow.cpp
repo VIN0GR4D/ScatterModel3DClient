@@ -1045,9 +1045,17 @@ void MainWindow::connectToServer() {
         if (triangleClient) {
             connect(triangleClient, &TriangleClient::resultsReceived, this, &MainWindow::displayResults);
             connect(triangleClient, &TriangleClient::logMessage, this, &MainWindow::logMessage);
+            connect(triangleClient, &TriangleClient::showNotification, this, &MainWindow::showNotification);
+
+            // Добавляем обработку изменения состояния подключения
+            connect(triangleClient->getWebSocket(), &QWebSocket::connected, this, [this]() {
+                emit connectionStatusChanged(true);
+            });
+            connect(triangleClient->getWebSocket(), &QWebSocket::disconnected, this, [this]() {
+                emit connectionStatusChanged(false);
+            });
 
             serverEnabled = true;
-            emit connectionStatusChanged(true);
             logMessage("Connecting to server: " + serverAddress);
             showNotification("Подключение к серверу...", Notification::Info);
         } else {
