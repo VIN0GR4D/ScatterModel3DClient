@@ -472,58 +472,74 @@ void MainWindow::setupServerWidget() {
     layout->setSpacing(10);
     layout->setContentsMargins(10, 10, 10, 10);
 
-    // Группа для подключения к серверу
-    QGroupBox *serverConnectionGroupBox = new QGroupBox("Подключение к серверу", serverWidget);
-    QVBoxLayout *serverConnectionLayout = new QVBoxLayout(serverConnectionGroupBox);
+    // Группа для статуса подключения
+    QGroupBox* statusGroupBox = new QGroupBox("Статус подключения", serverWidget);
+    QVBoxLayout* statusLayout = new QVBoxLayout(statusGroupBox);
 
-    // Поле ввода адреса сервера
+    // Индикатор статуса
+    QLabel* statusLabel = new QLabel("Статус: Не подключен", statusGroupBox);
+    statusLabel->setStyleSheet("font-weight: bold; color: #FF4444;");
+    statusLayout->addWidget(statusLabel);
+
+    // Группа для подключения к серверу
+    QGroupBox* serverConnectionGroupBox = new QGroupBox("Настройки подключения", serverWidget);
+    QVBoxLayout* serverConnectionLayout = new QVBoxLayout(serverConnectionGroupBox);
+
+    // Поле ввода адреса сервера с меткой
+    QLabel* addressLabel = new QLabel("Адрес сервера:", serverConnectionGroupBox);
     serverAddressInput = new QLineEdit(serverConnectionGroupBox);
     serverAddressInput->setPlaceholderText("ws://serveraddress:port");
     serverAddressInput->setAlignment(Qt::AlignCenter);
-    serverAddressInput->setFixedWidth(250);
+
+    // Добавляем элементы в layout группы подключения
+    serverConnectionLayout->addWidget(addressLabel);
+    serverConnectionLayout->addWidget(serverAddressInput);
+
+    // Группа для управления подключением
+    QGroupBox* connectionControlGroupBox = new QGroupBox("Управление подключением", serverWidget);
+    QVBoxLayout* connectionControlLayout = new QVBoxLayout(connectionControlGroupBox);
 
     // Кнопки подключения/отключения
-    QHBoxLayout *buttonLayout = new QHBoxLayout();
-    connectButton = new QPushButton(QIcon(":/connect.png"), "Подключиться", serverConnectionGroupBox);
-    QPushButton *disconnectButton = new QPushButton(QIcon(":/disconnect.png"), "Отключиться", serverConnectionGroupBox);
+    connectButton = new QPushButton(QIcon(":/connect.png"), "Подключиться", connectionControlGroupBox);
+    QPushButton* disconnectButton = new QPushButton(QIcon(":/disconnect.png"), "Отключиться", connectionControlGroupBox);
+    QPushButton* performCalculationButton = new QPushButton(QIcon(":/calculator.png"), "Выполнить расчёт", connectionControlGroupBox);
 
-    // Устанавливаем фиксированные размеры для кнопок
-    connectButton->setFixedSize(120, 30);
-    disconnectButton->setFixedSize(120, 30);
+    // Стилизация кнопок
+    connectButton->setMinimumHeight(30);
+    disconnectButton->setMinimumHeight(30);
+    performCalculationButton->setMinimumHeight(30);
 
-    buttonLayout->addWidget(connectButton);
-    buttonLayout->addWidget(disconnectButton);
-    buttonLayout->setAlignment(Qt::AlignCenter);
+    // Добавляем кнопки в layout группы управления
+    connectionControlLayout->addWidget(connectButton);
+    connectionControlLayout->addWidget(disconnectButton);
+    connectionControlLayout->addWidget(performCalculationButton);
 
-    // Добавляем элементы в layout группы
-    serverConnectionLayout->addWidget(serverAddressInput);
-    serverConnectionLayout->addLayout(buttonLayout);
-    serverConnectionLayout->setAlignment(Qt::AlignTop);
+    // Добавляем все группы в основной layout
+    layout->addWidget(statusGroupBox);
+    layout->addWidget(serverConnectionGroupBox);
+    layout->addWidget(connectionControlGroupBox);
+    layout->addStretch();
 
     // Очищаем старые соединения
     disconnect(connectButton, nullptr, nullptr, nullptr);
     disconnect(disconnectButton, nullptr, nullptr, nullptr);
+    disconnect(performCalculationButton, nullptr, nullptr, nullptr);
 
     // Создаем новые соединения
     connect(connectButton, &QPushButton::clicked, this, &MainWindow::connectToServer);
     connect(disconnectButton, &QPushButton::clicked, this, &MainWindow::disconnectFromServer);
-
-    // Добавляем группу подключения к серверу в основной layout
-    layout->addWidget(serverConnectionGroupBox, 0, Qt::AlignTop);
-
-    // Группа для выполнения расчета
-    QGroupBox *calculationGroupBox = new QGroupBox("Выполнение расчета", serverWidget);
-    QVBoxLayout *calculationLayout = new QVBoxLayout(calculationGroupBox);
-
-    QPushButton *performCalculationButton = new QPushButton(QIcon(":/calculator.png"), "Выполнить расчёт", calculationGroupBox);
-    performCalculationButton->setFixedSize(160, 30);
-    calculationLayout->addWidget(performCalculationButton, 0, Qt::AlignCenter);
-
     connect(performCalculationButton, &QPushButton::clicked, this, &MainWindow::performCalculation);
 
-    // Добавляем группу выполнения расчета в основной layout
-    layout->addWidget(calculationGroupBox);
-    layout->addStretch();
+    // Обновление статуса при подключении/отключении
+    connect(this, &MainWindow::connectionStatusChanged, [statusLabel](bool connected) {
+        if (connected) {
+            statusLabel->setText("Статус: Подключен");
+            statusLabel->setStyleSheet("font-weight: bold; color: #44FF44;");
+        } else {
+            statusLabel->setText("Статус: Не подключен");
+            statusLabel->setStyleSheet("font-weight: bold; color: #FF4444;");
+        }
+    });
 }
 
 void MainWindow::showLogWindow()
@@ -1027,18 +1043,20 @@ void MainWindow::connectToServer() {
         triangleClient = new TriangleClient(QUrl(serverAddress), this);
 
         if (triangleClient) {
-            // Подключение сигналов
             connect(triangleClient, &TriangleClient::resultsReceived, this, &MainWindow::displayResults);
             connect(triangleClient, &TriangleClient::logMessage, this, &MainWindow::logMessage);
 
             serverEnabled = true;
+            emit connectionStatusChanged(true);
             logMessage("Connecting to server: " + serverAddress);
             showNotification("Подключение к серверу...", Notification::Info);
         } else {
+            emit connectionStatusChanged(false);
             logMessage("Failed to create TriangleClient.");
             showNotification("Ошибка создания клиента", Notification::Error);
         }
     } else {
+        emit connectionStatusChanged(false);
         logMessage("Server address is empty.");
         showNotification("Укажите адрес сервера", Notification::Warning);
     }
@@ -1056,6 +1074,7 @@ void MainWindow::disconnectFromServer() {
     if (triangleClient && triangleClient->isConnected()) {
         triangleClient->disconnectFromServer();
         logMessage("Disconnected from server.");
+        emit connectionStatusChanged(false);
         serverEnabled = false;
     } else {
         logMessage("Not connected to any server.");

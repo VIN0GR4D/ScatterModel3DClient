@@ -92,6 +92,9 @@ private slots:
     void closeModel();
     void toggleShadowTriangles();
 
+signals:
+    void connectionStatusChanged(bool connected);
+
 private:
     Ui::MainWindow *ui;
     OpenGLWidget *openGLWidget;
