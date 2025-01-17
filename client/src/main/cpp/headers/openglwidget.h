@@ -110,6 +110,9 @@ private:
 
     bool filterShadowTriangles = false;  // Флаг фильтрации теневых треугольников
 
+    void initializeDefaultGrid();
+    bool hasLoadedObject;  // флаг наличия загруженного объекта
+
 protected:
     void initializeGL() override;
     void resizeGL(int w, int h) override;

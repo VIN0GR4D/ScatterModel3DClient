@@ -3,7 +3,7 @@
 #include <GL/glu.h>
 
 OpenGLWidget::OpenGLWidget(QWidget *parent)
-    : QOpenGLWidget(parent), rotationX(0.0f), rotationY(0.0f), rotationZ(0.0f), scale(1.0f), objectPosition(0.0f, 0.0f, 0.0f), gridVisible(false), showUnderlyingSurface(false) {
+    : QOpenGLWidget(parent), rotationX(0.0f), rotationY(0.0f), rotationZ(0.0f), scale(1.0f), objectPosition(0.0f, 0.0f, 0.0f), gridVisible(true), showUnderlyingSurface(false), hasLoadedObject(false) {
     QSurfaceFormat format;
     format.setProfile(QSurfaceFormat::CompatibilityProfile);
     format.setVersion(3, 0);
@@ -12,6 +12,9 @@ OpenGLWidget::OpenGLWidget(QWidget *parent)
     setFocusPolicy(Qt::StrongFocus);
     // colorTable = {Qt::red, Qt::green, Qt::blue, Qt::yellow, Qt::magenta, Qt::cyan, Qt::white, Qt::gray};
     colorTable = {Qt::white};
+
+    // Инициализируем параметры сетки по умолчанию
+    initializeDefaultGrid();
 }
 
 // Установка геометрии (вершин и треугольников)
@@ -19,6 +22,7 @@ void OpenGLWidget::setGeometry(const QVector<QVector3D> &v, const QVector<QVecto
     vertices = v;
     triangleIndices = t;
     triangles = tri;
+    hasLoadedObject = true;
 
     computeBoundingVolume(); // Вычисление ограничивающего объема
     triangleColors.clear();
@@ -96,9 +100,8 @@ void OpenGLWidget::computeBoundingVolume() {
     updateCameraPosition(center, boundingSphereRadius);
 
     // Обновление размеров сетки на основе ограничивающего объема
-    gridSize = boundingSphereRadius * 3.0f; // Например, сетка 3 раза больше радиуса сферы
+    gridSize = boundingSphereRadius * 3.0f; // Сетка 3 раза больше радиуса сферы
     gridStep = boundingSphereRadius / 10.0f; // Шаг сетки 1/10 радиуса
-
     // Устанавливаем флаг, что параметры сетки изменились
     gridParametersChanged = true;
 }
@@ -298,6 +301,9 @@ void OpenGLWidget::clearScene() {
     triangles.clear();
     triangleColors.clear();
 
+    hasLoadedObject = false;  // Сбрасываем флаг
+    initializeDefaultGrid();  // Возвращаемся к параметрам по умолчанию
+
     geometryChanged = true; // Установка флага, что геометрия изменилась
     update(); // Вызов перерисовки виджета
 }
@@ -457,11 +463,28 @@ void OpenGLWidget::drawAxisWithArrow(float axisLength) {
     glDisable(GL_LINE_SMOOTH);
 }
 
+void OpenGLWidget::initializeDefaultGrid() {
+    // Устанавливаем параметры на основе полученных данных
+    gridSize = 12.14f;
+    gridStep = 0.404667f;
+
+    // Устанавливаем начальную позицию камеры
+    cameraPosition = QVector3D(-0.25f, -0.25f, -18.65f);
+    lightPosition = cameraPosition + QVector3D(0.0f, 0.0f, 10.0f);
+
+    // Устанавливаем центр и радиус по умолчанию
+    boundingSphereCenter = QVector3D(-0.25f, -0.25f, 2.5f);
+    boundingSphereRadius = 4.04667f;
+}
+
 void OpenGLWidget::drawGrid() {
     if (!gridVisible) return;
 
+    QVector3D actualCameraPos = hasLoadedObject ? cameraPosition : QVector3D(-0.25f, -0.25f, -18.65f);
+    QVector3D actualObjectPos = hasLoadedObject ? objectPosition : QVector3D(-0.25f, -0.25f, 2.5f);
+
     // Вычисление направления камеры
-    QVector3D cameraDir = (cameraPosition - objectPosition).normalized();
+    QVector3D cameraDir = (actualCameraPos - actualObjectPos).normalized();
 
     // Нормаль плоскости XZ
     QVector3D gridNormal(0.0f, 1.0f, 0.0f);
@@ -469,27 +492,25 @@ void OpenGLWidget::drawGrid() {
     // Вычисляем косинус угла между направлением камеры и нормалью сетки
     float dotProduct = QVector3D::dotProduct(cameraDir, gridNormal);
 
-    // Вычисляем альфа на основе угла (чем ближе к 0, тем более прозрачная)
-    // При косинусе 1 (угол 0°) альфа = maxAlpha
-    // При косинусе 0 (угол 90°) альфа = minAlpha
-    gridAlpha = minAlpha + (maxAlpha - minAlpha) * dotProduct;
-
-    // Вычисление расстояния между камерой и объектом
-    float distance = (cameraPosition - objectPosition).length();
-
-    // Увеличиваем прозрачность с отдалением (чем дальше, тем прозрачнее)
-    // Можно настроить коэффициенты по необходимости
-    gridAlpha *= qBound(minAlpha, 1.0f - distance / 1000.0f, maxAlpha);
+    // Устанавливаем значение alpha
+    if (hasLoadedObject) {
+        gridAlpha = minAlpha + (maxAlpha - minAlpha) * dotProduct;
+        float distance = (actualCameraPos - actualObjectPos).length();
+        gridAlpha *= qBound(minAlpha, 1.0f - distance / 1000.0f, maxAlpha);
+    } else {
+        gridAlpha = 0.185746f; // Значение на основе предоставленных данных
+    }
 
     // Обновление размеров сетки на основе размера объекта
     if (gridParametersChanged) {
-        // Вычисляем размер сетки на основе ограничивающего объема
-        float sizeX = gridSize; // Или использовать другие параметры
-        float sizeZ = gridSize;
-
-        // Настройка шага сетки
-        gridStep = gridSize / 20.0f; // Разделение на 20 шагов
-
+        if (hasLoadedObject) {
+            float sizeX = gridSize;
+            float sizeZ = gridSize;
+            gridStep = gridSize / 20.0f;
+        } else {
+            gridSize = 12.14f;
+            gridStep = 0.404667f;
+        }
         gridParametersChanged = false;
     }
 

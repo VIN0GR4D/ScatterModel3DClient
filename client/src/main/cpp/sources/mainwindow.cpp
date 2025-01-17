@@ -346,6 +346,7 @@ void MainWindow::setupParametersWidget() {
 
     pplaneCheckBox = new QCheckBox("Включить подстилающую поверхность", frequencyAndPlaneGroupBox);
     gridCheckBox = new QCheckBox("Показать сетку", frequencyAndPlaneGroupBox);
+    gridCheckBox->setChecked(true);
 
     frequencyAndPlaneLayout->addWidget(new QLabel("Диапазон частот:"));
     frequencyAndPlaneLayout->addWidget(freqBandComboBox);
