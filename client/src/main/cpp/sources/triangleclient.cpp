@@ -176,7 +176,7 @@ void TriangleClient::parseAndProcessMessage(const QString& message) {
         // Обработка типа "result" с содержимым-объектом
         if (type == "result" && obj["content"].isObject()) {
             QJsonObject content = obj["content"].toObject();
-            qDebug() << "Получены результаты от сервера:" << content;
+            // qDebug() << "Получены результаты от сервера:" << content;
             // Используем QMetaObject::invokeMethod для передачи данных в основной поток
             QMetaObject::invokeMethod(this, [this, content]() {
                     emit resultsReceived(content);

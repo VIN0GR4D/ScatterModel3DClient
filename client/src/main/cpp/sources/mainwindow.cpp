@@ -100,29 +100,6 @@ MainWindow::MainWindow(QWidget *parent)
     connect(saveAction, &QAction::triggered, this, &MainWindow::saveProject);
     connect(exitAction, &QAction::triggered, this, &MainWindow::close);
 
-    // Создание нового меню "Результаты"
-    QMenu *resultsMenu = new QMenu("Результаты", this);
-
-    // Пункт меню "Открыть числовые значения"
-    openResultsAction = new QAction("Открыть числовые значения", this);
-    openResultsAction->setEnabled(false);
-    resultsMenu->addAction(openResultsAction);
-    connect(openResultsAction, &QAction::triggered, this, &MainWindow::openResultsWindow);
-
-    // Пункт меню "Открыть график"
-    openGraphAction = new QAction("Открыть график", this);
-    openGraphAction->setEnabled(false);
-    resultsMenu->addAction(openGraphAction);
-    connect(openGraphAction, &QAction::triggered, this, &MainWindow::openGraphWindow);
-
-    // Пункт меню "Показать 2D портрет"
-    showPortraitAction = new QAction("Показать 2D портрет", this);
-    showPortraitAction->setEnabled(false);
-    resultsMenu->addAction(showPortraitAction);
-    connect(showPortraitAction, &QAction::triggered, this, &MainWindow::showPortrait);
-
-    menuBar->addMenu(resultsMenu);
-
     // Создание нового меню "Помощь"
     QMenu *helpMenu = new QMenu("Помощь", this);
     QAction *aboutAction = new QAction("О программе", this);
@@ -276,6 +253,36 @@ void MainWindow::createToolBar() {
     // Добавляем разделитель
     toolBar->addSeparator();
 
+    // Добавляем кнопку результатов
+    QToolButton* resultsButton = new QToolButton;
+    resultsButton->setIcon(QIcon(":/results.png"));
+    resultsButton->setText("Результаты");
+    resultsButton->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+    resultsButton->setPopupMode(QToolButton::InstantPopup);
+
+    QMenu* resultsMenu = new QMenu(resultsButton);
+
+    // Действия для разных типов результатов
+    openResultsAction = resultsMenu->addAction(QIcon(":/numerical.png"), "Числовые значения");
+    openGraphAction = resultsMenu->addAction(QIcon(":/graph1d.png"), "Одномерный график");
+    showPortraitAction = resultsMenu->addAction(QIcon(":/graph2d.png"), "Двумерный портрет");
+
+    // Изначально все действия неактивны
+    openResultsAction->setEnabled(false);
+    openGraphAction->setEnabled(false);
+    showPortraitAction->setEnabled(false);
+
+    resultsButton->setMenu(resultsMenu);
+    toolBar->addWidget(resultsButton);
+
+    // Подключаем сигналы для результатов
+    connect(openResultsAction, &QAction::triggered, this, &MainWindow::openResultsWindow);
+    connect(openGraphAction, &QAction::triggered, this, &MainWindow::openGraphWindow);
+    connect(showPortraitAction, &QAction::triggered, this, &MainWindow::showPortrait);
+
+    // Добавляем разделитель
+    toolBar->addSeparator();
+
     // Добавляем кнопку журнала
     QAction* logAction = new QAction("Журнал", this);
     logAction->setCheckable(false);
@@ -287,7 +294,7 @@ void MainWindow::createToolBar() {
         button->setMinimumWidth(80);
     }
 
-    // Подключаем обработчик переключения
+    // Подключаем обработчики
     connect(actionGroup, &QActionGroup::triggered, this, [this](QAction* action) {
         if (action->text() == "Параметры")
             stackedWidget->setCurrentWidget(parametersWidget);
