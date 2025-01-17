@@ -1,55 +1,34 @@
-QMainWindow {
-    background-color: #F8F8F8; /* Светло-серый фон */
-    color: #2E2E2E; /* Темно-серый текст */
-}
-
-QWidget {
-    background-color: #F8F8F8; /* Светло-серый фон */
-    color: #2E2E2E; /* Темно-серый текст */
+QMainWindow, QWidget {
+    background-color: #F8F8F8;
+    color: #2E2E2E;
 }
 
 QPushButton {
-    background-color: #E0E0E0; /* Светло-серый фон */
-    color: #2E2E2E; /* Темно-серый текст */
-    border: 1px solid #B0B0B0; /* Серо-зеленая граница */
+    background-color: #E0E0E0;
+    color: #2E2E2E;
+    border: 1px solid #B0B0B0;
     padding: 5px;
     border-radius: 3px;
 }
 
 QPushButton:hover {
-    background-color: #D0D0D0; /* Темно-серый при наведении */
+    background-color: #D0D0D0;
 }
 
-QLineEdit {
-    background-color: #FFFFFF; /* Белый фон для ввода */
-    color: #2E2E2E; /* Темно-серый текст */
-    border: 1px solid #B0B0B0; /* Серо-зеленая граница */
-    padding: 5px;
-    border-radius: 3px;
-}
-
-QComboBox {
-    background-color: #FFFFFF; /* Белый фон */
-    color: #2E2E2E; /* Темно-серый текст */
-    border: 1px solid #B0B0B0; /* Серо-зеленая граница */
-    padding: 5px;
-    border-radius: 3px;
-}
-
-QTextEdit {
-    background-color: #FFFFFF; /* Белый фон */
-    color: #2E2E2E; /* Темно-серый текст */
-    border: 1px solid #B0B0B0; /* Серо-зеленая граница */
+QLineEdit, QComboBox, QTextEdit {
+    background-color: #FFFFFF;
+    color: #2E2E2E;
+    border: 1px solid #B0B0B0;
     padding: 5px;
     border-radius: 3px;
 }
 
 QLabel {
-    color: #2E2E2E; /* Темно-серый текст */
+    color: #2E2E2E;
 }
 
 QGroupBox {
-    border: 1px solid #B0B0B0; /* Серо-зеленая граница */
+    border: 1px solid #B0B0B0;
     margin-top: 20px;
     border-radius: 5px;
 }
@@ -58,28 +37,27 @@ QGroupBox::title {
     subcontrol-origin: margin;
     subcontrol-position: top left;
     padding: 0 3px;
-    background-color: #F8F8F8; /* Светло-серый фон */
-    color: #2E2E2E; /* Темно-серый текст */
+    background-color: #F8F8F8;
+    color: #2E2E2E;
 }
 
-/* Стили для QMenuBar и QMenu */
 QMenuBar::item {
     background-color: #F8F8F8;
     color: #2E2E2E;
 }
 
 QMenuBar::item:selected {
-    background-color: #D0D0D0; /* Цвет фона при выделении */
-    color: #2E2E2E; /* Цвет текста при выделении */
+    background-color: #D0D0D0;
+    color: #2E2E2E;
 }
 
 QMenuBar::item:pressed {
-    background-color: #B0B0B0; /* Цвет фона при нажатии */
-    color: #2E2E2E; /* Цвет текста при нажатии */
+    background-color: #B0B0B0;
+    color: #2E2E2E;
 }
 
 QMenuBar::item:disabled {
-    color: #B0B0B0;  /* Цвет для отключенных пунктов меню */
+    color: #B0B0B0;
 }
 
 QMenu::item {
@@ -88,81 +66,68 @@ QMenu::item {
 }
 
 QMenu::item:selected {
-    background-color: #D0D0D0; /* Цвет фона при наведении */
-    color: #2E2E2E; /* Цвет текста при наведении */
+    background-color: #D0D0D0;
+    color: #2E2E2E;
 }
 
 QMenu::item:pressed {
-    background-color: #B0B0B0; /* Цвет фона при нажатии */
-    color: #2E2E2E; /* Цвет текста при нажатии */
+    background-color: #B0B0B0;
+    color: #2E2E2E;
 }
 
 QMenu::item:disabled {
-    color: #B0B0B0;  /* Цвет для отключенных пунктов меню */
+    color: #B0B0B0;
     background-color: #F8F8F8;
 }
 
-/* Стили для QScrollBar */
 QScrollBar:vertical {
-    border: 1px solid #B0B0B0; /* Серо-зеленая граница */
-    background: #E8E8E8; /* Очень светло-серый фон */
+    border: 1px solid #B0B0B0;
+    background: #E8E8E8;
     width: 15px;
     margin: 22px 0 22px 0;
 }
 
 QScrollBar::handle:vertical {
-    background: #D0D0D0; /* Темно-серый полоса прокрутки */
+    background: #D0D0D0;
     min-height: 20px;
     border-radius: 5px;
 }
 
-QScrollBar::add-line:vertical {
-    border: 1px solid #B0B0B0; /* Серо-зеленая граница */
-    background: #B0B0B0; /* Серо-зеленый */
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    border: 1px solid #B0B0B0;
+    background: #B0B0B0;
     height: 20px;
     subcontrol-position: bottom;
     subcontrol-origin: margin;
-    border-bottom-left-radius: 5px;
-    border-bottom-right-radius: 5px;
-}
-
-QScrollBar::sub-line:vertical {
-    border: 1px solid #B0B0B0; /* Серо-зеленая граница */
-    background: #B0B0B0; /* Серо-зеленый */
-    height: 20px;
-    subcontrol-position: top;
-    subcontrol-origin: margin;
-    border-top-left-radius: 5px;
-    border-top-right-radius: 5px;
+    border-radius: 5px;
 }
 
 QScrollBar::up-arrow:vertical, QScrollBar::down-arrow:vertical {
-    border: 1px solid #B0B0B0; /* Серо-зеленая граница */
+    border: 1px solid #B0B0B0;
     width: 3px;
     height: 3px;
-    background: white;
+    background: #FFFFFF;
 }
 
 QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
     background: none;
 }
 
-/* Стили для QTabBar */
 QTabBar::tab {
-    background: #E0E0E0; /* Светло-серый фон */
-    color: #2E2E2E; /* Темно-серый текст */
+    background: #E0E0E0;
+    color: #2E2E2E;
     padding: 10px;
-    border: 1px solid #B0B0B0; /* Серо-зеленая граница */
-    border-bottom: none; /* Убираем нижнюю границу для активной вкладки */
+    border: 1px solid #B0B0B0;
+    border-bottom: none;
     border-top-left-radius: 5px;
     border-top-right-radius: 5px;
 }
 
 QTabBar::tab:selected {
-    background: #D0D0D0; /* Более темный серый для выбранной вкладки */
+    background: #D0D0D0;
     border-color: #D0D0D0;
 }
 
 QTabBar::tab:!selected {
-    margin-top: 3px; /* Добавляем небольшой отступ для невыбранных вкладок */
+    margin-top: 3px;
 }

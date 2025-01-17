@@ -1,9 +1,4 @@
-QMainWindow {
-    background-color: #2D2D30;
-    color: #CCCCCC;
-}
-
-QWidget {
+QMainWindow, QWidget {
     background-color: #2D2D30;
     color: #CCCCCC;
 }
@@ -13,31 +8,19 @@ QPushButton {
     color: #CCCCCC;
     border: 1px solid #565656;
     padding: 5px;
+    border-radius: 3px;
 }
 
 QPushButton:hover {
     background-color: #5A5A5F;
 }
 
-QLineEdit {
+QLineEdit, QComboBox, QTextEdit {
     background-color: #3E3E42;
     color: #CCCCCC;
     border: 1px solid #565656;
     padding: 5px;
-}
-
-QComboBox {
-    background-color: #3E3E42;
-    color: #CCCCCC;
-    border: 1px solid #565656;
-    padding: 5px;
-}
-
-QTextEdit {
-    background-color: #3E3E42;
-    color: #CCCCCC;
-    border: 1px solid #565656;
-    padding: 5px;
+    border-radius: 3px;
 }
 
 QLabel {
@@ -47,6 +30,7 @@ QLabel {
 QGroupBox {
     border: 1px solid #565656;
     margin-top: 20px;
+    border-radius: 5px;
 }
 
 QGroupBox::title {
@@ -57,24 +41,23 @@ QGroupBox::title {
     color: #CCCCCC;
 }
 
-/* Стили для QMenuBar и QMenu */
 QMenuBar::item {
     background-color: #2D2D30;
     color: #CCCCCC;
 }
 
 QMenuBar::item:selected {
-    background-color: #444444; /* Цвет фона при выделении */
-    color: #CCCCCC; /* Цвет текста при выделении */
+    background-color: #444444;
+    color: #CCCCCC;
 }
 
 QMenuBar::item:pressed {
-    background-color: #565656; /* Цвет фона при нажатии */
-    color: #CCCCCC; /* Цвет текста при нажатии */
+    background-color: #565656;
+    color: #CCCCCC;
 }
 
 QMenuBar::item:disabled {
-    color: #777777;  /* Цвет для отключенных пунктов меню */
+    color: #777777;
 }
 
 QMenu::item {
@@ -83,16 +66,68 @@ QMenu::item {
 }
 
 QMenu::item:selected {
-    background-color: #444444; /* Цвет фона при наведении */
-    color: #CCCCCC; /* Цвет текста при наведении */
+    background-color: #444444;
+    color: #CCCCCC;
 }
 
 QMenu::item:pressed {
-    background-color: #565656; /* Цвет фона при нажатии */
-    color: #CCCCCC; /* Цвет текста при нажатии */
+    background-color: #565656;
+    color: #CCCCCC;
 }
 
 QMenu::item:disabled {
-    color: #777777;  /* Цвет для отключенных пунктов меню */
+    color: #777777;
     background-color: #2D2D30;
+}
+
+QScrollBar:vertical {
+    border: 1px solid #565656;
+    background: #3E3E42;
+    width: 15px;
+    margin: 22px 0 22px 0;
+}
+
+QScrollBar::handle:vertical {
+    background: #565656;
+    min-height: 20px;
+    border-radius: 5px;
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    border: 1px solid #565656;
+    background: #565656;
+    height: 20px;
+    subcontrol-position: bottom;
+    subcontrol-origin: margin;
+    border-radius: 5px;
+}
+
+QScrollBar::up-arrow:vertical, QScrollBar::down-arrow:vertical {
+    border: 1px solid #565656;
+    width: 3px;
+    height: 3px;
+    background: #CCCCCC;
+}
+
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+    background: none;
+}
+
+QTabBar::tab {
+    background: #3E3E42;
+    color: #CCCCCC;
+    padding: 10px;
+    border: 1px solid #565656;
+    border-bottom: none;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+}
+
+QTabBar::tab:selected {
+    background: #565656;
+    border-color: #565656;
+}
+
+QTabBar::tab:!selected {
+    margin-top: 3px;
 }
