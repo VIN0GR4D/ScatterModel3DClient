@@ -468,8 +468,14 @@ void MainWindow::setupFilteringWidget() {
     // Подключение сигналов
     connect(toggleShellButton, &QPushButton::clicked, this, &MainWindow::toggleShadowTriangles);
     connect(showAllTrianglesButton, &QPushButton::clicked, this, [this]() {
+        if (openGLWidget->getTriangles().isEmpty()) {
+            logMessage("Ошибка: не загружен 3D объект.");
+            showNotification("Нет загруженного объекта", Notification::Warning);
+            return;
+        }
         openGLWidget->setShadowTrianglesFiltering(false);
         logMessage("Отображены все треугольники.");
+        showNotification("Все треугольники отображены", Notification::Success);
         setModified(true);
     });
     connect(optimizeButton, &QPushButton::clicked, this, &MainWindow::performFiltering);
@@ -1542,6 +1548,7 @@ void MainWindow::toggleShadowTriangles() {
     QVector<QSharedPointer<triangle>> currentTriangles = openGLWidget->getTriangles();
     if (currentTriangles.isEmpty()) {
         logMessage("Ошибка: не загружен 3D объект для обработки.");
+        showNotification("Нет загруженного объекта", Notification::Warning);
         return;
     }
 
@@ -1556,5 +1563,6 @@ void MainWindow::toggleShadowTriangles() {
     openGLWidget->setShadowTrianglesFiltering(true);
 
     logMessage("Обработка теневых треугольников завершена.");
+    showNotification("Обработка теневых треугольников завершена", Notification::Success);
     setModified(true);
 }
