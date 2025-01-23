@@ -59,41 +59,23 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
 DISTFILES += \
-    Car.obj \
-    Cube.obj \
-    CubeNew.obj \
-    Cylindr.obj \
-    HollowCylinder.obj \
-    Sph.obj \
     apply.png \
-    bmw.obj \
     calculator.png \
-    cat.obj \
-    chair.obj \
     connect.png \
     dark-theme.png \
     darktheme.qss \
-    disc.obj \
     disconnect.png \
     download.png \
     error.png \
-    footballPlayer.obj \
-    heart.obj \
-    helicopter.obj \
     icon.png \
     information.png \
     light-theme.png \
     lighttheme.qss \
     load.png \
     login-icon.png \
-    m4a1.obj \
-    plane.obj \
     reset.png \
-    simple_triangle.obj \
     styles.css \
     success.png \
-    t34.obj \
-    test.obj \
     warning.png
 
 RESOURCES += \
