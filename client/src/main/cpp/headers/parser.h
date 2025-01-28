@@ -27,6 +27,7 @@ public:
 signals:
     void errorOccurred(const QString &error);
     void fileParsed(const QVector<QVector3D> &vertices, const QVector<QVector<int>> &triangles, const QVector<QSharedPointer<triangle>> &trianglesObjects);
+    void modelInfoUpdated(int nodesCount, int trianglesCount, const QString &fileName); // Информация о количестве вершин, треугольников и названию файла объекта
 
 private:
     struct TriangleIndices {

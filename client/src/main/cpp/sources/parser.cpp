@@ -39,6 +39,10 @@ void Parser::readFromObjFile(const QString& filename) {
     qDebug() << "Total triangles read:" << triangles.count();
     qDebug() << "File reading completed: " << filename;
 
+    // Отправляем сигнал с информацией о модели
+    QFile fileInfo(filename);
+    emit modelInfoUpdated(nodes.count(), triangles.count(), fileInfo.fileName());
+
     // Подготовка данных для дальнейшего использования
     QVector<QVector3D> vertices;
     for (const auto& node : nodes) {

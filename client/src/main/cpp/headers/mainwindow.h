@@ -155,8 +155,13 @@ private:
     QWidget *parametersWidget;    // Для параметров
     QWidget *filteringWidget;     // Для фильтрации
     QWidget *serverWidget;        // Для сервера
-    QLabel* shellCountDisplay;  // Отображение количества оболочек
-    QLabel* visibleCountDisplay;  // Отображение количества видимых объектов
+    QLabel* totalTrianglesLabel; // Общее количество треугольников
+    QLabel* totalNodesLabel; // Общее количество вершин
+    QLabel* modelFileNameLabel; // Название файла объекта
+    QLabel* shellCountDisplay;  // Отображение количества треугольников в оболоче объекта
+    QLabel* visibleCountDisplay;  // Отображение количества видимых треугольников объекта
+    QLabel* removedShellDisplay;   // Отображение количества удаленных треугольников при оптимизации
+    QLabel* removedShadowDisplay;  // Отображение количества скрытых теневых треугольников
 
     void createToolBar();
     void setupParametersWidget();

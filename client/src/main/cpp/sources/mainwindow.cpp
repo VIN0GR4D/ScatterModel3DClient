@@ -162,6 +162,14 @@ MainWindow::MainWindow(QWidget *parent)
         openGLWidget->setGeometry(v, t, tri);
     });
 
+    // Подключаем сигнал обновления информации о модели
+    connect(parser, &Parser::modelInfoUpdated, this,
+            [this](int nodesCount, int trianglesCount, const QString &fileName) {
+                modelFileNameLabel->setText(QString("Файл: %1").arg(fileName));
+                totalNodesLabel->setText(QString("Количество вершин: %1").arg(nodesCount));
+                totalTrianglesLabel->setText(QString("Количество треугольников: %1").arg(trianglesCount));
+            });
+
     // Создаем стек виджетов
     stackedWidget = new QStackedWidget(this);
 
@@ -425,6 +433,22 @@ void MainWindow::setupFilteringWidget() {
     layout->setSpacing(10);
     layout->setContentsMargins(10, 10, 10, 10);
 
+    // Группа для информации о модели
+    QGroupBox* modelInfoGroup = new QGroupBox("Информация о модели", filteringWidget);
+    QVBoxLayout* modelInfoLayout = new QVBoxLayout(modelInfoGroup);
+
+    // Создаем метки для отображения информации
+    modelFileNameLabel = new QLabel("Файл: не загружен", modelInfoGroup);
+    totalNodesLabel = new QLabel("Количество вершин: 0", modelInfoGroup);
+    totalTrianglesLabel = new QLabel("Количество треугольников: 0", modelInfoGroup);
+
+    // Добавляем метки в layout
+    modelInfoLayout->addWidget(modelFileNameLabel);
+    modelInfoLayout->addWidget(totalNodesLabel);
+    modelInfoLayout->addWidget(totalTrianglesLabel);
+
+    layout->addWidget(modelInfoGroup);
+
     // Группа для управления оболочкой объекта
     QGroupBox* shellGroupBox = new QGroupBox("Управление оболочкой объекта", filteringWidget);
     QVBoxLayout* shellLayout = new QVBoxLayout(shellGroupBox);
@@ -442,23 +466,34 @@ void MainWindow::setupFilteringWidget() {
     // Статистика
     QLabel* shellCountLabel = new QLabel("Оболочка:", analysisGroupBox);
     QLabel* visibleCountLabel = new QLabel("Не в тени:", analysisGroupBox);
+    QLabel* removedShellLabel = new QLabel("Удалено (оптимизация):", analysisGroupBox);
+    QLabel* removedShadowLabel = new QLabel("Скрыто (тени):", analysisGroupBox);
 
     shellCountDisplay = new QLabel("0", analysisGroupBox);
     visibleCountDisplay = new QLabel("0", analysisGroupBox);
+    removedShellDisplay = new QLabel("0", analysisGroupBox);
+    removedShadowDisplay = new QLabel("0", analysisGroupBox);
 
     // Стилизация меток статистики
-    shellCountDisplay->setStyleSheet("font-weight: bold;");
-    visibleCountDisplay->setStyleSheet("font-weight: bold;");
+    QString statsStyle = "font-weight: bold;";
+    shellCountDisplay->setStyleSheet(statsStyle);
+    visibleCountDisplay->setStyleSheet(statsStyle);
+    removedShellDisplay->setStyleSheet(statsStyle);
+    removedShadowDisplay->setStyleSheet(statsStyle);
 
     analysisLayout->addWidget(shellCountLabel, 0, 0);
     analysisLayout->addWidget(shellCountDisplay, 0, 1);
     analysisLayout->addWidget(visibleCountLabel, 1, 0);
     analysisLayout->addWidget(visibleCountDisplay, 1, 1);
+    analysisLayout->addWidget(removedShellLabel, 2, 0);
+    analysisLayout->addWidget(removedShellDisplay, 2, 1);
+    analysisLayout->addWidget(removedShadowLabel, 3, 0);
+    analysisLayout->addWidget(removedShadowDisplay, 3, 1);
 
     // Кнопка оптимизации
     QPushButton* optimizeButton = new QPushButton("Оптимизировать структуру объекта", analysisGroupBox);
     optimizeButton->setToolTip("Анализ и удаление внутренних треугольников для оптимизации расчётов");
-    analysisLayout->addWidget(optimizeButton, 2, 0, 1, 2);
+    analysisLayout->addWidget(optimizeButton, 4, 0, 1, 2);
 
     // Добавляем группы в основной layout
     layout->addWidget(shellGroupBox);
@@ -468,12 +503,27 @@ void MainWindow::setupFilteringWidget() {
     // Подключение сигналов
     connect(toggleShellButton, &QPushButton::clicked, this, &MainWindow::toggleShadowTriangles);
     connect(showAllTrianglesButton, &QPushButton::clicked, this, [this]() {
-        if (openGLWidget->getTriangles().isEmpty()) {
+        QVector<QSharedPointer<triangle>> triangles = openGLWidget->getTriangles();
+        if (triangles.isEmpty()) {
             logMessage("Ошибка: не загружен 3D объект.");
             showNotification("Нет загруженного объекта", Notification::Warning);
             return;
         }
+
+        // Отключаем фильтрацию теневых треугольников
         openGLWidget->setShadowTrianglesFiltering(false);
+
+        // Обновляем статистику
+        int totalTriangles = triangles.size();
+        MeshFilter::FilterStats stats;
+        stats.totalTriangles = totalTriangles;
+        stats.shellTriangles = totalTriangles;  // Все треугольники видны
+        stats.visibleTriangles = totalTriangles;  // Все треугольники видны
+        stats.removedByShell = 0;  // Ничего не удалено
+        stats.removedByShadow = 0;  // Ничего не скрыто
+
+        updateFilterStats(stats);
+
         logMessage("Отображены все треугольники.");
         showNotification("Все треугольники отображены", Notification::Success);
         setModified(true);
@@ -1523,6 +1573,8 @@ void MainWindow::performFiltering() {
 void MainWindow::updateFilterStats(const MeshFilter::FilterStats& stats) {
     shellCountDisplay->setText(QString::number(stats.shellTriangles));
     visibleCountDisplay->setText(QString::number(stats.visibleTriangles));
+    removedShellDisplay->setText(QString::number(stats.removedByShell));
+    removedShadowDisplay->setText(QString::number(stats.removedByShadow));
 }
 
 void MainWindow::closeModel() {
@@ -1531,7 +1583,7 @@ void MainWindow::closeModel() {
         parser->clearData();         // Очищаем данные парсера
 
         // Сброс статистики фильтрации при закрытии модели
-        MeshFilter::FilterStats emptyStats = {0, 0, 0};
+        MeshFilter::FilterStats emptyStats = {0, 0, 0, 0, 0};
         updateFilterStats(emptyStats);
 
         logMessage("3D модель закрыта");
@@ -1552,6 +1604,8 @@ void MainWindow::toggleShadowTriangles() {
         return;
     }
 
+    int originalCount = currentTriangles.size();
+
     // Получаем позицию камеры
     QVector3D cameraPositionQVector = openGLWidget->getCameraPosition();
     rVect observerPosition = openGLWidget->QVector3DToRVect(cameraPositionQVector);
@@ -1562,7 +1616,25 @@ void MainWindow::toggleShadowTriangles() {
     // Включаем фильтрацию теневых треугольников
     openGLWidget->setShadowTrianglesFiltering(true);
 
-    logMessage("Обработка теневых треугольников завершена.");
+    // Подсчитываем количество скрытых треугольников
+    int visibleCount = 0;
+    for (const auto& tri : currentTriangles) {
+        if (tri->getVisible()) {
+            visibleCount++;
+        }
+    }
+
+    // Обновляем статистику
+    MeshFilter::FilterStats stats = {
+        originalCount,           // totalTriangles
+        shellCountDisplay->text().toInt(), // сохраняем текущее значение shellTriangles
+        visibleCount,           // visibleTriangles
+        shellCountDisplay->text().toInt() > 0 ? originalCount - shellCountDisplay->text().toInt() : 0, // removedByShell
+        originalCount - visibleCount  // removedByShadow
+    };
+    updateFilterStats(stats);
+
+    logMessage(QString("Обработка теневых треугольников завершена. Скрыто: %1 треугольников").arg(originalCount - visibleCount));
     showNotification("Обработка теневых треугольников завершена", Notification::Success);
     setModified(true);
 }
