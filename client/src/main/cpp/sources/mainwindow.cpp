@@ -165,9 +165,10 @@ MainWindow::MainWindow(QWidget *parent)
     // Подключаем сигнал обновления информации о модели
     connect(parser, &Parser::modelInfoUpdated, this,
             [this](int nodesCount, int trianglesCount, const QString &fileName) {
-                modelFileNameLabel->setText(QString("Файл: %1").arg(fileName));
-                totalNodesLabel->setText(QString("Количество вершин: %1").arg(nodesCount));
-                totalTrianglesLabel->setText(QString("Количество треугольников: %1").arg(trianglesCount));
+                QFileInfo fileInfo(fileName);
+                modelFileNameLabel->setText(fileInfo.fileName());
+                totalNodesLabel->setText(QString("%1").arg(nodesCount));
+                totalTrianglesLabel->setText(QString("%1").arg(trianglesCount));
             });
 
     // Создаем стек виджетов
@@ -433,70 +434,82 @@ void MainWindow::setupFilteringWidget() {
     layout->setSpacing(10);
     layout->setContentsMargins(10, 10, 10, 10);
 
+    QString statsStyle = "font-weight: bold;";
+
     // Группа для информации о модели
     QGroupBox* modelInfoGroup = new QGroupBox("Информация о модели", filteringWidget);
-    QVBoxLayout* modelInfoLayout = new QVBoxLayout(modelInfoGroup);
+    QGridLayout* modelInfoLayout = new QGridLayout(modelInfoGroup);
 
     // Создаем метки для отображения информации
-    modelFileNameLabel = new QLabel("Файл: не загружен", modelInfoGroup);
-    totalNodesLabel = new QLabel("Количество вершин: 0", modelInfoGroup);
-    totalTrianglesLabel = new QLabel("Количество треугольников: 0", modelInfoGroup);
+    QLabel* fileLabel = new QLabel("Файл:", modelInfoGroup);
+    QLabel* verticesLabel = new QLabel("Количество вершин:", modelInfoGroup);
+    QLabel* trianglesLabel = new QLabel("Количество треугольников:", modelInfoGroup);
 
-    // Добавляем метки в layout
-    modelInfoLayout->addWidget(modelFileNameLabel);
-    modelInfoLayout->addWidget(totalNodesLabel);
-    modelInfoLayout->addWidget(totalTrianglesLabel);
+    modelFileNameLabel = new QLabel("не загружен", modelInfoGroup);
+    totalNodesLabel = new QLabel("0", modelInfoGroup);
+    totalTrianglesLabel = new QLabel("0", modelInfoGroup);
+
+    modelFileNameLabel->setStyleSheet(statsStyle);
+    totalNodesLabel->setStyleSheet(statsStyle);
+    totalTrianglesLabel->setStyleSheet(statsStyle);
+
+    modelInfoLayout->addWidget(fileLabel, 0, 0);
+    modelInfoLayout->addWidget(modelFileNameLabel, 0, 1);
+    modelInfoLayout->addWidget(verticesLabel, 1, 0);
+    modelInfoLayout->addWidget(totalNodesLabel, 1, 1);
+    modelInfoLayout->addWidget(trianglesLabel, 2, 0);
+    modelInfoLayout->addWidget(totalTrianglesLabel, 2, 1);
+
+    QPushButton* showAllTrianglesButton = new QPushButton("Вернуть исходное состояние объекта", modelInfoGroup);
+    modelInfoLayout->addWidget(showAllTrianglesButton, 3, 0, 1, 2);
 
     layout->addWidget(modelInfoGroup);
 
-    // Группа для управления оболочкой объекта
-    QGroupBox* shellGroupBox = new QGroupBox("Управление оболочкой объекта", filteringWidget);
-    QVBoxLayout* shellLayout = new QVBoxLayout(shellGroupBox);
+    // Группа для управления видимостью объекта
+    QGroupBox* visibilityGroupBox = new QGroupBox("Управление видимостью объекта", filteringWidget);
+    QGridLayout* visibilityLayout = new QGridLayout(visibilityGroupBox);
 
-    QPushButton* toggleShellButton = new QPushButton("Переключить видимость оболочки", shellGroupBox);
-    QPushButton* showAllTrianglesButton = new QPushButton("Показать все треугольники", shellGroupBox);
+    QLabel* visibleCountLabel = new QLabel("Не в тени:", visibilityGroupBox);
+    QLabel* removedShadowLabel = new QLabel("Скрыто (тени):", visibilityGroupBox);
 
-    shellLayout->addWidget(toggleShellButton);
-    shellLayout->addWidget(showAllTrianglesButton);
+    visibleCountDisplay = new QLabel("0", visibilityGroupBox);
+    removedShadowDisplay = new QLabel("0", visibilityGroupBox);
+
+    visibleCountDisplay->setStyleSheet(statsStyle);
+    removedShadowDisplay->setStyleSheet(statsStyle);
+
+    visibilityLayout->addWidget(visibleCountLabel, 0, 0);
+    visibilityLayout->addWidget(visibleCountDisplay, 0, 1);
+    visibilityLayout->addWidget(removedShadowLabel, 1, 0);
+    visibilityLayout->addWidget(removedShadowDisplay, 1, 1);
+
+    QPushButton* toggleShellButton = new QPushButton("Скрыть теневые треугольники", visibilityGroupBox);
+    visibilityLayout->addWidget(toggleShellButton, 2, 0, 1, 2);
+
+    layout->addWidget(visibilityGroupBox);
 
     // Группа для анализа и оптимизации
     QGroupBox* analysisGroupBox = new QGroupBox("Анализ и оптимизация", filteringWidget);
     QGridLayout* analysisLayout = new QGridLayout(analysisGroupBox);
 
-    // Статистика
     QLabel* shellCountLabel = new QLabel("Оболочка:", analysisGroupBox);
-    QLabel* visibleCountLabel = new QLabel("Не в тени:", analysisGroupBox);
     QLabel* removedShellLabel = new QLabel("Удалено (оптимизация):", analysisGroupBox);
-    QLabel* removedShadowLabel = new QLabel("Скрыто (тени):", analysisGroupBox);
 
     shellCountDisplay = new QLabel("0", analysisGroupBox);
-    visibleCountDisplay = new QLabel("0", analysisGroupBox);
     removedShellDisplay = new QLabel("0", analysisGroupBox);
-    removedShadowDisplay = new QLabel("0", analysisGroupBox);
 
-    // Стилизация меток статистики
-    QString statsStyle = "font-weight: bold;";
     shellCountDisplay->setStyleSheet(statsStyle);
-    visibleCountDisplay->setStyleSheet(statsStyle);
     removedShellDisplay->setStyleSheet(statsStyle);
-    removedShadowDisplay->setStyleSheet(statsStyle);
 
     analysisLayout->addWidget(shellCountLabel, 0, 0);
     analysisLayout->addWidget(shellCountDisplay, 0, 1);
-    analysisLayout->addWidget(visibleCountLabel, 1, 0);
-    analysisLayout->addWidget(visibleCountDisplay, 1, 1);
-    analysisLayout->addWidget(removedShellLabel, 2, 0);
-    analysisLayout->addWidget(removedShellDisplay, 2, 1);
-    analysisLayout->addWidget(removedShadowLabel, 3, 0);
-    analysisLayout->addWidget(removedShadowDisplay, 3, 1);
+    analysisLayout->addWidget(removedShellLabel, 1, 0);
+    analysisLayout->addWidget(removedShellDisplay, 1, 1);
 
-    // Кнопка оптимизации
     QPushButton* optimizeButton = new QPushButton("Оптимизировать структуру объекта", analysisGroupBox);
     optimizeButton->setToolTip("Анализ и удаление внутренних треугольников для оптимизации расчётов");
-    analysisLayout->addWidget(optimizeButton, 4, 0, 1, 2);
+    analysisLayout->addWidget(optimizeButton, 2, 0, 1, 2);
 
-    // Добавляем группы в основной layout
-    layout->addWidget(shellGroupBox);
     layout->addWidget(analysisGroupBox);
     layout->addStretch();
 
@@ -510,17 +523,15 @@ void MainWindow::setupFilteringWidget() {
             return;
         }
 
-        // Отключаем фильтрацию теневых треугольников
         openGLWidget->setShadowTrianglesFiltering(false);
 
-        // Обновляем статистику
         int totalTriangles = triangles.size();
         MeshFilter::FilterStats stats;
         stats.totalTriangles = totalTriangles;
-        stats.shellTriangles = totalTriangles;  // Все треугольники видны
-        stats.visibleTriangles = totalTriangles;  // Все треугольники видны
-        stats.removedByShell = 0;  // Ничего не удалено
-        stats.removedByShadow = 0;  // Ничего не скрыто
+        stats.shellTriangles = totalTriangles;
+        stats.visibleTriangles = totalTriangles;
+        stats.removedByShell = 0;
+        stats.removedByShadow = 0;
 
         updateFilterStats(stats);
 
