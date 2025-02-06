@@ -46,6 +46,7 @@ private:
     rVect calculateCentroid(const QSharedPointer<triangle>& tri);
     double calculateDistance(const rVect& point, const Plane& plane);
     bool isTriangleVisible(const TriangleInfo& triInfo);
+    double calculateObjectSize(const QVector<TriangleInfo>& triangleInfos);
 };
 
 #endif // MESHFILTER_H

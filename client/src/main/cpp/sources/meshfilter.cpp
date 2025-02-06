@@ -33,9 +33,13 @@ MeshFilter::FilterStats MeshFilter::filterMesh(QVector<QSharedPointer<triangle>>
         return stats;
     }
 
-    // Создаем массив информации о треугольниках
+    // Предварительное выделение памяти для векторов
     QVector<TriangleInfo> triangleInfos;
     triangleInfos.reserve(triangles.size());
+    QVector<QSharedPointer<triangle>> shellTriangles;
+    shellTriangles.reserve(triangles.size());
+
+    // Создаем массив информации о треугольниках
     for (const auto& tri : triangles) {
         triangleInfos.append(TriangleInfo(tri));
     }
@@ -64,38 +68,42 @@ MeshFilter::FilterStats MeshFilter::filterMesh(QVector<QSharedPointer<triangle>>
         Plane(rVect(0, 0, 1), (minZ + maxZ) / 2)  // XY плоскость
     };
 
-    // Выполняем фильтрацию
+    // Выполняем фильтрацию с оптимизированным сохранением результатов
     for (auto& triInfo : triangleInfos) {
         triInfo.isShell = isTriangleOnShell(triInfo, triangleInfos);
         if (triInfo.isShell) {
             stats.shellTriangles++;
+            shellTriangles.append(triInfo.tri);
         }
         if (triInfo.tri->getVisible()) {
             stats.visibleTriangles++;
         }
     }
 
-    // Обновляем состояние треугольников
-    int originalCount = triangles.size();
-    triangles.clear();
-    for (const auto& triInfo : triangleInfos) {
-        if (triInfo.isShell) {
-            triangles.append(triInfo.tri);
-        }
-    }
-    stats.removedByShell = originalCount - triangles.size();
+    // Эффективная замена вектора треугольников
+    stats.removedByShell = triangles.size() - shellTriangles.size();
+    triangles = std::move(shellTriangles);
 
     qDebug() << "Filtering completed:";
     qDebug() << "Total triangles:" << stats.totalTriangles;
     qDebug() << "Shell triangles:" << stats.shellTriangles;
     qDebug() << "Visible triangles:" << stats.visibleTriangles;
+    qDebug() << "Removed triangles:" << stats.removedByShell;
 
     return stats;
 }
 
 bool MeshFilter::isTriangleOnShell(const TriangleInfo& triInfo, const QVector<TriangleInfo>& allTriangles) {
     const double EPSILON = 1e-6;
-    const double MAX_DISTANCE = 0.1; // Максимальное расстояние для определения близости треугольников
+    static double cachedObjectSize = 0.0;
+    static double cachedMaxDistance = 0.0;
+    cachedObjectSize = 0.0; // Сброс кэша для нового расчета
+
+    // Вычисляем MAX_DISTANCE только один раз для всего набора треугольников
+    if (cachedObjectSize == 0.0) {
+        cachedObjectSize = calculateObjectSize(allTriangles);
+        cachedMaxDistance = cachedObjectSize * 0.01; // 1% от размера объекта
+    }
 
     int adjacentCount = 0;
     rVect triNormal = triInfo.normal;
@@ -108,12 +116,14 @@ bool MeshFilter::isTriangleOnShell(const TriangleInfo& triInfo, const QVector<Tr
         double distance = centroidVector.length();
 
         // Проверяем близость треугольников
-        if (distance < MAX_DISTANCE) {
+        if (distance < cachedMaxDistance) {
             // Проверяем угол между нормалями
             double dotProduct = triNormal * otherTriInfo.normal;
+            // Проверяем параллельность и противоположную направленность
             if (std::abs(dotProduct + 1.0) < EPSILON) {
-                // Треугольники почти параллельны и противоположно направлены
                 adjacentCount++;
+                // Оптимизация: если уже нашли достаточно соседей, можно выходить
+                if (adjacentCount > 2) return false;
             }
         }
     }
@@ -124,6 +134,31 @@ bool MeshFilter::isTriangleOnShell(const TriangleInfo& triInfo, const QVector<Tr
 
 double MeshFilter::calculateDistance(const rVect& point, const Plane& plane) {
     return point * plane.normal - plane.distance;
+}
+
+double MeshFilter::calculateObjectSize(const QVector<TriangleInfo>& triangleInfos) {
+    if (triangleInfos.isEmpty()) return 0.0;
+
+    // Используем уже существующий код определения границ
+    double minX = triangleInfos[0].centroid.getX();
+    double maxX = minX;
+    double minY = triangleInfos[0].centroid.getY();
+    double maxY = minY;
+    double minZ = triangleInfos[0].centroid.getZ();
+    double maxZ = minZ;
+
+    for (const auto& triInfo : triangleInfos) {
+        minX = qMin(minX, triInfo.centroid.getX());
+        maxX = qMax(maxX, triInfo.centroid.getX());
+        minY = qMin(minY, triInfo.centroid.getY());
+        maxY = qMax(maxY, triInfo.centroid.getY());
+        minZ = qMin(minZ, triInfo.centroid.getZ());
+        maxZ = qMax(maxZ, triInfo.centroid.getZ());
+    }
+
+    return std::sqrt(std::pow(maxX - minX, 2) +
+                     std::pow(maxY - minY, 2) +
+                     std::pow(maxZ - minZ, 2));
 }
 
 bool MeshFilter::isIntersectingPlane(const TriangleInfo& triInfo, const Plane& plane) {
