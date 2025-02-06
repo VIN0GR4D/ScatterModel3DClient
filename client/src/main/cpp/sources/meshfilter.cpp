@@ -1,113 +1,139 @@
 #include "meshfilter.h"
-#include <algorithm>
-#include <random>
-
-const float MeshFilter::EPSILON = 0.0001f;
+#include <QDebug>
 
 MeshFilter::MeshFilter() {}
 
+MeshFilter::~MeshFilter() {}
+
+// Конструктор для TriangleInfo
+MeshFilter::TriangleInfo::TriangleInfo(const QSharedPointer<triangle>& t) : tri(t), isShell(false) {
+    // Вычисляем центроид треугольника
+    const rVect& v1 = *t->getV1();
+    const rVect& v2 = *t->getV2();
+    const rVect& v3 = *t->getV3();
+
+    centroid = rVect(
+        (v1.getX() + v2.getX() + v3.getX()) / 3.0,
+        (v1.getY() + v2.getY() + v3.getY()) / 3.0,
+        (v1.getZ() + v2.getZ() + v3.getZ()) / 3.0
+        );
+
+    // Вычисляем нормаль треугольника
+    rVect edge1 = *t->getV2() - *t->getV1();
+    rVect edge2 = *t->getV3() - *t->getV1();
+    normal = edge1 ^ edge2;
+    normal.normalize();
+}
+
 MeshFilter::FilterStats MeshFilter::filterMesh(QVector<QSharedPointer<triangle>>& triangles) {
-    FilterStats stats;
+    FilterStats stats = {0, 0, 0, 0, 0};
     stats.totalTriangles = triangles.size();
 
-    // Временный вектор для хранения треугольников оболочки
-    QVector<QSharedPointer<triangle>> shellTriangles;
+    if (triangles.isEmpty()) {
+        return stats;
+    }
 
-    // Фильтрация внутренних треугольников
+    // Создаем массив информации о треугольниках
+    QVector<TriangleInfo> triangleInfos;
+    triangleInfos.reserve(triangles.size());
     for (const auto& tri : triangles) {
-        if (!isInternalTriangle(tri, triangles)) {
-            shellTriangles.push_back(tri);
+        triangleInfos.append(TriangleInfo(tri));
+    }
+
+    // Определяем границы объекта
+    double minX = triangleInfos[0].centroid.getX();
+    double maxX = minX;
+    double minY = triangleInfos[0].centroid.getY();
+    double maxY = minY;
+    double minZ = triangleInfos[0].centroid.getZ();
+    double maxZ = minZ;
+
+    for (const auto& triInfo : triangleInfos) {
+        minX = qMin(minX, triInfo.centroid.getX());
+        maxX = qMax(maxX, triInfo.centroid.getX());
+        minY = qMin(minY, triInfo.centroid.getY());
+        maxY = qMax(maxY, triInfo.centroid.getY());
+        minZ = qMin(minZ, triInfo.centroid.getZ());
+        maxZ = qMax(maxZ, triInfo.centroid.getZ());
+    }
+
+    // Создаем основные плоскости сечения
+    QVector<Plane> planes = {
+        Plane(rVect(1, 0, 0), (minX + maxX) / 2), // YZ плоскость
+        Plane(rVect(0, 1, 0), (minY + maxY) / 2), // XZ плоскость
+        Plane(rVect(0, 0, 1), (minZ + maxZ) / 2)  // XY плоскость
+    };
+
+    // Выполняем фильтрацию
+    for (auto& triInfo : triangleInfos) {
+        triInfo.isShell = isTriangleOnShell(triInfo, triangleInfos);
+        if (triInfo.isShell) {
+            stats.shellTriangles++;
+        }
+        if (triInfo.tri->getVisible()) {
+            stats.visibleTriangles++;
         }
     }
 
-    // Обновление статистики
-    stats.shellTriangles = shellTriangles.size();
-    stats.visibleTriangles = std::count_if(shellTriangles.begin(), shellTriangles.end(),
-                                           [](const QSharedPointer<triangle>& tri) { return tri->getVisible(); });
+    // Обновляем состояние треугольников
+    int originalCount = triangles.size();
+    triangles.clear();
+    for (const auto& triInfo : triangleInfos) {
+        if (triInfo.isShell) {
+            triangles.append(triInfo.tri);
+        }
+    }
+    stats.removedByShell = originalCount - triangles.size();
 
-    // Замена исходного вектора отфильтрованным
-    triangles = shellTriangles;
+    qDebug() << "Filtering completed:";
+    qDebug() << "Total triangles:" << stats.totalTriangles;
+    qDebug() << "Shell triangles:" << stats.shellTriangles;
+    qDebug() << "Visible triangles:" << stats.visibleTriangles;
 
     return stats;
 }
 
-bool MeshFilter::isInternalTriangle(const QSharedPointer<triangle>& tri,
-                                    const QVector<QSharedPointer<triangle>>& triangles) {
-    // Вычисление центра треугольника
-    QVector3D center(
-        (tri->getV1()->getX() + tri->getV2()->getX() + tri->getV3()->getX()) / 3.0f,
-        (tri->getV1()->getY() + tri->getV2()->getY() + tri->getV3()->getY()) / 3.0f,
-        (tri->getV1()->getZ() + tri->getV2()->getZ() + tri->getV3()->getZ()) / 3.0f
-        );
+bool MeshFilter::isTriangleOnShell(const TriangleInfo& triInfo, const QVector<TriangleInfo>& allTriangles) {
+    const double EPSILON = 1e-6;
+    const double MAX_DISTANCE = 0.1; // Максимальное расстояние для определения близости треугольников
 
-    // Генерация случайных направлений для лучей
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_real_distribution<float> dis(-1.0f, 1.0f);
+    int adjacentCount = 0;
+    rVect triNormal = triInfo.normal;
 
-    int intersectionCount = 0;
+    for (const auto& otherTriInfo : allTriangles) {
+        if (&otherTriInfo == &triInfo) continue;
 
-    for (int i = 0; i < RAYS_PER_TRIANGLE; ++i) {
-        // Генерация случайного направления
-        QVector3D direction(dis(gen), dis(gen), dis(gen));
-        direction.normalize();
+        // Вычисляем вектор между центроидами
+        rVect centroidVector = otherTriInfo.centroid - triInfo.centroid;
+        double distance = centroidVector.length();
 
-        // Подсчёт пересечений луча с другими треугольниками
-        int currentIntersections = 0;
-        for (const auto& otherTri : triangles) {
-            if (otherTri != tri && checkRayIntersection(center, direction, otherTri)) {
-                currentIntersections++;
+        // Проверяем близость треугольников
+        if (distance < MAX_DISTANCE) {
+            // Проверяем угол между нормалями
+            double dotProduct = triNormal * otherTriInfo.normal;
+            if (std::abs(dotProduct + 1.0) < EPSILON) {
+                // Треугольники почти параллельны и противоположно направлены
+                adjacentCount++;
             }
         }
-
-        // Если число пересечений нечётное, увеличиваем счётчик
-        if (currentIntersections % 2 == 1) {
-            intersectionCount++;
-        }
     }
 
-    // Треугольник считается внутренним, если большинство лучей имеет нечётное число пересечений
-    return intersectionCount > RAYS_PER_TRIANGLE / 2;
+    // Если треугольник имеет мало параллельных соседей, считаем его частью оболочки
+    return adjacentCount <= 2;
 }
 
-bool MeshFilter::checkRayIntersection(const QVector3D& origin,
-                                      const QVector3D& direction,
-                                      const QSharedPointer<triangle>& tri) {
-    QVector3D v0(tri->getV1()->getX(), tri->getV1()->getY(), tri->getV1()->getZ());
-    QVector3D v1(tri->getV2()->getX(), tri->getV2()->getY(), tri->getV2()->getZ());
-    QVector3D v2(tri->getV3()->getX(), tri->getV3()->getY(), tri->getV3()->getZ());
+double MeshFilter::calculateDistance(const rVect& point, const Plane& plane) {
+    return point * plane.normal - plane.distance;
+}
 
-    // Вычисление нормали треугольника
-    QVector3D edge1 = v1 - v0;
-    QVector3D edge2 = v2 - v0;
-    QVector3D normal = QVector3D::crossProduct(edge1, edge2).normalized();
+bool MeshFilter::isIntersectingPlane(const TriangleInfo& triInfo, const Plane& plane) {
+    const double EPSILON = 1e-6;
 
-    // Проверка на параллельность луча и треугольника
-    float dot = QVector3D::dotProduct(direction, normal);
-    if (std::abs(dot) < EPSILON) {
-        return false;
-    }
+    double d1 = calculateDistance(*triInfo.tri->getV1(), plane);
+    double d2 = calculateDistance(*triInfo.tri->getV2(), plane);
+    double d3 = calculateDistance(*triInfo.tri->getV3(), plane);
 
-    // Вычисление расстояния от начала луча до плоскости треугольника
-    float d = -QVector3D::dotProduct(normal, v0);
-    float t = -(QVector3D::dotProduct(normal, origin) + d) / dot;
-
-    // Если пересечение позади начала луча, игнорируем его
-    if (t < EPSILON) {
-        return false;
-    }
-
-    // Вычисление точки пересечения
-    QVector3D intersection = origin + direction * t;
-
-    // Проверка, находится ли точка внутри треугольника
-    QVector3D c1 = QVector3D::crossProduct(edge1, intersection - v0);
-    QVector3D c2 = QVector3D::crossProduct(v2 - v1, intersection - v1);
-    QVector3D c3 = QVector3D::crossProduct(v0 - v2, intersection - v2);
-
-    bool inside = QVector3D::dotProduct(normal, c1) > 0 &&
-                  QVector3D::dotProduct(normal, c2) > 0 &&
-                  QVector3D::dotProduct(normal, c3) > 0;
-
-    return inside;
+    // Треугольник пересекает плоскость, если расстояния имеют разные знаки
+    return (d1 * d2 < 0) || (d2 * d3 < 0) || (d3 * d1 < 0) ||
+           (std::abs(d1) < EPSILON) || (std::abs(d2) < EPSILON) || (std::abs(d3) < EPSILON);
 }

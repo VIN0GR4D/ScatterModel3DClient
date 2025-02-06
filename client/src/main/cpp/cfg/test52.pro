@@ -1,4 +1,4 @@
-QT       += core gui websockets opengl openglwidgets widgets charts printsupport
+QT       += core gui websockets opengl openglwidgets widgets charts printsupport concurrent
 LIBS += -lopengl32
 LIBS += -lglu32
 

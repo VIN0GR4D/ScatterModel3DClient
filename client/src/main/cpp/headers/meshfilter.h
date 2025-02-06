@@ -4,28 +4,48 @@
 #include <QVector>
 #include <QSharedPointer>
 #include "Triangle.h"
-#include <unordered_set>
-#include <QVector3D>
+#include "rVect.h"
 
 class MeshFilter {
 public:
+    MeshFilter();
+    ~MeshFilter();
+
     struct FilterStats {
-        int totalTriangles;
-        int shellTriangles;
-        int visibleTriangles;
+        int totalTriangles;      // Общее количество треугольников
+        int shellTriangles;      // Треугольники в оболочке
+        int visibleTriangles;    // Видимые треугольники
+        int removedTriangles;    // Удаленные треугольники
+        int removedByShell;     // Треугольники, удаленные при оптимизации структуры
+        int removedByShadow;    // Треугольники, скрытые при переключении видимости
     };
 
-    MeshFilter();
     FilterStats filterMesh(QVector<QSharedPointer<triangle>>& triangles);
 
 private:
-    bool isInternalTriangle(const QSharedPointer<triangle>& tri,
-                            const QVector<QSharedPointer<triangle>>& triangles);
-    bool checkRayIntersection(const QVector3D& origin,
-                              const QVector3D& direction,
-                              const QSharedPointer<triangle>& tri);
-    static const int RAYS_PER_TRIANGLE = 6;
-    static const float EPSILON;
+    // Структура для представления плоскости сечения
+    struct Plane {
+        rVect normal;
+        double distance;
+
+        Plane(const rVect& n, double d) : normal(n), distance(d) {}
+    };
+
+    // Структура для хранения информации о треугольнике в контексте фильтрации
+    struct TriangleInfo {
+        QSharedPointer<triangle> tri;
+        rVect centroid;
+        rVect normal;
+        bool isShell;
+
+        TriangleInfo(const QSharedPointer<triangle>& t);
+    };
+
+    bool isTriangleOnShell(const TriangleInfo& triInfo, const QVector<TriangleInfo>& allTriangles);
+    bool isIntersectingPlane(const TriangleInfo& triInfo, const Plane& plane);
+    rVect calculateCentroid(const QSharedPointer<triangle>& tri);
+    double calculateDistance(const rVect& point, const Plane& plane);
+    bool isTriangleVisible(const TriangleInfo& triInfo);
 };
 
 #endif // MESHFILTER_H
