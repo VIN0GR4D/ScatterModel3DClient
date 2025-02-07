@@ -14,23 +14,23 @@
 #include "timer.h"
 
 /*
-Система координат выбрана таким образом, что плоскость XOY расположена горизонтально параллельно земной поверхности.
-ось Z направлена вверх и оси XYZ образуют правую тройку. 
-Подстилающая поверхность (если она есть) лежит в плоскости Z = 0.
-Все углы передаются в радианах.
+РЎРёСЃС‚РµРјР° РєРѕРѕСЂРґРёРЅР°С‚ РІС‹Р±СЂР°РЅР° С‚Р°РєРёРј РѕР±СЂР°Р·РѕРј, С‡С‚Рѕ РїР»РѕСЃРєРѕСЃС‚СЊ XOY СЂР°СЃРїРѕР»РѕР¶РµРЅР° РіРѕСЂРёР·РѕРЅС‚Р°Р»СЊРЅРѕ РїР°СЂР°Р»Р»РµР»СЊРЅРѕ Р·РµРјРЅРѕР№ РїРѕРІРµСЂС…РЅРѕСЃС‚Рё.
+РѕСЃСЊ Z РЅР°РїСЂР°РІР»РµРЅР° РІРІРµСЂС… Рё РѕСЃРё XYZ РѕР±СЂР°Р·СѓСЋС‚ РїСЂР°РІСѓСЋ С‚СЂРѕР№РєСѓ.
+РџРѕРґСЃС‚РёР»Р°СЋС‰Р°СЏ РїРѕРІРµСЂС…РЅРѕСЃС‚СЊ (РµСЃР»Рё РѕРЅР° РµСЃС‚СЊ) Р»РµР¶РёС‚ РІ РїР»РѕСЃРєРѕСЃС‚Рё Z = 0.
+Р’СЃРµ СѓРіР»С‹ РїРµСЂРµРґР°СЋС‚СЃСЏ РІ СЂР°РґРёР°РЅР°С….
 */
 
 class culcradar : public QObject
 {
- Q_OBJECT
+    Q_OBJECT
 
 public:
-    culcradar(QObject *parent = 0); //конструктор
+    culcradar(QObject *parent = 0); //РєРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ
 
 protected:
-    Timer m_timer;         //таймер прогресс-бара
-    int progress;          //значение прогресс-бара
-    bool count = false;    //признак запуска прогресс-бара
+    Timer m_timer;         //С‚Р°Р№РјРµСЂ РїСЂРѕРіСЂРµСЃСЃ-Р±Р°СЂР°
+    int progress;          //Р·РЅР°С‡РµРЅРёРµ РїСЂРѕРіСЂРµСЃСЃ-Р±Р°СЂР°
+    bool count = false;    //РїСЂРёР·РЅР°Рє Р·Р°РїСѓСЃРєР° РїСЂРѕРіСЂРµСЃСЃ-Р±Р°СЂР°
 
 public:
     bool SAVE_MODEL_TO_FILE;
@@ -40,127 +40,127 @@ public:
 signals:
     void signal_send_progress_bar_culcradar();
 
-//public slots:
-//    void slot_send_progress_bar_culcradar() {
-//        qDebug() << "I'm here!";
-//        emit(signal_send_progress_bar_culcradar());
-//    }
+    //public slots:
+    //    void slot_send_progress_bar_culcradar() {
+    //        qDebug() << "I'm here!";
+    //        emit(signal_send_progress_bar_culcradar());
+    //    }
 
 private:
-    bool RUN_C; //признак работы
-    bool ref;  //признак подстилающий поверхности
-//	double phi=0., theta=0.;// ракурс. Углы направления на объект. theta УГОЛ МЕСТА
-	rVect Nin, Nout, NinRef, NoutRef;
-	bool boolX, boolY, boolZ; //по каким осям строится РЛП
-//при изменении разрешения или максимального разменр вычисляем и размерности массива
-	double Lmax; //максимальный размер объекта
-	double stepX, stepY, stepZ; //разрешение по осям координат
-	int countX, countY, countZ; //размерность массива РЛП
-	double wave; //волновое число
-	double stepW; //шаг по волновым числам
-//геометрическая модель
+    bool RUN_C; //РїСЂРёР·РЅР°Рє СЂР°Р±РѕС‚С‹
+    bool ref;  //РїСЂРёР·РЅР°Рє РїРѕРґСЃС‚РёР»Р°СЋС‰РёР№ РїРѕРІРµСЂС…РЅРѕСЃС‚Рё
+    //	double phi=0., theta=0.;// СЂР°РєСѓСЂСЃ. РЈРіР»С‹ РЅР°РїСЂР°РІР»РµРЅРёСЏ РЅР° РѕР±СЉРµРєС‚. theta РЈР“РћР› РњР•РЎРўРђ
+    rVect Nin, Nout, NinRef, NoutRef;
+    bool boolX, boolY, boolZ; //РїРѕ РєР°РєРёРј РѕСЃСЏРј СЃС‚СЂРѕРёС‚СЃСЏ Р Р›Рџ
+    //РїСЂРё РёР·РјРµРЅРµРЅРёРё СЂР°Р·СЂРµС€РµРЅРёСЏ РёР»Рё РјР°РєСЃРёРјР°Р»СЊРЅРѕРіРѕ СЂР°Р·РјРµРЅСЂ РІС‹С‡РёСЃР»СЏРµРј Рё СЂР°Р·РјРµСЂРЅРѕСЃС‚Рё РјР°СЃСЃРёРІР°
+    double Lmax; //РјР°РєСЃРёРјР°Р»СЊРЅС‹Р№ СЂР°Р·РјРµСЂ РѕР±СЉРµРєС‚Р°
+    double stepX, stepY, stepZ; //СЂР°Р·СЂРµС€РµРЅРёРµ РїРѕ РѕСЃСЏРј РєРѕРѕСЂРґРёРЅР°С‚
+    int countX, countY, countZ; //СЂР°Р·РјРµСЂРЅРѕСЃС‚СЊ РјР°СЃСЃРёРІР° Р Р›Рџ
+    double wave; //РІРѕР»РЅРѕРІРѕРµ С‡РёСЃР»Рѕ
+    double stepW; //С€Р°Рі РїРѕ РІРѕР»РЅРѕРІС‹Рј С‡РёСЃР»Р°Рј
+    //РіРµРѕРјРµС‚СЂРёС‡РµСЃРєР°СЏ РјРѕРґРµР»СЊ
     vector<edge*> edges;
-	vector<triangle> triangles;
+    vector<triangle> triangles;
     vector<node*> nodes;
 
-//падающее поле
-	rVect Ein;
+    //РїР°РґР°СЋС‰РµРµ РїРѕР»Рµ
+    rVect Ein;
 
-//рассеянное поле
-	vector<vector<vector<cVect>>> vEout;
+    //СЂР°СЃСЃРµСЏРЅРЅРѕРµ РїРѕР»Рµ
+    vector<vector<vector<cVect>>> vEout;
 
-//параметры радара
+    //РїР°СЂР°РјРµС‚СЂС‹ СЂР°РґР°СЂР°
     radar_wave RWave;
 
 
 public:
     void Exit() {RUN_C = false;}
-	void set_ref(bool Ref) { ref=Ref; } //подстилающая поверхность
-//	void set_phi(double Phi) { phi = Phi; }
-//	void set_theta(double Theta) { theta = Theta;}
-	void set_boolXYZ(bool X, bool Y, bool Z);
-	void set_boolX(bool X);
-	void set_boolY(bool Y);
-	void set_boolZ(bool Z);
-//при изменении разрешения или максимального разменр вычисляем и размерности массива
-	void set_Lmax(double L); // { Lmax = L; }
-	void set_stepXYZ(double x, double y, double z); // { stepX = x; stepY = y; stepZ = z; }
-	void set_stepX(double x) {
-		if (!boolX)
-			stepX = 0;
-		else
-			stepX = x;
-	}
-	void set_stepY(double y) {
-		if (!boolY)
-			stepY = 0;
-		else
-			stepY = y;
-	}
-	void set_stepZ(double z) {
-		if (!boolZ)
-			stepZ = 0;
-		else
-			stepZ = z;
-	}
-	void set_wave(double W) { wave = W;}
-	bool get_boolX() { return boolX; }
-	bool get_boolY() { return boolY; }
-	bool get_boolZ() { return boolZ; }
-	double get_Lmax() { return Lmax; }
-	double get_stepX() { return stepX; }
-	double get_stepY() { return stepY; }
-	double get_stepZ() { return stepZ; }
-	double get_wave() { return wave; }
+    void set_ref(bool Ref) { ref=Ref; } //РїРѕРґСЃС‚РёР»Р°СЋС‰Р°СЏ РїРѕРІРµСЂС…РЅРѕСЃС‚СЊ
+    //	void set_phi(double Phi) { phi = Phi; }
+    //	void set_theta(double Theta) { theta = Theta;}
+    void set_boolXYZ(bool X, bool Y, bool Z);
+    void set_boolX(bool X);
+    void set_boolY(bool Y);
+    void set_boolZ(bool Z);
+    //РїСЂРё РёР·РјРµРЅРµРЅРёРё СЂР°Р·СЂРµС€РµРЅРёСЏ РёР»Рё РјР°РєСЃРёРјР°Р»СЊРЅРѕРіРѕ СЂР°Р·РјРµРЅСЂ РІС‹С‡РёСЃР»СЏРµРј Рё СЂР°Р·РјРµСЂРЅРѕСЃС‚Рё РјР°СЃСЃРёРІР°
+    void set_Lmax(double L); // { Lmax = L; }
+    void set_stepXYZ(double x, double y, double z); // { stepX = x; stepY = y; stepZ = z; }
+    void set_stepX(double x) {
+        if (!boolX)
+            stepX = 0;
+        else
+            stepX = x;
+    }
+    void set_stepY(double y) {
+        if (!boolY)
+            stepY = 0;
+        else
+            stepY = y;
+    }
+    void set_stepZ(double z) {
+        if (!boolZ)
+            stepZ = 0;
+        else
+            stepZ = z;
+    }
+    void set_wave(double W) { wave = W;}
+    bool get_boolX() { return boolX; }
+    bool get_boolY() { return boolY; }
+    bool get_boolZ() { return boolZ; }
+    double get_Lmax() { return Lmax; }
+    double get_stepX() { return stepX; }
+    double get_stepY() { return stepY; }
+    double get_stepZ() { return stepZ; }
+    double get_wave() { return wave; }
 
 private:
-//выбор размерности массива и шага по волновым числам это отдельная песня
-	void culc_count();// countX, countY, countZ; stepW;
+    //РІС‹Р±РѕСЂ СЂР°Р·РјРµСЂРЅРѕСЃС‚Рё РјР°СЃСЃРёРІР° Рё С€Р°РіР° РїРѕ РІРѕР»РЅРѕРІС‹Рј С‡РёСЃР»Р°Рј СЌС‚Рѕ РѕС‚РґРµР»СЊРЅР°СЏ РїРµСЃРЅСЏ
+    void culc_count();// countX, countY, countZ; stepW;
 
 public:
-//загрузку геометрической модели пока производим из файла obj потом из JSON
+    //Р·Р°РіСЂСѓР·РєСѓ РіРµРѕРјРµС‚СЂРёС‡РµСЃРєРѕР№ РјРѕРґРµР»Рё РїРѕРєР° РїСЂРѕРёР·РІРѕРґРёРј РёР· С„Р°Р№Р»Р° obj РїРѕС‚РѕРј РёР· JSON
     int build_Model(QJsonObject &jsonObject, QHash<uint, node> &Node, QHash<uint,edge> &Edge);
-	triangle get_Triangle(size_t iTriangle); 
+    triangle get_Triangle(size_t iTriangle);
     edge get_Edge(size_t iEdge);
-	node get_Node(size_t iNode);
+    node get_Node(size_t iNode);
 
-	size_t getNodeSize() { return nodes.size(); }
+    size_t getNodeSize() { return nodes.size(); }
     size_t getEdgeSize() { return edges.size(); }
-	size_t getTriangleSize() { return triangles.size(); }
+    size_t getTriangleSize() { return triangles.size(); }
 
-	bool get_ref() { return ref; }
-	void built_Ns_in(double phi, double theta);
-	void built_Ns_out(double phi, double theta);
-	rVect get_Nin() { return Nin; }
-	rVect get_Nout() { return Nout; }
-	rVect get_NinRef() { return NinRef; }
-	rVect get_NoutRef() { return NoutRef; }
+    bool get_ref() { return ref; }
+    void built_Ns_in(double phi, double theta);
+    void built_Ns_out(double phi, double theta);
+    rVect get_Nin() { return Nin; }
+    rVect get_Nout() { return Nout; }
+    rVect get_NinRef() { return NinRef; }
+    rVect get_NoutRef() { return NoutRef; }
 
-    complex<double> dot(cVect& p1, rVect& p2) { //скалярное произведение комплексного на координатный вектор
-       return ((p1.getX() * p2.getX())+(p1.getY() * p2.getY())+(p1.getZ() * p2.getZ()));
+    complex<double> dot(cVect& p1, rVect& p2) { //СЃРєР°Р»СЏСЂРЅРѕРµ РїСЂРѕРёР·РІРµРґРµРЅРёРµ РєРѕРјРїР»РµРєСЃРЅРѕРіРѕ РЅР° РєРѕРѕСЂРґРёРЅР°С‚РЅС‹Р№ РІРµРєС‚РѕСЂ
+        return ((p1.getX() * p2.getX())+(p1.getY() * p2.getY())+(p1.getZ() * p2.getZ()));
     }
 
-//падающее поле
-	rVect getEin() { return Ein; }
-	void setEin(rVect val) { Ein = val; }
+    //РїР°РґР°СЋС‰РµРµ РїРѕР»Рµ
+    rVect getEin() { return Ein; }
+    void setEin(rVect val) { Ein = val; }
 
-//рассеянное поле
-	cVect getEout(size_t iX, size_t iY, size_t iZ);
-	void setEout(size_t iX, size_t iY, size_t iZ, cVect Eout);
+    //СЂР°СЃСЃРµСЏРЅРЅРѕРµ РїРѕР»Рµ
+    cVect getEout(size_t iX, size_t iY, size_t iZ);
+    void setEout(size_t iX, size_t iY, size_t iZ, cVect Eout);
 private:
-	void setSizeEout(size_t iX, size_t iY, size_t iZ);
+    void setSizeEout(size_t iX, size_t iY, size_t iZ);
 public:
-	int getSizeEoutX() { return vEout[0][0].size(); }
-	int getSizeEoutY() { return vEout[0].size(); }
-	int getSizeEoutZ() { return vEout.size(); }
+    int getSizeEoutX() { return vEout[0][0].size(); }
+    int getSizeEoutY() { return vEout[0].size(); }
+    int getSizeEoutZ() { return vEout.size(); }
 
     radar_wave getRWave() {return RWave;}
-//запуск задачи вычисления поля по ФО
-//углы задаются в радианах. От клиента приходит угол места, polar это полярный угол 
+    //Р·Р°РїСѓСЃРє Р·Р°РґР°С‡Рё РІС‹С‡РёСЃР»РµРЅРёСЏ РїРѕР»СЏ РїРѕ Р¤Рћ
+    //СѓРіР»С‹ Р·Р°РґР°СЋС‚СЃСЏ РІ СЂР°РґРёР°РЅР°С…. РћС‚ РєР»РёРµРЅС‚Р° РїСЂРёС…РѕРґРёС‚ СѓРіРѕР» РјРµСЃС‚Р°, polar СЌС‚Рѕ РїРѕР»СЏСЂРЅС‹Р№ СѓРіРѕР»
     int culc_Eout(/*bool Aref, double Aphi, double Atheta,
-		bool AboolX, bool AboolY, bool AboolZ, double aLmax,
-		double AstepX, double AstepY, double AstepZ, double Awave,
-        rVect aEin*/);  
+        bool AboolX, bool AboolY, bool AboolZ, double aLmax,
+        double AstepX, double AstepY, double AstepZ, double Awave,
+        rVect aEin*/);
 };
 
 #endif // CULCRADAR_H

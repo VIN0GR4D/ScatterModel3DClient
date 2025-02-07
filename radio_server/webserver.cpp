@@ -133,7 +133,7 @@ void WebServer::processMessage(const QString &message) {
   clogs("декодирование сообщения [" + clientInfo->id + "]", "", "");
 
   QJsonDocument jsonResponse = QJsonDocument::fromJson(message.toUtf8());
-  qDebug() << "Received message:" << jsonResponse.toJson(); // Вывод полученных данных
+  // qDebug() << "Received message:" << jsonResponse.toJson(); // Вывод полученных данных
 
   //Начало кода тестирования
   QFile file0("testing.json");
@@ -364,7 +364,7 @@ void WebServer::loadRadarData(QJsonDocument &doc, QJsonObject &jsonObject, QWebS
             pCore->SAVE_MODEL_TO_FILE = true;
             SAVE_MODEL = false;
         }
-        if (SAVE_SCAT_FIELD){           
+        if (SAVE_SCAT_FIELD){
             QString QAnswer;
             QAnswer = "запись рассеянного поля в файл";
             webServerAnswer(QAnswer, pSender);
@@ -669,7 +669,7 @@ void WebServer::send_calc_radar_result(QString doc, QWebSocket *Client) {
     resultObj.insert("content", QJsonDocument::fromJson(doc.toUtf8()).object());
     QJsonDocument resultDoc(resultObj);
 
-    qDebug() << "Sending result to client:" << resultDoc.toJson(QJsonDocument::Compact);
+    // qDebug() << "Sending result to client:" << resultDoc.toJson(QJsonDocument::Compact);
 
     Client->sendTextMessage(resultDoc.toJson(QJsonDocument::Compact));
     webServerAnswer("вычисления окончены", Client);
