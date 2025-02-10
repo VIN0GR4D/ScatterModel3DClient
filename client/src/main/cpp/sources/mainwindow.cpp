@@ -578,16 +578,20 @@ void MainWindow::setupServerWidget() {
     connectButton = new QPushButton(QIcon(":/connect.png"), "Подключиться", connectionControlGroupBox);
     QPushButton* disconnectButton = new QPushButton(QIcon(":/disconnect.png"), "Отключиться", connectionControlGroupBox);
     QPushButton* performCalculationButton = new QPushButton(QIcon(":/calculator.png"), "Выполнить расчёт", connectionControlGroupBox);
+    abortCalculationButton = new QPushButton(QIcon(":/stop.png"), "Прервать расчёт", connectionControlGroupBox);
+    abortCalculationButton->setEnabled(false);
 
     // Стилизация кнопок
     connectButton->setMinimumHeight(30);
     disconnectButton->setMinimumHeight(30);
     performCalculationButton->setMinimumHeight(30);
+    abortCalculationButton->setMinimumHeight(30);
 
     // Добавляем кнопки в layout группы управления
     connectionControlLayout->addWidget(connectButton);
     connectionControlLayout->addWidget(disconnectButton);
     connectionControlLayout->addWidget(performCalculationButton);
+    connectionControlLayout->addWidget(abortCalculationButton);
 
     // Добавляем все группы в основной layout
     layout->addWidget(statusGroupBox);
@@ -603,7 +607,8 @@ void MainWindow::setupServerWidget() {
     // Создаем новые соединения
     connect(connectButton, &QPushButton::clicked, this, &MainWindow::connectToServer);
     connect(disconnectButton, &QPushButton::clicked, this, &MainWindow::disconnectFromServer);
-    connect(performCalculationButton, &QPushButton::clicked, this, &MainWindow::performCalculation);
+    connect(abortCalculationButton, &QPushButton::clicked, this, &MainWindow::abortCalculation);
+   connect(performCalculationButton, &QPushButton::clicked, this, &MainWindow::performCalculation);
 
     // Обновление статуса при подключении/отключении
     connect(this, &MainWindow::connectionStatusChanged, [statusLabel](bool connected) {
@@ -1100,10 +1105,11 @@ void MainWindow::performCalculation() {
     modelData["directVector"] = vectorToJson(QSharedPointer<rVect>::create(directVector));
 
     QJsonDocument doc(modelData);
-    qDebug() << "Model data to be sent to server:" << doc.toJson(QJsonDocument::Indented);
+    // qDebug() << "Model data to be sent to server:" << doc.toJson(QJsonDocument::Indented);
 
     sendDataAfterAuthorization([this, modelData]() {
         triangleClient->sendModelData(modelData);
+        abortCalculationButton->setEnabled(true);
         setModified(true); // Установка флага изменений после отправки данных
     });
 }
@@ -1479,6 +1485,7 @@ void MainWindow::handleDataReceived(const QJsonObject &results) {
     // Обработка результатов и обновление внутренних состояний
     displayResults(results);
     showNotification("Получены новые результаты", Notification::Success);
+    abortCalculationButton->setEnabled(false);
     setModified(true); // Установка флага изменений после получения данных
 }
 
@@ -1648,4 +1655,23 @@ void MainWindow::toggleShadowTriangles() {
     logMessage(QString("Обработка теневых треугольников завершена. Скрыто: %1 треугольников").arg(originalCount - visibleCount));
     showNotification("Обработка теневых треугольников завершена", Notification::Success);
     setModified(true);
+}
+
+void MainWindow::abortCalculation() {
+    if (!triangleClient || !triangleClient->isConnected()) {
+        logMessage("Нет активного подключения к серверу");
+        return;
+    }
+
+    QJsonObject commandObject;
+    commandObject["type"] = "cmd";
+    commandObject["cmd"] = "server";
+    QJsonArray params;
+    params.append("stop");
+    commandObject["param"] = params;
+
+    triangleClient->sendCommand(commandObject);
+    abortCalculationButton->setEnabled(false);
+    logMessage("Отправлена команда прерывания расчёта");
+    showNotification("Расчёт прерван", Notification::Info);
 }

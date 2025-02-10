@@ -126,8 +126,8 @@ void TriangleClient::onErrorOccurred(QAbstractSocket::SocketError error) {
 // Обработчик получения текстового сообщения от сервера
 void TriangleClient::onTextMessageReceived(QString message) {
     // Логируем информацию о полученном сообщении без его полного содержания
-    emit logMessage("Получено сообщение. Размер: " + QString::number(message.size()) + " байт.");
-    qDebug() << "Получено сообщение. Размер:" << message.size() << " байт.";
+    // emit logMessage("Получено сообщение. Размер: " + QString::number(message.size()) + " байт.");
+    // qDebug() << "Получено сообщение. Размер:" << message.size() << " байт.";
 
     // Асинхронная запись в лог
     emit logToFile(message);
@@ -191,6 +191,12 @@ void TriangleClient::parseAndProcessMessage(const QString& message) {
                 QMetaObject::invokeMethod(this, [this]() {
                         m_isAuthorized = true;
                         emit logMessage("Авторизация успешна.");
+                    }, Qt::QueuedConnection);
+            }
+            else if (msg.contains("завершение вычислений")) {
+                QMetaObject::invokeMethod(this, [this]() {
+                        emit calculationAborted();
+                        emit logMessage("Вычисления прерваны.");
                     }, Qt::QueuedConnection);
             } else {
                 // Используем QMetaObject::invokeMethod для обновления UI в основном потоке

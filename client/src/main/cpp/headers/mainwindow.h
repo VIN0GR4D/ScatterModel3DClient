@@ -91,6 +91,7 @@ private slots:
     void newProject();
     void closeModel();
     void toggleShadowTriangles();
+    void abortCalculation();
 
 signals:
     void connectionStatusChanged(bool connected);
@@ -171,6 +172,7 @@ private:
     void showLogWindow();
     void showNotification(const QString &message, Notification::Type type);
     void updateConnectionStatus(QLabel* connectionLabel, QLabel* authLabel);
+    QPushButton* abortCalculationButton;
 };
 
 #endif // MAINWINDOW_H

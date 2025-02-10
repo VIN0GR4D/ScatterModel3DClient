@@ -47,6 +47,7 @@ signals:
     void logMessage(const QString &message);
     void logToFile(const QString &message);
     void showNotification(const QString &message, Notification::Type type);
+    void calculationAborted();
 
 public slots:
     void onConnected();
