@@ -566,30 +566,34 @@ void MainWindow::setupServerWidget() {
     serverAddressInput->setPlaceholderText("ws://serveraddress:port");
     serverAddressInput->setAlignment(Qt::AlignCenter);
 
+    // Кнопки подключения/отключения
+    connectButton = new QPushButton(QIcon(":/connect.png"), "Подключиться", serverConnectionGroupBox);
+    QPushButton* disconnectButton = new QPushButton(QIcon(":/disconnect.png"), "Отключиться", serverConnectionGroupBox);
+
+    // Стилизация кнопок
+    connectButton->setMinimumHeight(30);
+    disconnectButton->setMinimumHeight(30);
+
     // Добавляем элементы в layout группы подключения
     serverConnectionLayout->addWidget(addressLabel);
     serverConnectionLayout->addWidget(serverAddressInput);
+    serverConnectionLayout->addWidget(connectButton);
+    serverConnectionLayout->addWidget(disconnectButton);
 
     // Группа для управления подключением
-    QGroupBox* connectionControlGroupBox = new QGroupBox("Управление подключением", serverWidget);
+    QGroupBox* connectionControlGroupBox = new QGroupBox("Управление расчётами", serverWidget);
     QVBoxLayout* connectionControlLayout = new QVBoxLayout(connectionControlGroupBox);
 
-    // Кнопки подключения/отключения
-    connectButton = new QPushButton(QIcon(":/connect.png"), "Подключиться", connectionControlGroupBox);
-    QPushButton* disconnectButton = new QPushButton(QIcon(":/disconnect.png"), "Отключиться", connectionControlGroupBox);
+    // Кнопки управления расчётом
     QPushButton* performCalculationButton = new QPushButton(QIcon(":/calculator.png"), "Выполнить расчёт", connectionControlGroupBox);
     abortCalculationButton = new QPushButton(QIcon(":/stop.png"), "Прервать расчёт", connectionControlGroupBox);
     abortCalculationButton->setEnabled(false);
 
     // Стилизация кнопок
-    connectButton->setMinimumHeight(30);
-    disconnectButton->setMinimumHeight(30);
     performCalculationButton->setMinimumHeight(30);
     abortCalculationButton->setMinimumHeight(30);
 
     // Добавляем кнопки в layout группы управления
-    connectionControlLayout->addWidget(connectButton);
-    connectionControlLayout->addWidget(disconnectButton);
     connectionControlLayout->addWidget(performCalculationButton);
     connectionControlLayout->addWidget(abortCalculationButton);
 
