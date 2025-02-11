@@ -201,7 +201,7 @@ void TriangleClient::parseAndProcessMessage(const QString& message) {
             } else {
                 // Используем QMetaObject::invokeMethod для обновления UI в основном потоке
                 QMetaObject::invokeMethod(this, [this, msg]() {
-                        emit logMessage("Получен ответ: " + msg);
+                        emit logMessage("Сервер: " + msg);
                     }, Qt::QueuedConnection);
             }
             qDebug() << "Ответ получен от сервера.";
@@ -212,6 +212,7 @@ void TriangleClient::parseAndProcessMessage(const QString& message) {
             qDebug() << "Получено обновление прогресс-бара:" << progress;
             // Используем QMetaObject::invokeMethod для обновления прогресса в основном потоке
             QMetaObject::invokeMethod(this, [this, progress]() {
+                    emit progressUpdated(progress);
                     emit logMessage("Прогресс: " + QString::number(progress) + "%");
                 }, Qt::QueuedConnection);
         }
@@ -361,7 +362,7 @@ void TriangleClient::sendModelData(const QJsonObject &modelData) {
     QString message = doc.toJson(QJsonDocument::Compact);
 
     // Добавим отладочное сообщение для проверки данных перед отправкой
-    qDebug() << "Sending model data to server:" << message;
+    // qDebug() << "Sending model data to server:" << message;
 
     if (m_webSocket->sendTextMessage(message) == -1) {
         qDebug() << "Error sending model data to server";

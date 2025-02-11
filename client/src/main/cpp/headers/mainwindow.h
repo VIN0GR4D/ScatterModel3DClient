@@ -33,6 +33,7 @@
 #include <QToolBar>
 #include <QToolButton>
 #include <QActionGroup>
+#include <QProgressBar>
 
 class OpenGLWidget;
 class Parser;
@@ -92,6 +93,7 @@ private slots:
     void closeModel();
     void toggleShadowTriangles();
     void abortCalculation();
+    void updateCalculationProgress(int progress);
 
 signals:
     void connectionStatusChanged(bool connected);
@@ -173,6 +175,7 @@ private:
     void showNotification(const QString &message, Notification::Type type);
     void updateConnectionStatus(QLabel* connectionLabel, QLabel* authLabel);
     QPushButton* abortCalculationButton;
+    QProgressBar* progressBar;
 };
 
 #endif // MAINWINDOW_H

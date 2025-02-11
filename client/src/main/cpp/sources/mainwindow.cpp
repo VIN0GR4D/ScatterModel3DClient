@@ -547,18 +547,24 @@ void MainWindow::setupServerWidget() {
     layout->setSpacing(10);
     layout->setContentsMargins(10, 10, 10, 10);
 
+    QString statsStyle = "font-weight: bold;";
+
     // Группа для статуса подключения
     QGroupBox* statusGroupBox = new QGroupBox("Статус подключения", serverWidget);
-    QVBoxLayout* statusLayout = new QVBoxLayout(statusGroupBox);
+    QGridLayout* statusLayout = new QGridLayout(statusGroupBox);
+    statusLayout->setColumnStretch(1, 1);
 
     // Индикатор статуса
-    QLabel* statusLabel = new QLabel("Статус: Не подключен", statusGroupBox);
-    statusLabel->setStyleSheet("font-weight: bold; color: #FF4444;");
-    statusLayout->addWidget(statusLabel);
+    QLabel* statusTextLabel = new QLabel("Статус:", statusGroupBox);
+    QLabel* statusLabel = new QLabel("Не подключен", statusGroupBox);
+    statusLabel->setStyleSheet(statsStyle + "color: #FF4444;");
+
+    statusLayout->addWidget(statusTextLabel, 0, 0);
+    statusLayout->addWidget(statusLabel, 0, 1, Qt::AlignLeft);
 
     // Группа для подключения к серверу
     QGroupBox* serverConnectionGroupBox = new QGroupBox("Настройки подключения", serverWidget);
-    QVBoxLayout* serverConnectionLayout = new QVBoxLayout(serverConnectionGroupBox);
+    QGridLayout* serverConnectionLayout = new QGridLayout(serverConnectionGroupBox);
 
     // Поле ввода адреса сервера с меткой
     QLabel* addressLabel = new QLabel("Адрес сервера:", serverConnectionGroupBox);
@@ -570,37 +576,40 @@ void MainWindow::setupServerWidget() {
     connectButton = new QPushButton(QIcon(":/connect.png"), "Подключиться", serverConnectionGroupBox);
     QPushButton* disconnectButton = new QPushButton(QIcon(":/disconnect.png"), "Отключиться", serverConnectionGroupBox);
 
-    // Стилизация кнопок
-    connectButton->setMinimumHeight(30);
-    disconnectButton->setMinimumHeight(30);
-
     // Добавляем элементы в layout группы подключения
-    serverConnectionLayout->addWidget(addressLabel);
-    serverConnectionLayout->addWidget(serverAddressInput);
-    serverConnectionLayout->addWidget(connectButton);
-    serverConnectionLayout->addWidget(disconnectButton);
+    serverConnectionLayout->addWidget(addressLabel, 0, 0, 1, 2);
+    serverConnectionLayout->addWidget(serverAddressInput, 1, 0, 1, 2);
+    serverConnectionLayout->addWidget(connectButton, 2, 0);
+    serverConnectionLayout->addWidget(disconnectButton, 2, 1);
 
-    // Группа для управления подключением
-    QGroupBox* connectionControlGroupBox = new QGroupBox("Управление расчётами", serverWidget);
-    QVBoxLayout* connectionControlLayout = new QVBoxLayout(connectionControlGroupBox);
+    // Группа для управления расчётами
+    QGroupBox* calculationControlGroupBox = new QGroupBox("Управление расчётами", serverWidget);
+    QGridLayout* calculationControlLayout = new QGridLayout(calculationControlGroupBox);
+
+    // Индикатор прогресса и метку
+    QLabel* progressLabel = new QLabel("Прогресс расчёта:", calculationControlGroupBox);
+    progressBar = new QProgressBar(calculationControlGroupBox);
+    progressBar->setMinimum(0);
+    progressBar->setMaximum(100);
+    progressBar->setValue(0);
+    progressBar->setFormat("%p%");
+    progressBar->setTextVisible(true);
+    progressBar->setStyleSheet("QProgressBar { border: none; background: transparent; } QProgressBar::chunk { background: none; }");
 
     // Кнопки управления расчётом
-    QPushButton* performCalculationButton = new QPushButton(QIcon(":/calculator.png"), "Выполнить расчёт", connectionControlGroupBox);
-    abortCalculationButton = new QPushButton(QIcon(":/stop.png"), "Прервать расчёт", connectionControlGroupBox);
+    QPushButton* performCalculationButton = new QPushButton(QIcon(":/calculator.png"), "Выполнить расчёт", calculationControlGroupBox);
+    abortCalculationButton = new QPushButton(QIcon(":/stop.png"), "Прервать расчёт", calculationControlGroupBox);
     abortCalculationButton->setEnabled(false);
 
-    // Стилизация кнопок
-    performCalculationButton->setMinimumHeight(30);
-    abortCalculationButton->setMinimumHeight(30);
-
-    // Добавляем кнопки в layout группы управления
-    connectionControlLayout->addWidget(performCalculationButton);
-    connectionControlLayout->addWidget(abortCalculationButton);
+    calculationControlLayout->addWidget(progressLabel, 0, 0, Qt::AlignVCenter);
+    calculationControlLayout->addWidget(progressBar, 0, 1, Qt::AlignVCenter);
+    calculationControlLayout->addWidget(performCalculationButton, 1, 0, 1, 2);
+    calculationControlLayout->addWidget(abortCalculationButton, 2, 0, 1, 2);
 
     // Добавляем все группы в основной layout
     layout->addWidget(statusGroupBox);
     layout->addWidget(serverConnectionGroupBox);
-    layout->addWidget(connectionControlGroupBox);
+    layout->addWidget(calculationControlGroupBox);
     layout->addStretch();
 
     // Очищаем старые соединения
@@ -612,15 +621,15 @@ void MainWindow::setupServerWidget() {
     connect(connectButton, &QPushButton::clicked, this, &MainWindow::connectToServer);
     connect(disconnectButton, &QPushButton::clicked, this, &MainWindow::disconnectFromServer);
     connect(abortCalculationButton, &QPushButton::clicked, this, &MainWindow::abortCalculation);
-   connect(performCalculationButton, &QPushButton::clicked, this, &MainWindow::performCalculation);
+    connect(performCalculationButton, &QPushButton::clicked, this, &MainWindow::performCalculation);
 
     // Обновление статуса при подключении/отключении
     connect(this, &MainWindow::connectionStatusChanged, [statusLabel](bool connected) {
         if (connected) {
-            statusLabel->setText("Статус: Подключен");
+            statusLabel->setText("Подключен");
             statusLabel->setStyleSheet("font-weight: bold; color: #44FF44;");
         } else {
-            statusLabel->setText("Статус: Не подключен");
+            statusLabel->setText("Не подключен");
             statusLabel->setStyleSheet("font-weight: bold; color: #FF4444;");
         }
     });
@@ -668,6 +677,7 @@ void MainWindow::loadModel() {
     // Открываем диалоговое окно для выбора файла с 3D моделью формата OBJ
     QString fileName = QFileDialog::getOpenFileName(this, "Открыть 3D модель", "", "OBJ Files (*.obj)");
     if (!fileName.isEmpty()) {
+        progressBar->setValue(0);
         // Выводим сообщение в лог о начале загрузки файла
         logMessage("Начата загрузка файла: " + fileName);
         showNotification("Начата загрузка файла", Notification::Info);
@@ -1131,6 +1141,7 @@ void MainWindow::connectToServer() {
             connect(triangleClient, &TriangleClient::resultsReceived, this, &MainWindow::displayResults);
             connect(triangleClient, &TriangleClient::logMessage, this, &MainWindow::logMessage);
             connect(triangleClient, &TriangleClient::showNotification, this, &MainWindow::showNotification);
+            connect(triangleClient, &TriangleClient::progressUpdated, this, &MainWindow::updateCalculationProgress);
 
             // Добавляем обработку изменения состояния подключения
             connect(triangleClient->getWebSocket(), &QWebSocket::connected, this, [this]() {
@@ -1601,6 +1612,7 @@ void MainWindow::updateFilterStats(const MeshFilter::FilterStats& stats) {
 
 void MainWindow::closeModel() {
     if (openGLWidget) {
+        progressBar->setValue(0);  // Сброс прогресс-бара
         openGLWidget->clearScene();  // Очищаем сцену OpenGL
         parser->clearData();         // Очищаем данные парсера
 
@@ -1678,4 +1690,21 @@ void MainWindow::abortCalculation() {
     abortCalculationButton->setEnabled(false);
     logMessage("Отправлена команда прерывания расчёта");
     showNotification("Расчёт прерван", Notification::Info);
+}
+
+void MainWindow::updateCalculationProgress(int progress) {
+    if (progressBar) {
+        progressBar->setValue(progress);
+
+        // // Изменяем цвет прогресс-бара в зависимости от прогресса
+        // QString styleSheet;
+        // if (progress < 30) {
+        //     styleSheet = "QProgressBar::chunk { background-color: #FF6B6B; }";
+        // } else if (progress < 70) {
+        //     styleSheet = "QProgressBar::chunk { background-color: #FFD93D; }";
+        // } else {
+        //     styleSheet = "QProgressBar::chunk { background-color: #6BCB77; }";
+        // }
+        // progressBar->setStyleSheet(styleSheet);
+    }
 }
