@@ -77,6 +77,8 @@ private:
     void attemptReconnect();
     QThread m_logThread;
     LogWorker *m_logWorker;
+
+    bool m_calculationAborted;  // Флаг прерванного состояния
 };
 
 #endif // TRIANGLECLIENT_H

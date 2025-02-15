@@ -13,7 +13,8 @@ TriangleClient::TriangleClient(const QUrl &url, QObject *parent)
     m_reconnectAttempts(0),
     m_maxReconnectAttempts(3),
     m_intentionalDisconnect(false),
-    m_logWorker(new LogWorker){
+    m_logWorker(new LogWorker),
+    m_calculationAborted(false){
     connect(m_webSocket.get(), &QWebSocket::connected, this, &TriangleClient::onConnected);
     connect(m_webSocket.get(), &QWebSocket::disconnected, this, &TriangleClient::onDisconnected);
     connect(m_webSocket.get(), &QWebSocket::textMessageReceived, this, &TriangleClient::onTextMessageReceived);
@@ -195,6 +196,8 @@ void TriangleClient::parseAndProcessMessage(const QString& message) {
             }
             else if (msg.contains("завершение вычислений")) {
                 QMetaObject::invokeMethod(this, [this]() {
+                        m_calculationAborted = true;
+                        emit progressUpdated(0);  // Сбрасываем прогресс при прерывании
                         emit calculationAborted();
                         emit logMessage("Вычисления прерваны.");
                     }, Qt::QueuedConnection);
@@ -208,13 +211,15 @@ void TriangleClient::parseAndProcessMessage(const QString& message) {
         }
         // Обработка типа "progress_bar" с числовым значением
         else if (type == "progress_bar" && obj.contains("content") && obj["content"].isDouble()) {
-            int progress = obj["content"].toInt();
-            qDebug() << "Получено обновление прогресс-бара:" << progress;
-            // Используем QMetaObject::invokeMethod для обновления прогресса в основном потоке
-            QMetaObject::invokeMethod(this, [this, progress]() {
-                    emit progressUpdated(progress);
-                    emit logMessage("Прогресс: " + QString::number(progress) + "%");
-                }, Qt::QueuedConnection);
+            // Игнорируем обновления прогресса после прерывания
+            if (!m_calculationAborted) {
+                int progress = obj["content"].toInt();
+                qDebug() << "Получено обновление прогресс-бара:" << progress;
+                QMetaObject::invokeMethod(this, [this, progress]() {
+                        emit progressUpdated(progress);
+                        emit logMessage("Прогресс: " + QString::number(progress) + "%");
+                    }, Qt::QueuedConnection);
+            }
         }
         // Обработка неизвестного или некорректного типа сообщения
         else {
@@ -349,6 +354,7 @@ QJsonObject TriangleClient::vectorToJson(const QSharedPointer<const rVect>& vect
 
 // Отправка данных модели на сервер
 void TriangleClient::sendModelData(const QJsonObject &modelData) {
+    m_calculationAborted = false;
     if (!m_webSocket->isValid()) {
         qDebug() << "WebSocket is not connected. Attempting to resend model data...";
         QTimer::singleShot(5000, this, [this, modelData]() { sendModelData(modelData); });

@@ -461,6 +461,7 @@ void MainWindow::setupFilteringWidget() {
     modelInfoLayout->addWidget(totalTrianglesLabel, 2, 1);
 
     QPushButton* showAllTrianglesButton = new QPushButton("Вернуть исходное состояние объекта", modelInfoGroup);
+    showAllTrianglesButton->setToolTip("Восстановить все треугольники модели, включая скрытые.");
     modelInfoLayout->addWidget(showAllTrianglesButton, 3, 0, 1, 2);
 
     layout->addWidget(modelInfoGroup);
@@ -1688,6 +1689,7 @@ void MainWindow::abortCalculation() {
 
     triangleClient->sendCommand(commandObject);
     abortCalculationButton->setEnabled(false);
+    progressBar->setValue(0);  // Сбрасываем прогресс-бар
     logMessage("Отправлена команда прерывания расчёта");
     showNotification("Расчёт прерван", Notification::Info);
 }
