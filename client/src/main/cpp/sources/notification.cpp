@@ -32,12 +32,14 @@ void Notification::setupUI()
 
     // Настройка иконки
     iconLabel->setFixedSize(24, 24);
+    iconLabel->setAttribute(Qt::WA_TranslucentBackground);  // Добавляем прозрачность
     mainLayout->addWidget(iconLabel);
 
     // Настройка сообщения
     messageLabel->setAlignment(Qt::AlignVCenter | Qt::AlignLeft);
     messageLabel->setWordWrap(true);
-    messageLabel->setStyleSheet("QLabel { color: white; }");
+    messageLabel->setAttribute(Qt::WA_TranslucentBackground);  // Добавляем прозрачность
+    messageLabel->setStyleSheet("QLabel { color: white; background: transparent; }");  // Добавляем transparent в стили
     mainLayout->addWidget(messageLabel, 1);
 
     setFixedWidth(300);
@@ -136,12 +138,28 @@ void Notification::paintEvent(QPaintEvent *event)
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
 
-    // Добавление тени
+    // Рисуем основное уведомление
     painter.setPen(Qt::NoPen);
-    painter.setBrush(QColor(0, 0, 0, 50));
-    painter.drawRoundedRect(rect().adjusted(2, 2, 2, 2), 4, 4);
-
-    // Основное уведомление
     painter.setBrush(QBrush(QColor(backgroundRole())));
     painter.drawRoundedRect(rect(), 4, 4);
+
+    // Рисуем цветную полоску слева
+    QColor stripColor;
+    switch (currentType) {
+    case Success:
+        stripColor = QColor("#4CAF50");
+        break;
+    case Warning:
+        stripColor = QColor("#FFC107");
+        break;
+    case Error:
+        stripColor = QColor("#F44336");
+        break;
+    case Info:
+        stripColor = QColor("#2196F3");
+        break;
+    }
+
+    painter.setBrush(stripColor);
+    painter.drawRoundedRect(QRect(0, 0, 4, height()), 2, 2);
 }
