@@ -6,67 +6,67 @@ using namespace std;
 class cVect
 {
 private:
-	complex<double> m_x;
-	complex<double> m_y;
-	complex<double> m_z;
+    complex<double> m_x;
+    complex<double> m_y;
+    complex<double> m_z;
 public:
-	//Конструктор по умолчанию
-	cVect() : m_x(0), m_y(0), m_z(0) {}
-	//Специфический конструктор
-	cVect(complex<double> x, complex<double> y, complex<double> z)
-		: m_x(x), m_y(y), m_z(z) {}
-//Перегрузка оператора вывода
-	friend std::ostream& operator<<(std::ostream& out, const cVect& point)
-	{
-		out << "(" << point.m_x << "," << point.m_y << "," << point.m_z << ")";
-		return out;
-	}
-//сложение и вычитание
-	friend cVect operator + (const cVect& p1, const cVect& p2) { //перегрузка оператора сравнения
-		return cVect((p1.m_x + p2.m_x) , (p1.m_y + p2.m_y) , (p1.m_z + p2.m_z));
-	}
-	friend cVect operator - (const cVect& p1, const cVect& p2) { //перегрузка оператора сравнения
-		return cVect((p1.m_x - p2.m_x), (p1.m_y - p2.m_y), (p1.m_z - p2.m_z));
-	}
+    //РљРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ
+    cVect() : m_x(0), m_y(0), m_z(0) {}
+    //РЎРїРµС†РёС„РёС‡РµСЃРєРёР№ РєРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ
+    cVect(complex<double> x, complex<double> y, complex<double> z)
+        : m_x(x), m_y(y), m_z(z) {}
+    //РџРµСЂРµРіСЂСѓР·РєР° РѕРїРµСЂР°С‚РѕСЂР° РІС‹РІРѕРґР°
+    friend std::ostream& operator<<(std::ostream& out, const cVect& point)
+    {
+        out << "(" << point.m_x << "," << point.m_y << "," << point.m_z << ")";
+        return out;
+    }
+    //СЃР»РѕР¶РµРЅРёРµ Рё РІС‹С‡РёС‚Р°РЅРёРµ
+    friend cVect operator + (const cVect& p1, const cVect& p2) { //РїРµСЂРµРіСЂСѓР·РєР° РѕРїРµСЂР°С‚РѕСЂР° СЃСЂР°РІРЅРµРЅРёСЏ
+        return cVect((p1.m_x + p2.m_x) , (p1.m_y + p2.m_y) , (p1.m_z + p2.m_z));
+    }
+    friend cVect operator - (const cVect& p1, const cVect& p2) { //РїРµСЂРµРіСЂСѓР·РєР° РѕРїРµСЂР°С‚РѕСЂР° СЃСЂР°РІРЅРµРЅРёСЏ
+        return cVect((p1.m_x - p2.m_x), (p1.m_y - p2.m_y), (p1.m_z - p2.m_z));
+    }
 
-//скалярное произведение
-	friend complex<double> operator * (const cVect& p1, const cVect& p2) { //перегрузка оператора сравнения
-		return ((p1.m_x * p2.m_x)+(p1.m_y * p2.m_y)+(p1.m_z * p2.m_z));
-	}
-//векторное произведение
-	friend cVect operator ^ (const cVect& p1, const cVect& p2) { //перегрузка оператора сравнения
-		return cVect((p1.m_y * p2.m_z - p1.m_z * p2.m_y), 
-			         (p1.m_z * p2.m_x - p1.m_x * p2.m_z), 
-					 (p1.m_x * p2.m_y - p1.m_y * p2.m_x));
-	}
-//умножение на скаляр
-	friend cVect operator * (const complex<double> p1, const cVect& p2) { //перегрузка оператора сравнения
-		return cVect((p1 * p2.m_x), (p1 * p2.m_y), (p1 * p2.m_z));}
+    //СЃРєР°Р»СЏСЂРЅРѕРµ РїСЂРѕРёР·РІРµРґРµРЅРёРµ
+    friend complex<double> operator * (const cVect& p1, const cVect& p2) { //РїРµСЂРµРіСЂСѓР·РєР° РѕРїРµСЂР°С‚РѕСЂР° СЃСЂР°РІРЅРµРЅРёСЏ
+        return ((p1.m_x * p2.m_x)+(p1.m_y * p2.m_y)+(p1.m_z * p2.m_z));
+    }
+    //РІРµРєС‚РѕСЂРЅРѕРµ РїСЂРѕРёР·РІРµРґРµРЅРёРµ
+    friend cVect operator ^ (const cVect& p1, const cVect& p2) { //РїРµСЂРµРіСЂСѓР·РєР° РѕРїРµСЂР°С‚РѕСЂР° СЃСЂР°РІРЅРµРЅРёСЏ
+        return cVect((p1.m_y * p2.m_z - p1.m_z * p2.m_y),
+                     (p1.m_z * p2.m_x - p1.m_x * p2.m_z),
+                     (p1.m_x * p2.m_y - p1.m_y * p2.m_x));
+    }
+    //СѓРјРЅРѕР¶РµРЅРёРµ РЅР° СЃРєР°Р»СЏСЂ
+    friend cVect operator * (const complex<double> p1, const cVect& p2) { //РїРµСЂРµРіСЂСѓР·РєР° РѕРїРµСЂР°С‚РѕСЂР° СЃСЂР°РІРЅРµРЅРёСЏ
+        return cVect((p1 * p2.m_x), (p1 * p2.m_y), (p1 * p2.m_z));}
 
 
-	
-	const complex<double> getX() { return m_x; }
-	const complex<double> getY() { return m_y; }
-	const complex<double> getZ() { return m_z; }
 
-//Функция доступа
-	void setPoint(complex<double> x, complex<double> y, complex<double> z)
-	{
-		m_x = x;
-		m_y = y;
-		m_z = z;
-	}
-	void setX(complex<double> x) {m_x = x;}
-	void setY(complex<double> y) {m_y = y;}
-	void setZ(complex<double> z) {m_z = z;}
+    const complex<double> getX() { return m_x; }
+    const complex<double> getY() { return m_y; }
+    const complex<double> getZ() { return m_z; }
 
-	cVect conj() {
-		return cVect(std::conj(m_x), std::conj(m_y), std::conj(m_z));
-	}
+    //Р¤СѓРЅРєС†РёСЏ РґРѕСЃС‚СѓРїР°
+    void setPoint(complex<double> x, complex<double> y, complex<double> z)
+    {
+        m_x = x;
+        m_y = y;
+        m_z = z;
+    }
+    void setX(complex<double> x) {m_x = x;}
+    void setY(complex<double> y) {m_y = y;}
+    void setZ(complex<double> z) {m_z = z;}
 
-	double norm() {complex<double> cres = m_x * std::conj(m_x) + m_y * std::conj(m_y) + m_z * std::conj(m_z);
-	return std::real(cres);}
-	double length() {return sqrt(norm());}
+    cVect conj() {
+        return cVect(std::conj(m_x), std::conj(m_y), std::conj(m_z));
+    }
+
+    double norm() {complex<double> cres = m_x * std::conj(m_x) + m_y * std::conj(m_y) + m_z * std::conj(m_z);
+        return std::real(cres);}
+    double length() {return sqrt(norm());}
 };
 
 const cVect cVectZero(0., 0., 0.);

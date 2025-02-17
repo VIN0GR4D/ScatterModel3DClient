@@ -20,7 +20,7 @@ public:
              QSharedPointer<node> V2 = nullptr,
              QSharedPointer<node> V3 = nullptr)
         : m_V1(V1), m_V2(V2),  m_V3(V3), m_visible(visible) {}
-
+    //Перегрузка оператора вывода
     friend std::ostream& operator<<(std::ostream& out, const triangle& Tr) {
         out << Tr.m_visible << ";" << Tr.m_V1.get() << ";" << Tr.m_V2.get() << ";" << Tr.m_V3.get();
         return out;
@@ -41,18 +41,18 @@ public:
         return 1.0 / Normal.length() * Normal;
     }
 
-//????????????? ????????
-    //??????????? ????????????? ???????? (?????????????? ?????) ?? ????????????
+    //дифракционный интеграл
+    //вычисляется дифракционный интеграл (преобразование Фурье) от треугольника
     complex<double> Difraction(rVect Nin, rVect Nout, double wave)
     {
-        const double delta=1.e-3;  //???????? ?????????? ???????????? ?????
+        const double delta=1.e-3;  //точность вычисления вещественных чисел
         rVect v2=*m_V2-*m_V1;
         rVect v3=*m_V3-*m_V1;
         double a = wave*((Nin-Nout)*v3);
         double b = wave*((Nin-Nout)*v2);
         double c = (v2^v3).length();
         complex<double> phase = wave / (2 * Pi) * exp(OneI * wave * ((Nin - Nout) * (*m_V1)));
-//		complex<double> phase=exp(OneI*Wave*((Nin-Nout)*(*m_V1)));
+        //		complex<double> phase=exp(OneI*Wave*((Nin-Nout)*(*m_V1)));
         complex<double> res;
 
         if ((abs(a) <= delta) && (abs(b) <= delta) && (abs(a - b) <= delta))
@@ -66,10 +66,10 @@ public:
         //	res = c / ((a - b) * a) * (-exp(OneI * a) - OneI * a);
         else if ((abs(a) <= delta) && (abs(b) > delta))
             res = c / ((a - b) * b) * (exp(OneI * b) - OneI * b - 1.);
-            //res = c / ((a - b) * b) * (exp(OneI * b) - OneI * b);
+        //res = c / ((a - b) * b) * (exp(OneI * b) - OneI * b);
         else
             res = c / (a * b) * ((a * exp(OneI * b) - b * exp(OneI * a)) / (a - b) - 1.);
-/*		if (abs(res) > 0.5 * c)
+        /*		if (abs(res) > 0.5 * c)
         {
             complex<double> arg = res / abs(res);
             res = 0.5 * c;
@@ -78,10 +78,10 @@ public:
     }//Difraction1
 
 
-//????????? ???????????
-    //????????? ??????????? ??????????? ????
-    cVect CulcPolarization(rVect Nin, rVect Nout, //??????????? ??????? ? ?????????
-                         rVect p0)                //??????????? ??????. ???.
+    //выисление поляризации
+    //вычисляет поляризацию рассеянного поля
+    cVect CulcPolarization(rVect Nin, rVect Nout, //направление падения и рассеяния
+                           rVect p0)                //поляризация падающ. изл.
     {
         double len=p0.length();
         rVect s0 = 1./len*p0;
@@ -92,13 +92,13 @@ public:
         rVect temp = (len * ((ey ^ dh) - ((ey * de) * Nout)));
 
         return cVect(temp.getX(), temp.getY(), temp.getZ());
-//		return ((Nin*ey)*p0)-((p0*ey)*Nin);
+        //		return ((Nin*ey)*p0)-((p0*ey)*Nin);
     }//CulcPolarization
 
-//????????? ? ?????? ???????????
-    cVect PolarDifraction(rVect Nin, rVect Nout, //??????????? ??????? ? ?????????
-                         rVect p0,                //??????????? ??????. ???.)
-                         double wave)				//???????? ?????
+    //рассеяние с учетом поляризации
+    cVect PolarDifraction(rVect Nin, rVect Nout, //направление падения и рассеяния
+                          rVect p0,                //поляризация падающ. изл.)
+                          double wave)				//волновое число
     {
         return Difraction(Nin, Nout, wave) * p0;// CulcPolarization(Nin, Nout, p0);
     }

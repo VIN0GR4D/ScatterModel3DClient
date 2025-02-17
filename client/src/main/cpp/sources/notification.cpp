@@ -147,16 +147,16 @@ void Notification::paintEvent(QPaintEvent *event)
     QColor stripColor;
     switch (currentType) {
     case Success:
-        stripColor = QColor("#4CAF50");
+        stripColor = QColor(76, 175, 80);
         break;
     case Warning:
-        stripColor = QColor("#FFC107");
+        stripColor = QColor(255, 193, 7);
         break;
     case Error:
-        stripColor = QColor("#F44336");
+        stripColor = QColor(244, 67, 54);
         break;
     case Info:
-        stripColor = QColor("#2196F3");
+        stripColor = QColor(33, 150, 243);
         break;
     }
 
