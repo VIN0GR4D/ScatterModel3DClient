@@ -8,6 +8,7 @@ Notification::Notification(QWidget *parent)
     : QWidget(parent)
     , iconLabel(new QLabel(this))
     , messageLabel(new QLabel(this))
+    , closeButton(new QPushButton(this))
     , timer(new QTimer(this))
     , animation(new QPropertyAnimation(this, "geometry"))
     , opacityEffect(new QGraphicsOpacityEffect(this))
@@ -18,6 +19,7 @@ Notification::Notification(QWidget *parent)
     opacityEffect->setOpacity(1.0);
 
     connect(timer, &QTimer::timeout, this, &Notification::fadeOut);
+    connect(closeButton, &QPushButton::clicked, this, &Notification::fadeOut);
 }
 
 void Notification::setupUI()
@@ -41,6 +43,24 @@ void Notification::setupUI()
     messageLabel->setAttribute(Qt::WA_TranslucentBackground);  // Добавляем прозрачность
     messageLabel->setStyleSheet("QLabel { color: white; background: transparent; }");  // Добавляем transparent в стили
     mainLayout->addWidget(messageLabel, 1);
+
+    // Настройка кнопки закрытия
+    closeButton->setFixedSize(16, 16);
+    closeButton->setCursor(Qt::PointingHandCursor);
+    closeButton->setStyleSheet(R"(
+        QPushButton {
+            border: none;
+            background-color: transparent;
+            color: white;
+            font-family: Arial;
+            font-weight: bold;
+        }
+        QPushButton:hover {
+            color: rgba(255, 255, 255, 0.8);
+        }
+    )");
+    closeButton->setText("✕");
+    mainLayout->addWidget(closeButton);
 
     setFixedWidth(300);
     setMinimumHeight(50);

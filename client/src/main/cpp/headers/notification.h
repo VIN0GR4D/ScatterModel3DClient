@@ -6,6 +6,7 @@
 #include <QTimer>
 #include <QPropertyAnimation>
 #include <QGraphicsOpacityEffect>
+#include <QPushButton>
 
 class Notification : public QWidget
 {
@@ -28,6 +29,7 @@ protected:
 private:
     QLabel *iconLabel;
     QLabel *messageLabel;
+    QPushButton *closeButton;
     QTimer *timer;
     QPropertyAnimation *animation;
     QGraphicsOpacityEffect *opacityEffect;
