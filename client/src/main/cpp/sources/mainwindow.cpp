@@ -63,10 +63,13 @@ MainWindow::MainWindow(QWidget *parent)
     QMenu *fileMenu = new QMenu("Файл", this);
 
     QAction *openAction = new QAction(QIcon(":/load.png"), "Открыть", this);
+    openAction->setToolTip("Открыть 3D модель");
     QAction *saveAction = new QAction(QIcon(":/download.png"), "Сохранить", this);
     QAction *exitAction = new QAction("Выход", this);
 
     QAction *closeAction = new QAction(QIcon(":/close.png"), "Закрыть", this);
+    closeAction->setToolTip("Закрыть текущую 3D модель");
+    closeAction->setEnabled(false); // Изначально кнопка неактивна
     fileMenu->addAction(closeAction);
     connect(closeAction, &QAction::triggered, this, &MainWindow::closeModel);
 
@@ -161,6 +164,12 @@ MainWindow::MainWindow(QWidget *parent)
         rayTracer->determineVisibility(tri, observerPosition);
         openGLWidget->setGeometry(v, t, tri);
     });
+
+    // Подключаем обработку изменения состояния модели для активации/деактивации кнопки
+    connect(parser, &Parser::modelInfoUpdated, this,
+            [closeAction](int nodesCount, int trianglesCount, const QString &fileName) {
+                closeAction->setEnabled(nodesCount > 0 || trianglesCount > 0);
+            });
 
     // Подключаем сигнал обновления информации о модели
     connect(parser, &Parser::modelInfoUpdated, this,
@@ -1622,6 +1631,7 @@ void MainWindow::closeModel() {
         updateFilterStats(emptyStats);
 
         logMessage("3D модель закрыта");
+        showNotification("3D модель закрыта", Notification::Info);
         setModified(true);          // Устанавливаем флаг изменений
     }
 }
