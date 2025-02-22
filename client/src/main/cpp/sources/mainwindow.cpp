@@ -230,6 +230,7 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow() {
     delete ui;
+    delete NotificationManager::instance();
 }
 
 void MainWindow::createToolBar() {
@@ -904,6 +905,7 @@ void MainWindow::applyRotation() {
 
     openGLWidget->setRotation(rotationX, rotationY, rotationZ);
     setModified(true); // Установка флага изменений
+    showNotification("Поворот применён", Notification::Info);
 }
 
 void MainWindow::resetRotation() {
@@ -913,6 +915,7 @@ void MainWindow::resetRotation() {
 
     openGLWidget->setRotation(0, 0, 0);
     setModified(true); // Установка флага изменений
+    showNotification("Поворот объекта сброшен", Notification::Info);
 }
 
 rVect MainWindow::calculateDirectVectorFromRotation() {
@@ -1609,6 +1612,7 @@ void MainWindow::performFiltering() {
                    .arg(stats.totalTriangles)
                    .arg(stats.shellTriangles)
                    .arg(stats.visibleTriangles));
+    showNotification("Фильтрация объекта завершена", Notification::Success);
 
     setModified(true);
 }
@@ -1637,8 +1641,7 @@ void MainWindow::closeModel() {
 }
 
 void MainWindow::showNotification(const QString &message, Notification::Type type) {
-    Notification *notification = new Notification(this);
-    notification->showMessage(message, type);
+    NotificationManager::instance()->showMessage(message, type);
 }
 
 void MainWindow::toggleShadowTriangles() {

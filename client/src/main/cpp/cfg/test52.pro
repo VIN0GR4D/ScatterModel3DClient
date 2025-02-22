@@ -20,6 +20,7 @@ SOURCES += \
     meshfilter.cpp \
     newprojectdialog.cpp \
     notification.cpp \
+    notificationmanager.cpp \
     openglwidget.cpp \
     parser.cpp \
     portraitwindow.cpp \
@@ -41,6 +42,7 @@ HEADERS += \
     meshfilter.h \
     newprojectdialog.h \
     notification.h \
+    notificationmanager.h \
     openglwidget.h \
     parser.h \
     portraitwindow.h \

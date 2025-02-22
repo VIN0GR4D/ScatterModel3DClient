@@ -5,7 +5,7 @@
 #include <QVector3D>
 #include <QSharedPointer>
 #include <QVector>
-#include "triangle.h"
+#include "Triangle.h"
 
 class ProjectData {
 public:

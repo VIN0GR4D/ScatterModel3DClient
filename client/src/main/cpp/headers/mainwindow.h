@@ -9,6 +9,7 @@
 #include "projectserializer.h"
 #include "meshfilter.h"
 #include "notification.h"
+#include "notificationmanager.h"
 #include <QMainWindow>
 #include <QPushButton>
 #include <QLineEdit>

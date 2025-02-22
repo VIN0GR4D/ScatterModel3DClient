@@ -123,6 +123,8 @@ void Notification::showMessage(const QString &message, Type type, int duration)
     animation->setStartValue(geometry());
     animation->setEndValue(QRect(x, y, width(), height()));
     animation->setEasingCurve(QEasingCurve::OutCubic);
+
+    emit startedMoving();
     animation->start();
 
     startTimer(duration);
@@ -182,4 +184,35 @@ void Notification::paintEvent(QPaintEvent *event)
 
     painter.setBrush(stripColor);
     painter.drawRoundedRect(QRect(0, 0, 4, height()), 2, 2);
+}
+
+void Notification::moveDown(int offset)
+{
+    QScreen *screen = QApplication::primaryScreen();
+    QRect screenGeometry = screen->availableGeometry();
+
+    int x = screenGeometry.width() - width() - 20;
+    int y = 20 + offset;
+
+    QPropertyAnimation *moveAnimation = new QPropertyAnimation(this, "geometry");
+    moveAnimation->setDuration(300);
+    moveAnimation->setStartValue(geometry());
+    moveAnimation->setEndValue(QRect(x, y, width(), height()));
+    moveAnimation->setEasingCurve(QEasingCurve::OutCubic);
+
+    connect(moveAnimation, &QPropertyAnimation::finished, moveAnimation, &QObject::deleteLater);
+
+    emit startedMoving();
+    moveAnimation->start();
+}
+
+void Notification::updatePosition(int offset)
+{
+    QScreen *screen = QApplication::primaryScreen();
+    QRect screenGeometry = screen->availableGeometry();
+
+    int x = screenGeometry.width() - width() - 20;
+    int y = 20 + offset;
+
+    move(x, y);
 }

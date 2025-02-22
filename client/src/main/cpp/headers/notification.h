@@ -23,8 +23,15 @@ public:
     explicit Notification(QWidget *parent = nullptr);
     void showMessage(const QString &message, Type type = Info, int duration = 3000);
 
+public slots:
+    void moveDown(int offset);
+    void updatePosition(int offset);
+
 protected:
     void paintEvent(QPaintEvent *event) override;
+
+signals:
+    void startedMoving();
 
 private:
     QLabel *iconLabel;
