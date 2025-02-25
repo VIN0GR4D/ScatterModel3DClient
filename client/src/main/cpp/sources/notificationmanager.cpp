@@ -22,24 +22,87 @@ NotificationManager *NotificationManager::instance()
     return s_instance;
 }
 
+void NotificationManager::destroy()
+{
+    if (s_instance) {
+        delete s_instance;
+        s_instance = nullptr;
+    }
+}
+
+QString NotificationManager::createHistoryKey(const QString &message, Notification::Type type)
+{
+    return QString("%1_%2").arg(message).arg(static_cast<int>(type));
+}
+
+bool NotificationManager::isSpam(const QString &message, Notification::Type type)
+{
+    QString key = createHistoryKey(message, type);
+    if (!m_notificationHistory.contains(key)) {
+        return false;
+    }
+
+    const NotificationInfo &info = m_notificationHistory[key];
+    QDateTime currentTime = QDateTime::currentDateTime();
+    qint64 msSinceLastNotification = info.lastShown.msecsTo(currentTime);
+
+    // Если уведомление показывалось часто и не прошло время остывания
+    if (info.count >= SPAM_THRESHOLD && msSinceLastNotification < COOLDOWN_MS) {
+        return true;
+    }
+
+    // Если прошло достаточно времени, сбрасываем счетчик
+    if (msSinceLastNotification >= COOLDOWN_MS) {
+        return false;
+    }
+
+    return false;
+}
+
+void NotificationManager::updateNotificationHistory(const QString &message, Notification::Type type)
+{
+    QString key = createHistoryKey(message, type);
+    QDateTime currentTime = QDateTime::currentDateTime();
+
+    if (m_notificationHistory.contains(key)) {
+        NotificationInfo &info = m_notificationHistory[key];
+        qint64 msSinceLastNotification = info.lastShown.msecsTo(currentTime);
+
+        // Сбрасываем счетчик, если прошло достаточно времени
+        if (msSinceLastNotification >= COOLDOWN_MS) {
+            info.count = 1;
+        } else {
+            info.count++;
+        }
+        info.lastShown = currentTime;
+    } else {
+        m_notificationHistory[key] = {message, type, currentTime, 1};
+    }
+}
+
 void NotificationManager::showMessage(const QString &message, Notification::Type type, int duration)
 {
+    // Проверяем на спам
+    if (isSpam(message, type)) {
+        return;
+    }
+
+    // Обновляем историю уведомлений
+    updateNotificationHistory(message, type);
+
     Notification *notification = new Notification();
 
-    // Подключаем сигнал уничтожения уведомления
     connect(notification, &QObject::destroyed, this, &NotificationManager::removeNotification);
     connect(notification, &Notification::startedMoving, this, &NotificationManager::updatePositions);
 
     m_notifications.append(notification);
 
-    // Вычисляем позицию для нового уведомления
     QScreen *screen = QApplication::primaryScreen();
     QRect screenGeometry = screen->availableGeometry();
 
     int x = screenGeometry.width() - notification->width() - 20;
     int totalHeight = 0;
 
-    // Сдвигаем существующие уведомления вниз
     for (int i = m_notifications.size() - 2; i >= 0; --i) {
         Notification *prev = m_notifications[i];
         totalHeight += prev->height() + SPACING;

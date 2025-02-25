@@ -17,11 +17,13 @@ PortraitWindow::PortraitWindow(QWidget *parent)
 
     // Создаем кнопку сохранения изображения
     saveButton = new QPushButton("Сохранить изображение", this);
+    saveButton->setMinimumWidth(200);
     saveButton->move(10, 10); // Позиция кнопки в левом верхнем углу
     connect(saveButton, &QPushButton::clicked, this, &PortraitWindow::savePortraitAsPNG);
 
     // Кнопка переключения масштаба
     toggleScaleButton = new QPushButton("Логарифмический масштаб", this);
+    toggleScaleButton->setMinimumWidth(200);
     toggleScaleButton->setCheckable(true);
     toggleScaleButton->move(10, 50);
     connect(toggleScaleButton, &QPushButton::clicked, this, &PortraitWindow::toggleScale);

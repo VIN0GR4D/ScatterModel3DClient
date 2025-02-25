@@ -1074,6 +1074,7 @@ void MainWindow::performCalculation() {
 
     if (!anglePortraitCheckBox->isChecked() && !azimuthPortraitCheckBox->isChecked() && !rangePortraitCheckBox->isChecked()) {
         logMessage("Ошибка: тип радиопортрета не задан. Пожалуйста, выберите хотя бы один тип радиопортрета.");
+        showNotification("Тип тип радиопортрета не задан", Notification::Error);
         return;
     }
 
@@ -1165,16 +1166,16 @@ void MainWindow::connectToServer() {
             });
 
             serverEnabled = true;
-            logMessage("Connecting to server: " + serverAddress);
+            logMessage("Подключение к серверу: " + serverAddress);
             showNotification("Подключение к серверу...", Notification::Info);
         } else {
             emit connectionStatusChanged(false);
-            logMessage("Failed to create TriangleClient.");
+            logMessage("Ошибка создания клиента.");
             showNotification("Ошибка создания клиента", Notification::Error);
         }
     } else {
         emit connectionStatusChanged(false);
-        logMessage("Server address is empty.");
+        logMessage("Укажите адрес сервера.");
         showNotification("Укажите адрес сервера", Notification::Warning);
     }
 }
@@ -1190,11 +1191,11 @@ void MainWindow::onConnectedToServer() {
 void MainWindow::disconnectFromServer() {
     if (triangleClient && triangleClient->isConnected()) {
         triangleClient->disconnectFromServer();
-        logMessage("Disconnected from server.");
+        logMessage("Отключен от сервера.");
         emit connectionStatusChanged(false);
         serverEnabled = false;
     } else {
-        logMessage("Not connected to any server.");
+        logMessage("Не подключен к серверу.");
     }
 }
 
