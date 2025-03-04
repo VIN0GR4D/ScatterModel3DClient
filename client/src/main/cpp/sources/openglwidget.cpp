@@ -1,4 +1,5 @@
 #include "openglwidget.h"
+#include "geometryutils.h"
 #include <QMatrix4x4>
 #include <GL/glu.h>
 
@@ -277,7 +278,7 @@ void OpenGLWidget::paintGL() {
         auto v2 = triangles[i]->getV2();
         auto v3 = triangles[i]->getV3();
 
-        rVect normal = rayTracer.computeNormal(triangle);
+        rVect normal = GeometryUtils::computeNormal(triangle);
         QVector3D normalVec(normal.getX(), normal.getY(), normal.getZ());
         glNormal3f(normalVec.x(), normalVec.y(), normalVec.z());
 

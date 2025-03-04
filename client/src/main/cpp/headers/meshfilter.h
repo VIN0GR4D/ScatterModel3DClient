@@ -5,6 +5,7 @@
 #include <QSharedPointer>
 #include "Triangle.h"
 #include "rVect.h"
+#include "geometryutils.h"
 
 class MeshFilter {
 public:
@@ -43,7 +44,6 @@ private:
 
     bool isTriangleOnShell(const TriangleInfo& triInfo, const QVector<TriangleInfo>& allTriangles);
     bool isIntersectingPlane(const TriangleInfo& triInfo, const Plane& plane);
-    rVect calculateCentroid(const QSharedPointer<triangle>& tri);
     double calculateDistance(const rVect& point, const Plane& plane);
     bool isTriangleVisible(const TriangleInfo& triInfo);
     double calculateObjectSize(const QVector<TriangleInfo>& triangleInfos);

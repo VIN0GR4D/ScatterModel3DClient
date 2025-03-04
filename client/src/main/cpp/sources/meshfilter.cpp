@@ -1,28 +1,16 @@
 #include "meshfilter.h"
+#include "geometryutils.h"
 #include <QDebug>
 
 MeshFilter::MeshFilter() {}
 
 MeshFilter::~MeshFilter() {}
 
-// Конструктор для TriangleInfo
+// Конструктор для TriangleInfo с использованием GeometryUtils
 MeshFilter::TriangleInfo::TriangleInfo(const QSharedPointer<triangle>& t) : tri(t), isShell(false) {
-    // Вычисляем центроид треугольника
-    const rVect& v1 = *t->getV1();
-    const rVect& v2 = *t->getV2();
-    const rVect& v3 = *t->getV3();
-
-    centroid = rVect(
-        (v1.getX() + v2.getX() + v3.getX()) / 3.0,
-        (v1.getY() + v2.getY() + v3.getY()) / 3.0,
-        (v1.getZ() + v2.getZ() + v3.getZ()) / 3.0
-        );
-
-    // Вычисляем нормаль треугольника
-    rVect edge1 = *t->getV2() - *t->getV1();
-    rVect edge2 = *t->getV3() - *t->getV1();
-    normal = edge1 ^ edge2;
-    normal.normalize();
+    // Используем общие методы из GeometryUtils
+    centroid = GeometryUtils::calculateCentroid(t);
+    normal = GeometryUtils::computeNormal(t);
 }
 
 MeshFilter::FilterStats MeshFilter::filterMesh(QVector<QSharedPointer<triangle>>& triangles) {

@@ -12,6 +12,7 @@ CONFIG += c++17
 
 SOURCES += \
     aboutdialog.cpp \
+    geometryutils.cpp \
     graphwindow.cpp \
     logindialog.cpp \
     logworker.cpp \
@@ -35,6 +36,7 @@ HEADERS += \
     Triangle.h \
     aboutdialog.h \
     cVect.h \
+    geometryutils.h \
     graphwindow.h \
     logindialog.h \
     logworker.h \

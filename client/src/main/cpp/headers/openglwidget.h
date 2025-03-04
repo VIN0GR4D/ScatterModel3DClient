@@ -9,7 +9,8 @@
 #include <QSharedPointer>
 #include <QMatrix4x4>
 #include "Triangle.h"
-#include <raytracer.h>
+#include "raytracer.h"
+#include "geometryutils.h"
 
 class OpenGLWidget : public QOpenGLWidget, protected QOpenGLFunctions_3_0 {
     Q_OBJECT

@@ -8,6 +8,7 @@
 #include "logindialog.h"
 #include "portraitwindow.h"
 #include "newprojectdialog.h"
+#include "geometryutils.h"
 #include <QFile>
 #include <QFileDialog>
 #include <QFormLayout>
