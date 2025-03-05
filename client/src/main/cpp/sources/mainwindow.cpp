@@ -920,31 +920,6 @@ void MainWindow::resetRotation() {
     showNotification("Поворот объекта сброшен", Notification::Info);
 }
 
-rVect MainWindow::calculateDirectVectorFromRotation() {
-    float rotationX = inputRotationX->value();
-    float rotationY = inputRotationY->value();
-    float rotationZ = inputRotationZ->value();
-
-    // Инвертируем порядок вращений, чтобы соответствовать порядку трансформаций в OpenGL
-    QMatrix4x4 rotationMatrix;
-    rotationMatrix.setToIdentity();
-    rotationMatrix.rotate(rotationX, 1.0f, 0.0f, 0.0f);
-    rotationMatrix.rotate(rotationY, 0.0f, 1.0f, 0.0f);
-    rotationMatrix.rotate(rotationZ, 0.0f, 0.0f, 1.0f);
-
-    // Вектор направления по умолчанию, направленный вдоль отрицательной оси Z
-    QVector3D defaultDirection(0.0f, 0.0f, -1.0f);
-
-    // Применяем матрицу вращения
-    QVector3D transformedDirection = rotationMatrix.map(defaultDirection);
-
-    // Нормализуем результат
-    rVect directVector(transformedDirection.x(), transformedDirection.y(), transformedDirection.z());
-    directVector.normalize();
-
-    return directVector;
-}
-
 // Метод для авторизации
 void MainWindow::authorizeClient() {
     // Создаем диалоговое окно для ввода логина и пароля
@@ -1121,7 +1096,7 @@ void MainWindow::performCalculation() {
     // QVector3D waveDirection(0.0f, 0.0f, -1.0f);
     // rVect directVector = openGLWidget->QVector3DToRVect(waveDirection);
 
-    rVect directVector = calculateDirectVectorFromRotation();
+    rVect directVector = openGLWidget->getDirectionVector();
 
     QJsonObject modelData;
     modelData["data"] = coordinateArray;
@@ -1605,8 +1580,7 @@ void MainWindow::performFiltering() {
     QVector<QSharedPointer<triangle>> filteredTriangles = openGLWidget->getTriangles();
     MeshFilter::FilterStats stats = meshFilter.filterMesh(filteredTriangles);
 
-    // Обновление OpenGL виджета с отфильтрованными треугольниками
-    openGLWidget->setTriangles(filteredTriangles);
+    openGLWidget->applyFilteredTriangles(filteredTriangles);
 
     // Обновление статистики
     updateFilterStats(stats);
@@ -1649,32 +1623,22 @@ void MainWindow::showNotification(const QString &message, Notification::Type typ
 }
 
 void MainWindow::toggleShadowTriangles() {
-    QVector<QSharedPointer<triangle>> currentTriangles = openGLWidget->getTriangles();
-    if (currentTriangles.isEmpty()) {
+    if (openGLWidget->getTotalTrianglesCount() == 0) {
         logMessage("Ошибка: не загружен 3D объект для обработки.");
         showNotification("Нет загруженного объекта", Notification::Warning);
         return;
     }
 
-    int originalCount = currentTriangles.size();
+    int originalCount = openGLWidget->getTotalTrianglesCount();
 
     // Получаем позицию камеры
-    QVector3D cameraPositionQVector = openGLWidget->getCameraPosition();
-    rVect observerPosition = openGLWidget->QVector3DToRVect(cameraPositionQVector);
+    rVect observerPosition = openGLWidget->getCameraPositionAsRVect();
 
-    // Определяем видимость треугольников с помощью RayTracer
-    rayTracer->determineVisibility(currentTriangles, observerPosition);
+    // Делегируем обработку треугольников в OpenGLWidget
+    openGLWidget->processShadowTriangles(observerPosition);
 
-    // Включаем фильтрацию теневых треугольников
-    openGLWidget->setShadowTrianglesFiltering(true);
-
-    // Подсчитываем количество скрытых треугольников
-    int visibleCount = 0;
-    for (const auto& tri : currentTriangles) {
-        if (tri->getVisible()) {
-            visibleCount++;
-        }
-    }
+    // Получаем статистику после обработки
+    int visibleCount = openGLWidget->getVisibleTrianglesCount();
 
     // Обновляем статистику
     MeshFilter::FilterStats stats = {

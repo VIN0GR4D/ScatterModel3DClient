@@ -71,6 +71,53 @@ const QVector<QVector<int>>& OpenGLWidget::getIndices() const {
     return triangleIndices;
 }
 
+bool OpenGLWidget::hasShadowTriangles() const {
+    int visibleCount = 0;
+    for (const auto& tri : triangles) {
+        if (tri->getVisible()) visibleCount++;
+    }
+    return visibleCount < triangles.size();
+}
+
+void OpenGLWidget::processShadowTriangles(const rVect& observerPosition) {
+    rayTracer.determineVisibility(triangles, observerPosition);
+    setShadowTrianglesFiltering(true);
+    update();
+}
+
+int OpenGLWidget::getTotalTrianglesCount() const {
+    return triangles.size();
+}
+
+int OpenGLWidget::getVisibleTrianglesCount() const {
+    int count = 0;
+    for (const auto& tri : triangles) {
+        if (tri->getVisible()) count++;
+    }
+    return count;
+}
+
+rVect OpenGLWidget::getDirectionVector() const {
+    // Перенесённая логика из MainWindow::calculateDirectVectorFromRotation
+    QMatrix4x4 rotationMatrix;
+    rotationMatrix.setToIdentity();
+    rotationMatrix.rotate(rotationX, 1.0f, 0.0f, 0.0f);
+    rotationMatrix.rotate(rotationY, 0.0f, 1.0f, 0.0f);
+    rotationMatrix.rotate(rotationZ, 0.0f, 0.0f, 1.0f);
+
+    QVector3D defaultDirection(0.0f, 0.0f, -1.0f);
+    QVector3D transformedDirection = rotationMatrix.map(defaultDirection);
+
+    rVect directVector(transformedDirection.x(), transformedDirection.y(), transformedDirection.z());
+    directVector.normalize();
+
+    return directVector;
+}
+
+void OpenGLWidget::applyFilteredTriangles(const QVector<QSharedPointer<triangle>>& filteredTriangles) {
+    setTriangles(filteredTriangles);
+}
+
 // Вычисление ограничивающего объема для геометрии
 void OpenGLWidget::computeBoundingVolume() {
     if (vertices.isEmpty()) return;
@@ -110,6 +157,10 @@ void OpenGLWidget::computeBoundingVolume() {
 // Получение текущей позиции камеры
 QVector3D OpenGLWidget::getCameraPosition() const {
     return cameraPosition;
+}
+
+rVect OpenGLWidget::getCameraPositionAsRVect() const {
+    return QVector3DToRVect(cameraPosition);
 }
 
 // Обновление позиции камеры
@@ -310,7 +361,7 @@ void OpenGLWidget::clearScene() {
 }
 
 // Преобразование QVector3D в rVect
-rVect OpenGLWidget::QVector3DToRVect(const QVector3D& vec) {
+rVect OpenGLWidget::QVector3DToRVect(const QVector3D& vec) const  {
     return rVect(vec.x(), vec.y(), vec.z());
 }
 

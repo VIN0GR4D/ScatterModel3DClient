@@ -22,7 +22,7 @@ public:
     const QVector<QSharedPointer<triangle>>& getTriangles() const;
     void updateScene();
     void clearScene();
-    rVect QVector3DToRVect(const QVector3D& vec);
+    rVect QVector3DToRVect(const QVector3D& vec) const;
     void setRotation(float x, float y, float z);
     const QVector<QVector3D>& getVertices() const;
     const QVector<QVector<int>>& getIndices() const;
@@ -34,6 +34,19 @@ public:
     void setTriangles(const QVector<QSharedPointer<triangle>>& tri);
     void setScalingCoefficients(const QVector3D& scaling);
     void setShadowTrianglesFiltering(bool enable);
+
+    bool hasShadowTriangles() const;
+    void processShadowTriangles(const rVect& observerPosition);
+    int getTotalTrianglesCount() const;
+    int getVisibleTrianglesCount() const;
+
+    // Метод для получения вектора направления, учитывающий текущие вращения
+    rVect getDirectionVector() const;
+    // Метод для получения позиции камеры в формате rVect
+    rVect getCameraPositionAsRVect() const;
+
+    // Метод для применения фильтрации треугольников
+    void applyFilteredTriangles(const QVector<QSharedPointer<triangle>>& filteredTriangles);
 
 public slots:
     void setUnderlyingSurfaceVisible(bool visible);
