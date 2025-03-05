@@ -907,6 +907,7 @@ void MainWindow::applyRotation() {
     openGLWidget->setRotation(rotationX, rotationY, rotationZ);
     setModified(true); // Установка флага изменений
     showNotification("Поворот применён", Notification::Info);
+    logMessage("Поворот применён.");
 }
 
 void MainWindow::resetRotation() {
@@ -963,6 +964,7 @@ void MainWindow::authorizeClient() {
 void MainWindow::sendDataAfterAuthorization(std::function<void()> sendDataFunc) {
     if (!triangleClient || !triangleClient->isConnected()) {
         logMessage("Для начала подключитесь к серверу.");
+        showNotification("Для начала подключитесь к серверу.", Notification::Warning);
         return;
     }
 
