@@ -55,6 +55,7 @@ MainWindow::MainWindow(QWidget *parent)
     , isModified(false)
     , isDarkTheme(true)
     , resultsWatcher(new QFutureWatcher<void>(this))
+    , patternDiagramWindow(nullptr)
 {
     ui->setupUi(this);
     setCentralWidget(openGLWidget);
@@ -232,6 +233,9 @@ MainWindow::MainWindow(QWidget *parent)
 MainWindow::~MainWindow() {
     delete ui;
     delete NotificationManager::instance();
+    if (patternDiagramWindow) {
+        delete patternDiagramWindow;
+    }
 }
 
 void MainWindow::createToolBar() {
@@ -422,6 +426,9 @@ void MainWindow::setupParametersWidget() {
     layout->addWidget(rotationGroupBox);
     layout->addStretch();
 
+    showPatternDiagramButton = new QPushButton("Показать диаграмму направленности", parametersWidget);
+    layout->addWidget(showPatternDiagramButton);
+
     // Переподключаем сигналы
     disconnect(buttonApplyRotation, nullptr, nullptr, nullptr);
     disconnect(buttonResetRotation, nullptr, nullptr, nullptr);
@@ -438,6 +445,8 @@ void MainWindow::setupParametersWidget() {
     connect(azimuthPortraitCheckBox, &QCheckBox::stateChanged, this, &MainWindow::onPortraitTypeChanged);
     connect(rangePortraitCheckBox, &QCheckBox::stateChanged, this, &MainWindow::onPortraitTypeChanged);
     connect(pplaneCheckBox, &QCheckBox::toggled, openGLWidget, &OpenGLWidget::setUnderlyingSurfaceVisible);
+
+    connect(showPatternDiagramButton, &QPushButton::clicked, this, &MainWindow::showPatternDiagram);
 }
 
 void MainWindow::setupFilteringWidget() {
@@ -1689,5 +1698,21 @@ void MainWindow::updateCalculationProgress(int progress) {
         //     styleSheet = "QProgressBar::chunk { background-color: #6BCB77; }";
         // }
         // progressBar->setStyleSheet(styleSheet);
+    }
+}
+
+void MainWindow::showPatternDiagram() {
+    if (!patternDiagramWindow) {
+        patternDiagramWindow = new PatternDiagramWindow(this);
+    }
+
+    // Если у нас есть данные, отобразим их
+    if (!absEout2D.isEmpty()) {
+        patternDiagramWindow->setData(absEout2D);
+        patternDiagramWindow->show();
+    } else {
+        // Если нет данных, можно показать тестовые данные или вывести сообщение
+        QMessageBox::warning(this, "Ошибка", "Нет данных для отображения диаграммы направленности. "
+                                             "Сначала выполните расчёт или загрузите результаты.");
     }
 }

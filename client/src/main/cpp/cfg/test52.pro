@@ -24,6 +24,7 @@ SOURCES += \
     notificationmanager.cpp \
     openglwidget.cpp \
     parser.cpp \
+    patterndiagramwindow.cpp \
     portraitwindow.cpp \
     projectserializer.cpp \
     raytracer.cpp \
@@ -47,6 +48,7 @@ HEADERS += \
     notificationmanager.h \
     openglwidget.h \
     parser.h \
+    patterndiagramwindow.h \
     portraitwindow.h \
     projectserializer.h \
     rVect.h \

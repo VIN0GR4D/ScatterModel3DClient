@@ -10,6 +10,7 @@
 #include "meshfilter.h"
 #include "notification.h"
 #include "notificationmanager.h"
+#include "patterndiagramwindow.h"
 #include <QMainWindow>
 #include <QPushButton>
 #include <QLineEdit>
@@ -95,6 +96,7 @@ private slots:
     void toggleShadowTriangles();
     void abortCalculation();
     void updateCalculationProgress(int progress);
+    void showPatternDiagram();
 
 signals:
     void connectionStatusChanged(bool connected);
@@ -177,6 +179,9 @@ private:
     void updateConnectionStatus(QLabel* connectionLabel, QLabel* authLabel);
     QPushButton* abortCalculationButton;
     QProgressBar* progressBar;
+
+    PatternDiagramWindow *patternDiagramWindow;
+    QPushButton *showPatternDiagramButton;
 };
 
 #endif // MAINWINDOW_H
