@@ -8,6 +8,35 @@
 #include <QDebug>
 #include <algorithm>
 
+// Вспомогательный класс для области рисования
+class DiagramCanvas : public QWidget {
+public:
+    DiagramCanvas(PatternDiagramWindow* owner, QWidget* parent = nullptr)
+        : QWidget(parent), m_owner(owner) {}
+
+protected:
+    void paintEvent(QPaintEvent* event) override {
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing);
+
+        // Рисуем фон
+        QRect rect = this->rect();
+        painter.fillRect(rect, Qt::white);
+        painter.setPen(Qt::black);
+        painter.drawRect(rect.adjusted(0, 0, -1, -1));
+
+        // Рисуем диаграмму направленности
+        if (m_owner->getProjectionType() == 0) {
+            m_owner->drawPolarPattern(painter, rect);
+        } else {
+            m_owner->draw3DPattern(painter, rect);
+        }
+    }
+
+private:
+    PatternDiagramWindow* m_owner;
+};
+
 PatternDiagramWindow::PatternDiagramWindow(QWidget *parent)
     : QDialog(parent),
     m_scale(1.0),
@@ -29,46 +58,68 @@ PatternDiagramWindow::PatternDiagramWindow(QWidget *parent)
 
 void PatternDiagramWindow::setupUI()
 {
+    // Используем вертикальный компоновщик для основной структуры окна
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
 
-    // Создаем виджеты управления
-    m_saveButton = new QPushButton("Сохранить изображение", this);
-    m_resetButton = new QPushButton("Сбросить вид", this);
+    // Создаем виджет для области рисования
+    m_drawingArea = new DiagramCanvas(this);
+    m_drawingArea->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    m_drawingArea->setMinimumHeight(400); // Минимальная высота для области рисования
+
+    // Отдельный слой для элементов управления
+    QWidget *controlPanel = new QWidget;
+    m_controlsLayout = new QVBoxLayout(controlPanel);
+
+    // Первый ряд элементов управления: проекция и нормализация
+    QHBoxLayout *row1Layout = new QHBoxLayout();
+    row1Layout->addWidget(new QLabel("Тип проекции:"));
     m_projectionCombo = new QComboBox(this);
     m_projectionCombo->addItem("Полярная проекция");
     m_projectionCombo->addItem("3D проекция");
+    row1Layout->addWidget(m_projectionCombo);
 
     m_normalizeCheck = new QCheckBox("Нормализация", this);
     m_normalizeCheck->setChecked(m_normalized);
+    row1Layout->addWidget(m_normalizeCheck);
 
     m_logScaleCheck = new QCheckBox("Логарифмический масштаб", this);
     m_logScaleCheck->setChecked(m_logarithmicScale);
+    row1Layout->addWidget(m_logScaleCheck);
 
     m_fillCheck = new QCheckBox("Заполнение", this);
     m_fillCheck->setChecked(m_fillPattern);
+    row1Layout->addWidget(m_fillCheck);
 
+    // Второй ряд: угол среза
+    QHBoxLayout *row2Layout = new QHBoxLayout();
     m_sliceLabel = new QLabel("Угол среза: 0°", this);
+    row2Layout->addWidget(m_sliceLabel);
+
     m_sliceSlider = new QSlider(Qt::Horizontal, this);
     m_sliceSlider->setRange(0, 360);
     m_sliceSlider->setValue(0);
     m_sliceSlider->setTickInterval(45);
     m_sliceSlider->setTickPosition(QSlider::TicksBelow);
+    row2Layout->addWidget(m_sliceSlider);
 
-    // Создаем сетку для размещения элементов управления
-    m_controlsLayout = new QGridLayout();
-    m_controlsLayout->addWidget(new QLabel("Тип проекции:"), 0, 0);
-    m_controlsLayout->addWidget(m_projectionCombo, 0, 1);
-    m_controlsLayout->addWidget(m_normalizeCheck, 1, 0);
-    m_controlsLayout->addWidget(m_logScaleCheck, 1, 1);
-    m_controlsLayout->addWidget(m_fillCheck, 2, 0);
-    m_controlsLayout->addWidget(m_saveButton, 2, 1);
-    m_controlsLayout->addWidget(m_sliceLabel, 3, 0);
-    m_controlsLayout->addWidget(m_sliceSlider, 3, 1);
-    m_controlsLayout->addWidget(m_resetButton, 4, 0, 1, 2);
+    // Третий ряд: кнопки
+    QHBoxLayout *row3Layout = new QHBoxLayout();
+    m_resetButton = new QPushButton("Сбросить вид", this);
+    row3Layout->addWidget(m_resetButton);
 
-    mainLayout->addLayout(m_controlsLayout);
+    m_saveButton = new QPushButton("Сохранить изображение", this);
+    row3Layout->addWidget(m_saveButton);
 
-    // Подключаем сигналы к слотам
+    // Добавляем все ряды в панель управления
+    m_controlsLayout->addLayout(row1Layout);
+    m_controlsLayout->addLayout(row2Layout);
+    m_controlsLayout->addLayout(row3Layout);
+
+    // Добавляем область рисования и панель управления в основной компоновщик
+    mainLayout->addWidget(m_drawingArea, 1);
+    mainLayout->addWidget(controlPanel, 0);
+
+    // Соединяем сигналы с слотами
     connect(m_saveButton, &QPushButton::clicked, this, &PatternDiagramWindow::saveImage);
     connect(m_resetButton, &QPushButton::clicked, this, &PatternDiagramWindow::resetView);
     connect(m_projectionCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
@@ -87,7 +138,10 @@ void PatternDiagramWindow::setData(const QVector<QVector<double>>& data)
 {
     m_data = data;
     calculateMinMax();
-    update();
+    // Обновляем область рисования вместо всего окна
+    if (m_drawingArea) {
+        m_drawingArea->update();
+    }
 }
 
 void PatternDiagramWindow::calculateMinMax()
@@ -114,24 +168,13 @@ void PatternDiagramWindow::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event);
 
-    QPainter painter(this);
-    painter.setRenderHint(QPainter::Antialiasing);
+    // В обновленной реализации метода paintEvent(),
+    // отрисовка должна происходить только в области drawingArea,
+    // но не в основном окне.
 
-    // Определяем размер и положение области рисования
-    int controlsHeight = m_controlsLayout->sizeHint().height();
-    QRect drawingRect(10, 10, width() - 20, height() - controlsHeight - 20);
-
-    // Рисуем фон
-    painter.fillRect(drawingRect, Qt::white);
-    painter.setPen(Qt::black);
-    painter.drawRect(drawingRect);
-
-    // Рисуем диаграмму направленности в зависимости от выбранного типа проекции
-    if (m_projectionType == 0) {
-        drawPolarPattern(painter, drawingRect);
-    } else {
-        draw3DPattern(painter, drawingRect);
-    }
+    // Вместо этого, мы оставляем эту функцию пустой,
+    // так как основная отрисовка будет происходить в paintEvent
+    // объекта drawingArea, переопределенном в setupUI()
 }
 
 void PatternDiagramWindow::drawPolarPattern(QPainter &painter, const QRect &rect)
@@ -379,28 +422,52 @@ QPointF PatternDiagramWindow::sphericalToCartesian(double radius, double theta, 
 
 void PatternDiagramWindow::mousePressEvent(QMouseEvent *event)
 {
-    m_lastMousePos = event->pos();
+    // Проверяем, находится ли курсор над областью рисования
+    if (m_drawingArea && m_drawingArea->rect().contains(event->pos() - m_drawingArea->pos())) {
+        m_lastMousePos = event->pos();
+        event->accept();
+    } else {
+        QDialog::mousePressEvent(event);
+    }
 }
 
 void PatternDiagramWindow::mouseMoveEvent(QMouseEvent *event)
 {
-    if (event->buttons() & Qt::LeftButton) {
+    // Обрабатываем только если исходное нажатие было в области рисования
+    if (event->buttons() & Qt::LeftButton && !m_lastMousePos.isNull()) {
         QPoint delta = event->pos() - m_lastMousePos;
         m_azimuthAngle += delta.x() * 0.5;
         m_elevationAngle = qBound(0.0, m_elevationAngle - delta.y() * 0.5, 90.0);
 
         m_lastMousePos = event->pos();
-        update();
+
+        if (m_drawingArea) {
+            m_drawingArea->update(); // Обновить только область рисования
+        }
+
+        event->accept();
+    } else {
+        QDialog::mouseMoveEvent(event);
     }
 }
 
 void PatternDiagramWindow::wheelEvent(QWheelEvent *event)
 {
-    QPoint numDegrees = event->angleDelta() / 8;
-    if (!numDegrees.isNull()) {
-        double factor = 1.0 + numDegrees.y() / 360.0;
-        m_scale = qBound(0.1, m_scale * factor, 10.0);
-        update();
+    // Проверяем, находится ли курсор над областью рисования
+    if (m_drawingArea && m_drawingArea->rect().contains(event->position().toPoint() - m_drawingArea->pos())) {
+        QPoint numDegrees = event->angleDelta() / 8;
+        if (!numDegrees.isNull()) {
+            double factor = 1.0 + numDegrees.y() / 360.0;
+            m_scale = qBound(0.1, m_scale * factor, 10.0);
+
+            if (m_drawingArea) {
+                m_drawingArea->update(); // Обновить только область рисования
+            }
+
+            event->accept();
+        }
+    } else {
+        QDialog::wheelEvent(event);
     }
 }
 
@@ -409,9 +476,44 @@ void PatternDiagramWindow::saveImage()
     QString fileName = QFileDialog::getSaveFileName(this, tr("Сохранить изображение"), "", tr("PNG Image (*.png)"));
     if (fileName.isEmpty()) return;
 
-    QPixmap pixmap(size());
+    // Получаем область рисования (первый виджет в макете)
+    QWidget* drawingArea = nullptr;
+    if (layout()) {
+        QLayoutItem* item = layout()->itemAt(0);
+        if (item && item->widget()) {
+            drawingArea = item->widget();
+        }
+    }
+
+    if (!drawingArea) {
+        QMessageBox::warning(this, tr("Ошибка"), tr("Не удалось получить область рисования."));
+        return;
+    }
+
+    // Создаем изображение размером с область рисования
+    QPixmap pixmap(drawingArea->size());
     pixmap.fill(Qt::white);
-    render(&pixmap);
+
+    QPainter painter(&pixmap);
+
+    // Рисуем диаграмму непосредственно на pixmap
+    if (m_projectionType == 0) {
+        drawPolarPattern(painter, drawingArea->rect());
+    } else {
+        draw3DPattern(painter, drawingArea->rect());
+    }
+
+    // Добавляем информацию о настройках
+    QString settings;
+    settings += m_normalized ? "Нормализовано " : "";
+    settings += m_logarithmicScale ? "Логарифмическая шкала " : "Линейная шкала ";
+    settings += QString("Угол среза: %1°").arg(m_sliceAngle);
+
+    painter.setPen(Qt::black);
+    QFont font = painter.font();
+    font.setPointSize(10);
+    painter.setFont(font);
+    painter.drawText(10, 20, settings);
 
     if (pixmap.save(fileName)) {
         QMessageBox::information(this, tr("Успех"), tr("Изображение успешно сохранено."));
@@ -426,48 +528,64 @@ void PatternDiagramWindow::resetView()
     m_azimuthAngle = 0.0;
     m_elevationAngle = 30.0;
     m_sliceSlider->setValue(0);
-    update();
+    if (m_drawingArea) {
+        m_drawingArea->update();
+    }
 }
 
 void PatternDiagramWindow::toggleNormalization(bool normalized)
 {
     m_normalized = normalized;
-    update();
+    if (m_drawingArea) {
+        m_drawingArea->update();
+    }
 }
 
 void PatternDiagramWindow::toggleLogScale(bool useLog)
 {
     m_logarithmicScale = useLog;
-    update();
+    if (m_drawingArea) {
+        m_drawingArea->update();
+    }
 }
 
 void PatternDiagramWindow::toggleFillMode(bool fill)
 {
     m_fillPattern = fill;
-    update();
+    if (m_drawingArea) {
+        m_drawingArea->update();
+    }
 }
 
 void PatternDiagramWindow::updateProjectionType(int index)
 {
     m_projectionType = index;
-    update();
+    if (m_drawingArea) {
+        m_drawingArea->update();
+    }
 }
 
 void PatternDiagramWindow::updateSliceAngle(int angle)
 {
     m_sliceAngle = angle;
     m_sliceLabel->setText(QString("Угол среза: %1°").arg(angle));
-    update();
+    if (m_drawingArea) {
+        m_drawingArea->update();
+    }
 }
 
 void PatternDiagramWindow::setAzimuthAngle(double angle)
 {
     m_azimuthAngle = angle;
-    update();
+    if (m_drawingArea) {
+        m_drawingArea->update();
+    }
 }
 
 void PatternDiagramWindow::setElevationAngle(double angle)
 {
     m_elevationAngle = qBound(0.0, angle, 90.0);
-    update();
+    if (m_drawingArea) {
+        m_drawingArea->update();
+    }
 }

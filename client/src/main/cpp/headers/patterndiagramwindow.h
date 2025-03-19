@@ -27,6 +27,11 @@ public:
     void setAzimuthAngle(double angle);
     void setElevationAngle(double angle);
 
+    int getProjectionType() const { return m_projectionType; }
+
+    void drawPolarPattern(QPainter &painter, const QRect &rect);
+    void draw3DPattern(QPainter &painter, const QRect &rect);
+
 protected:
     void paintEvent(QPaintEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
@@ -69,12 +74,10 @@ private:
     QCheckBox *m_fillCheck;
     QSlider *m_sliceSlider;
     QLabel *m_sliceLabel;
-    QGridLayout *m_controlsLayout;
+    QVBoxLayout *m_controlsLayout;
 
     // Вспомогательные методы для рисования
     void setupUI();
-    void drawPolarPattern(QPainter &painter, const QRect &rect);
-    void draw3DPattern(QPainter &painter, const QRect &rect);
     QColor getColorForValue(double value) const;
     double normalizeValue(double value) const;
     void calculateMinMax();
@@ -82,6 +85,8 @@ private:
     // Вспомогательные методы для координат
     QPointF polarToCartesian(double radius, double angle) const;
     QPointF sphericalToCartesian(double radius, double theta, double phi) const;
+
+    QWidget *m_drawingArea;
 };
 
 #endif // PATTERNDIAGRAMWINDOW_H
