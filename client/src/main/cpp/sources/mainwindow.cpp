@@ -290,11 +290,13 @@ void MainWindow::createToolBar() {
     openResultsAction = resultsMenu->addAction(QIcon(":/numerical.png"), "Числовые значения");
     openGraphAction = resultsMenu->addAction(QIcon(":/graph1d.png"), "Одномерный график");
     showPortraitAction = resultsMenu->addAction(QIcon(":/graph2d.png"), "Двумерный портрет");
+    QAction* showPatternDiagramAction = resultsMenu->addAction(QIcon(":/diagram.png"), "Диаграмма направленности");
 
     // Изначально все действия неактивны
     openResultsAction->setEnabled(false);
     openGraphAction->setEnabled(false);
     showPortraitAction->setEnabled(false);
+    showPatternDiagramAction->setEnabled(true);
 
     resultsButton->setMenu(resultsMenu);
     toolBar->addWidget(resultsButton);
@@ -303,6 +305,7 @@ void MainWindow::createToolBar() {
     connect(openResultsAction, &QAction::triggered, this, &MainWindow::openResultsWindow);
     connect(openGraphAction, &QAction::triggered, this, &MainWindow::openGraphWindow);
     connect(showPortraitAction, &QAction::triggered, this, &MainWindow::showPortrait);
+    connect(showPatternDiagramAction, &QAction::triggered, this, &MainWindow::showPatternDiagram);
 
     // Добавляем разделитель
     toolBar->addSeparator();
@@ -426,9 +429,6 @@ void MainWindow::setupParametersWidget() {
     layout->addWidget(rotationGroupBox);
     layout->addStretch();
 
-    showPatternDiagramButton = new QPushButton("Показать диаграмму направленности", parametersWidget);
-    layout->addWidget(showPatternDiagramButton);
-
     // Переподключаем сигналы
     disconnect(buttonApplyRotation, nullptr, nullptr, nullptr);
     disconnect(buttonResetRotation, nullptr, nullptr, nullptr);
@@ -445,8 +445,6 @@ void MainWindow::setupParametersWidget() {
     connect(azimuthPortraitCheckBox, &QCheckBox::stateChanged, this, &MainWindow::onPortraitTypeChanged);
     connect(rangePortraitCheckBox, &QCheckBox::stateChanged, this, &MainWindow::onPortraitTypeChanged);
     connect(pplaneCheckBox, &QCheckBox::toggled, openGLWidget, &OpenGLWidget::setUnderlyingSurfaceVisible);
-
-    connect(showPatternDiagramButton, &QPushButton::clicked, this, &MainWindow::showPatternDiagram);
 }
 
 void MainWindow::setupFilteringWidget() {

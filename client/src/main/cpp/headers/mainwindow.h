@@ -181,7 +181,6 @@ private:
     QProgressBar* progressBar;
 
     PatternDiagramWindow *patternDiagramWindow;
-    QPushButton *showPatternDiagramButton;
 };
 
 #endif // MAINWINDOW_H
