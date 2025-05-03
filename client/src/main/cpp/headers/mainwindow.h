@@ -47,6 +47,24 @@ QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
 
+enum PortraitDimension {
+    Undefined = -1,
+    Range = 0,       // Дальностный
+    Azimuth = 1,     // Азимутальный
+    Elevation = 2,   // Угломестный
+    AzimuthRange = 3,    // Комбинация Азимутальный+Дальностный
+    ElevationRange = 4,  // Комбинация Угломестный+Дальностный
+    ElevationAzimuth = 5, // Комбинация Угломестный+Азимутальный
+    ThreeDimensional = 6  // Комбинация Угломестный+Азимутальный+Дальностный
+};
+
+struct PortraitData {
+    PortraitDimension dimension;
+    QVector<QVector<QVector<double>>> data3D;
+    QVector<QVector<double>> data2D;
+    QVector<double> data1D;
+};
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -102,6 +120,14 @@ signals:
     void connectionStatusChanged(bool connected);
 
 private:
+    PortraitData portraitData;
+    PortraitDimension detectPortraitDimension(const QJsonArray &array);
+
+    void extract3DData(const QJsonArray &array, QVector<QVector<QVector<double>>> &container);
+    void prepare2DDataForDisplay(const PortraitData &data,
+                                 bool angleChecked, bool azimuthChecked, bool rangeChecked,
+                                 QVector<double> &data1D, QVector<QVector<double>> &data2D);
+
     Ui::MainWindow *ui;
     OpenGLWidget *openGLWidget;
     Parser *parser;
@@ -137,8 +163,6 @@ private:
     QComboBox *receivePolarizationComboBox;
     QCheckBox *gridCheckBox;
     QJsonObject vectorToJson(const QSharedPointer<const rVect>& vector);
-    void extractValues(const QJsonArray &array, QVector<double> &container, int depth);
-    void extract2DValues(const QJsonArray &array, QVector<QVector<double>> &container);
     PortraitWindow *portraitWindow;
     ProjectData currentProjectData;
     bool isModified;

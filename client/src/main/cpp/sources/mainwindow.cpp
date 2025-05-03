@@ -756,69 +756,384 @@ void MainWindow::loadModel() {
     }
 }
 
-// Вспомогательная функция для извлечения значений из вложенных массивов
-void MainWindow::extractValues(const QJsonArray &array, QVector<double> &container, int depth) {
-    for (int i = 0; i < array.size(); ++i) {
-        QJsonArray innerArray = array.at(i).toArray();
+PortraitDimension MainWindow::detectPortraitDimension(const QJsonArray &array) {
+    if (array.isEmpty())
+        return PortraitDimension::Undefined;
 
-        switch (depth) {
-        case 1:
-            if (!innerArray.isEmpty()) {
-                container.append(innerArray.at(0).toDouble());
-            } else {
-                qDebug() << "Inner array is empty or not found";
-            }
-            break;
+    int dim1Size = array.size();
+    int dim2Size = 0, dim3Size = 0;
 
-        case 2:
-            for (const QJsonValue &val : innerArray) {
-                container.append(val.toDouble());
-            }
-            break;
+    if (!array.at(0).isArray())
+        return PortraitDimension::Undefined;
 
-        case 3:
-            for (const QJsonValue &innerValue : innerArray) {
-                QJsonArray innermostArray = innerValue.toArray();
-                for (const QJsonValue &val : innermostArray) {
-                    container.append(val.toDouble());
+    QJsonArray dim2Array = array.at(0).toArray();
+    dim2Size = dim2Array.size();
+
+    if (!dim2Array.isEmpty() && dim2Array.at(0).isArray()) {
+        QJsonArray dim3Array = dim2Array.at(0).toArray();
+        dim3Size = dim3Array.size();
+    }
+
+    qDebug() << "Data structure detected: [" << dim1Size << "][" << dim2Size << "][" << dim3Size << "]";
+
+    // Проверяем содержимое, чтобы определить реальную размерность данных
+    QVector<int> dim1NonEmptyCount = {0};
+    QVector<int> dim2NonEmptyCount;
+    QVector<int> dim3NonEmptyCount;
+
+    for (int i = 0; i < dim1Size; ++i) {
+        if (!array.at(i).isArray()) continue;
+
+        QJsonArray arr1 = array.at(i).toArray();
+        dim1NonEmptyCount[0]++;
+
+        for (int j = 0; j < arr1.size(); ++j) {
+            if (!arr1.at(j).isArray()) continue;
+
+            if (i == 0) dim2NonEmptyCount.append(0);
+            dim2NonEmptyCount[j]++;
+
+            QJsonArray arr2 = arr1.at(j).toArray();
+            for (int k = 0; k < arr2.size(); ++k) {
+                if (i == 0 && j == 0) dim3NonEmptyCount.append(0);
+                if (!arr2.at(k).isArray() || !arr2.at(k).toArray().isEmpty()) {
+                    dim3NonEmptyCount[k]++;
                 }
             }
-            break;
-
-        case 4:
-            for (const QJsonValue &innerValue : innerArray) {
-                QJsonArray innermostArray = innerValue.toArray();
-                for (const QJsonValue &innermostInnerValue : innermostArray) {
-                    if (innermostInnerValue.isArray() && !innermostInnerValue.toArray().isEmpty()) {
-                        container.append(innermostInnerValue.toArray().at(0).toDouble());
-                    }
-                }
-            }
-            break;
-
-        default:
-            qDebug() << "Unsupported array depth";
-            break;
         }
     }
+
+    // Подсчитываем эффективные размерности
+    int effectiveDim1 = dim1NonEmptyCount[0];
+    int effectiveDim2 = 0;
+    for (int count : dim2NonEmptyCount) if (count > 0) effectiveDim2++;
+    int effectiveDim3 = 0;
+    for (int count : dim3NonEmptyCount) if (count > 0) effectiveDim3++;
+
+    qDebug() << "Effective dimensions: [" << effectiveDim1 << "][" << effectiveDim2 << "][" << effectiveDim3 << "]";
+
+    // Дальностный: [1][n][1], где n - количество дальностных отсчетов
+    if (dim1Size == 1 && dim2Size > 1 && dim3Size == 1)
+        return PortraitDimension::Range;
+
+    // Азимутальный: [1][1][n], где n - количество азимутальных отсчетов
+    if (dim1Size == 1 && dim2Size == 1 && dim3Size > 1)
+        return PortraitDimension::Azimuth;
+
+    // Угломестный: [n][1][1]
+    if (dim1Size > 1 && dim2Size == 1 && dim3Size == 1)
+        return PortraitDimension::Elevation;
+
+    // Комбинированные типы:
+    // Угломестный+Дальностный: [n][m][1] - где n - количество угломестных отсчетов, m - дальностных
+    if (dim1Size > 1 && dim2Size > 1 && dim3Size == 1)
+        return PortraitDimension::ElevationRange;
+
+    // Азимутальный+Дальностный: [1][n][m] - где n - количество азимутальных отсчетов, m - дальностных
+    if (dim1Size == 1 && dim2Size > 1 && dim3Size > 1)
+        return PortraitDimension::AzimuthRange;
+
+    // Угломестный+Азимутальный: [n][1][m] - где n - количество угломестных отсчетов, m - азимутальных
+    if (dim1Size > 1 && dim2Size == 1 && dim3Size > 1)
+        return PortraitDimension::ElevationAzimuth;
+
+    // Угломестный+Азимутальный+Дальностный: [n][m][k]
+    if (dim1Size > 1 && dim2Size > 1 && dim3Size > 1)
+        return PortraitDimension::ThreeDimensional;
+
+    // По умолчанию считаем одномерным
+    return PortraitDimension::Undefined;
 }
 
-void MainWindow::extract2DValues(const QJsonArray &array, QVector<QVector<double>> &container) {
-    container.clear();  // Очистим контейнер перед заполнением
-    for (int i = 0; i < array.size(); ++i) {
-        QJsonArray innerArray = array.at(i).toArray();
-        QVector<double> row;
-        for (const QJsonValue &val : innerArray) {
-            if (val.isArray()) {
-                QJsonArray innermostArray = val.toArray();
-                for (const QJsonValue &innerVal : innermostArray) {
-                    row.append(innerVal.toDouble());
+// // Вспомогательная функция для извлечения значений из вложенных массивов
+// void MainWindow::extractValues(const QJsonArray &array, QVector<double> &container, int depth) {
+//     for (int i = 0; i < array.size(); ++i) {
+//         QJsonArray innerArray = array.at(i).toArray();
+
+//         switch (depth) {
+//         case 1:
+//             if (!innerArray.isEmpty()) {
+//                 container.append(innerArray.at(0).toDouble());
+//             } else {
+//                 qDebug() << "Inner array is empty or not found";
+//             }
+//             break;
+
+//         case 2:
+//             for (const QJsonValue &val : innerArray) {
+//                 container.append(val.toDouble());
+//             }
+//             break;
+
+//         case 3:
+//             for (const QJsonValue &innerValue : innerArray) {
+//                 QJsonArray innermostArray = innerValue.toArray();
+//                 for (const QJsonValue &val : innermostArray) {
+//                     container.append(val.toDouble());
+//                 }
+//             }
+//             break;
+
+//         case 4:
+//             for (const QJsonValue &innerValue : innerArray) {
+//                 QJsonArray innermostArray = innerValue.toArray();
+//                 for (const QJsonValue &innermostInnerValue : innermostArray) {
+//                     if (innermostInnerValue.isArray() && !innermostInnerValue.toArray().isEmpty()) {
+//                         container.append(innermostInnerValue.toArray().at(0).toDouble());
+//                     }
+//                 }
+//             }
+//             break;
+
+//         default:
+//             qDebug() << "Unsupported array depth";
+//             break;
+//         }
+//     }
+// }
+
+// void MainWindow::extract2DValues(const QJsonArray &array, QVector<QVector<double>> &container) {
+//     container.clear();  // Очистим контейнер перед заполнением
+//     for (int i = 0; i < array.size(); ++i) {
+//         QJsonArray innerArray = array.at(i).toArray();
+//         QVector<double> row;
+//         for (const QJsonValue &val : innerArray) {
+//             if (val.isArray()) {
+//                 QJsonArray innermostArray = val.toArray();
+//                 for (const QJsonValue &innerVal : innermostArray) {
+//                     row.append(innerVal.toDouble());
+//                 }
+//             } else {
+//                 row.append(val.toDouble());
+//             }
+//         }
+//         container.append(row);
+//     }
+// }
+
+void MainWindow::prepare2DDataForDisplay(const PortraitData &data,
+                                         bool angleChecked, bool azimuthChecked, bool rangeChecked,
+                                         QVector<double> &data1D, QVector<QVector<double>> &data2D) {
+    data1D.clear();
+    data2D.clear();
+
+    qDebug() << "Dimension in prepare2DDataForDisplay:" << static_cast<int>(data.dimension);
+    qDebug() << "3D Data size:" << data.data3D.size();
+
+    if (data.data3D.isEmpty()) {
+        qDebug() << "No 3D data to process!";
+        return;
+    }
+
+    switch (data.dimension) {
+    case PortraitDimension::Range: // [1][n][1]
+    {
+        if (rangeChecked) {
+            QVector<double> rangeData;
+            // Извлекаем данные из формата [1][n][1]
+            if (!data.data3D.isEmpty() && !data.data3D[0].isEmpty()) {
+                for (int i = 0; i < data.data3D[0].size(); ++i) {
+                    if (!data.data3D[0][i].isEmpty()) {
+                        rangeData.append(data.data3D[0][i][0]);
+                    }
                 }
-            } else {
-                row.append(val.toDouble());
+                data1D = rangeData;
+                data2D.append(rangeData);
+                qDebug() << "Range data processed, 1D size:" << data1D.size();
             }
         }
-        container.append(row);
+    }
+    break;
+
+    case PortraitDimension::Azimuth: // [1][1][n]
+    {
+        if (azimuthChecked) {
+            // Извлекаем данные из формата [1][1][n]
+            if (!data.data3D.isEmpty() && !data.data3D[0].isEmpty() && !data.data3D[0][0].isEmpty()) {
+                data1D = data.data3D[0][0];
+                data2D.append(data1D);
+                qDebug() << "Azimuth data processed, 1D size:" << data1D.size();
+            }
+        }
+    }
+    break;
+
+    case PortraitDimension::Elevation: // [n][1][1]
+    {
+        if (angleChecked) {
+            QVector<double> elevationData;
+            for (int i = 0; i < data.data3D.size(); ++i) {
+                if (!data.data3D[i].isEmpty() && !data.data3D[i][0].isEmpty()) {
+                    elevationData.append(data.data3D[i][0][0]);
+                }
+            }
+            data1D = elevationData;
+            data2D.append(elevationData);
+            qDebug() << "Elevation data processed, 1D size:" << data1D.size();
+        }
+    }
+    break;
+
+    case PortraitDimension::ElevationRange: // [n][m][1] - Угломестный+Дальностный
+    {
+        if (angleChecked && rangeChecked) {
+            for (int i = 0; i < data.data3D.size(); ++i) {
+                QVector<double> row;
+                for (int j = 0; j < data.data3D[i].size(); ++j) {
+                    if (!data.data3D[i][j].isEmpty()) {
+                        row.append(data.data3D[i][j][0]);
+                    }
+                }
+                if (!row.isEmpty()) {
+                    data2D.append(row);
+                }
+            }
+            qDebug() << "ElevationRange data processed, 2D size:" << data2D.size()
+                     << "x" << (data2D.isEmpty() ? 0 : data2D[0].size());
+        }
+    }
+    break;
+
+    case PortraitDimension::AzimuthRange: // [1][n][m] - Азимутальный+Дальностный
+    {
+        if (azimuthChecked && rangeChecked) {
+            if (!data.data3D.isEmpty()) {
+                for (int i = 0; i < data.data3D[0].size(); ++i) {
+                    data2D.append(data.data3D[0][i]);
+                }
+                qDebug() << "AzimuthRange data processed, 2D size:" << data2D.size()
+                         << "x" << (data2D.isEmpty() ? 0 : data2D[0].size());
+            }
+        }
+    }
+    break;
+
+    case PortraitDimension::ElevationAzimuth: // [n][1][m] - Угломестный+Азимутальный
+    {
+        if (angleChecked && azimuthChecked) {
+            // Создаем 2D массив, где строки - угломестные значения, столбцы - азимутальные
+            for (int i = 0; i < data.data3D.size(); ++i) {
+                if (!data.data3D[i].isEmpty() && !data.data3D[i][0].isEmpty()) {
+                    data2D.append(data.data3D[i][0]);
+                }
+            }
+            qDebug() << "ElevationAzimuth data processed, 2D size:" << data2D.size()
+                     << "x" << (data2D.isEmpty() ? 0 : data2D[0].size());
+        }
+    }
+    break;
+
+    case PortraitDimension::ThreeDimensional: // [n][m][k]
+    {
+        // Выбираем, какую проекцию отображать в зависимости от выбранных флажков
+        if (angleChecked && azimuthChecked) {
+            // Выбираем средний дальностный слой
+            int midRange = data.data3D[0][0].size() / 2;
+            for (int i = 0; i < data.data3D.size(); ++i) {
+                QVector<double> row;
+                for (int j = 0; j < data.data3D[i].size(); ++j) {
+                    if (data.data3D[i][j].size() > midRange) {
+                        row.append(data.data3D[i][j][midRange]);
+                    }
+                }
+                if (!row.isEmpty()) {
+                    data2D.append(row);
+                }
+            }
+            qDebug() << "ThreeDimensional (elevation-azimuth slice) data processed, 2D size:" << data2D.size()
+                     << "x" << (data2D.isEmpty() ? 0 : data2D[0].size());
+        } else if (angleChecked && rangeChecked) {
+            // Выбираем средний азимутальный слой
+            int midAzimuth = data.data3D[0].size() / 2;
+            for (int i = 0; i < data.data3D.size(); ++i) {
+                if (data.data3D[i].size() > midAzimuth) {
+                    data2D.append(data.data3D[i][midAzimuth]);
+                }
+            }
+            qDebug() << "ThreeDimensional (elevation-range slice) data processed, 2D size:" << data2D.size()
+                     << "x" << (data2D.isEmpty() ? 0 : data2D[0].size());
+        } else if (azimuthChecked && rangeChecked) {
+            // Выбираем средний угломестный слой
+            int midElevation = data.data3D.size() / 2;
+            if (data.data3D.size() > midElevation) {
+                for (int j = 0; j < data.data3D[midElevation].size(); ++j) {
+                    data2D.append(data.data3D[midElevation][j]);
+                }
+                qDebug() << "ThreeDimensional (azimuth-range slice) data processed, 2D size:" << data2D.size()
+                         << "x" << (data2D.isEmpty() ? 0 : data2D[0].size());
+            }
+        }
+    }
+    break;
+
+    default:
+        qDebug() << "Unknown dimension type:" << static_cast<int>(data.dimension);
+        // Пытаемся извлечь хоть какие-то данные
+        if (!data.data3D.isEmpty() && !data.data3D[0].isEmpty()) {
+            if (!data.data3D[0][0].isEmpty()) {
+                data1D = data.data3D[0][0];
+                data2D.append(data1D);
+                qDebug() << "Default handling: extracted 1D data of size:" << data1D.size();
+            }
+        }
+        break;
+    }
+
+    // Если есть 2D данные, но нет 1D, заполняем 1D первой строкой 2D
+    if (data1D.isEmpty() && !data2D.isEmpty() && !data2D[0].isEmpty()) {
+        data1D = data2D[0];
+        qDebug() << "Filled 1D data from first row of 2D, size:" << data1D.size();
+    }
+
+    qDebug() << "After prepare2DDataForDisplay: data1D size:" << data1D.size()
+             << "data2D size:" << data2D.size()
+             << (data2D.isEmpty() ? 0 : data2D[0].size());
+}
+
+void MainWindow::extract3DData(const QJsonArray &array, QVector<QVector<QVector<double>>> &container) {
+    container.clear();
+
+    qDebug() << "Размерность массива для extract3DData:" << array.size();
+
+    for (int i = 0; i < array.size(); ++i) {
+        QJsonArray dim1Array = array.at(i).toArray();
+        QVector<QVector<double>> dim1Vector;
+
+        for (int j = 0; j < dim1Array.size(); ++j) {
+            QJsonArray dim2Array = dim1Array.at(j).toArray();
+            QVector<double> dim2Vector;
+
+            for (int k = 0; k < dim2Array.size(); ++k) {
+                if (dim2Array.at(k).isArray()) {
+                    // Если элемент - массив, извлекаем его первый элемент
+                    QJsonArray innerArray = dim2Array.at(k).toArray();
+                    if (!innerArray.isEmpty()) {
+                        dim2Vector.append(innerArray.at(0).toDouble());
+                    }
+                } else {
+                    // Если элемент - число, добавляем его напрямую
+                    dim2Vector.append(dim2Array.at(k).toDouble());
+                }
+            }
+
+            if (!dim2Vector.isEmpty()) {
+                dim1Vector.append(dim2Vector);
+            }
+        }
+
+        if (!dim1Vector.isEmpty()) {
+            container.append(dim1Vector);
+        }
+    }
+
+    // Выводим отладочную информацию о размерности полученных данных
+    if (!container.isEmpty()) {
+        int dim1 = container.size();
+        int dim2 = !container[0].isEmpty() ? container[0].size() : 0;
+        int dim3 = (dim2 > 0 && !container[0][0].isEmpty()) ? container[0][0].size() : 0;
+        qDebug() << "Размерность извлеченных данных: [" << dim1 << "][" << dim2 << "][" << dim3 << "]";
+    } else {
+        qDebug() << "Извлеченные данные пусты!";
     }
 }
 
@@ -845,41 +1160,97 @@ void MainWindow::processResults(const QJsonObject &results, bool angleChecked, b
     QJsonArray absEoutArray = results["absEout"].toArray();
     QJsonArray normEoutArray = results["normEout"].toArray();
 
-    // Локальные копии векторов
+    // Определяем тип портрета
+    PortraitDimension dimension = detectPortraitDimension(absEoutArray);
+    qDebug() << "Detected portrait dimension: " << static_cast<int>(dimension);
+
+    // Локальные объекты для хранения данных
+    PortraitData localPortraitData;
+    localPortraitData.dimension = dimension;
+
+    // Локальные копии векторов для обратной совместимости
     QVector<double> localAbsEout;
     QVector<double> localNormEout;
     QVector<QVector<double>> localAbsEout2D;
     QVector<QVector<double>> localNormEout2D;
 
-    // Проверка, какие чекбоксы отмечены и установка соответствующей глубины вложенности
-    if (angleChecked) {
-        // Для угломестного типа также используется тройная вложенность
-        extractValues(absEoutArray, localAbsEout, 3);
-        extractValues(normEoutArray, localNormEout, 3);
-    }
-    if (azimuthChecked) {
-        // Для азимутального типа используется тройная вложенность
-        extractValues(absEoutArray, localAbsEout, 3);
-        extractValues(normEoutArray, localNormEout, 3);
-    }
-    if (rangeChecked) {
-        // Для дальностного типа требуется тройная вложенность
-        extractValues(absEoutArray, localAbsEout, 3);
-        extractValues(normEoutArray, localNormEout, 3);
+    // Извлекаем данные в зависимости от типа портрета
+    extract3DData(absEoutArray, localPortraitData.data3D);
+
+    // Определяем, какие чекбоксы должны быть активны в зависимости от типа данных
+    bool useAngle = false, useAzimuth = false, useRange = false;
+
+    switch (dimension) {
+    case PortraitDimension::Range:
+        useRange = true;
+        break;
+    case PortraitDimension::Azimuth:
+        useAzimuth = true;
+        break;
+    case PortraitDimension::Elevation:
+        useAngle = true;
+        break;
+    case PortraitDimension::AzimuthRange:
+        useAzimuth = true;
+        useRange = true;
+        break;
+    case PortraitDimension::ElevationRange:
+        useAngle = true;
+        useRange = true;
+        break;
+    case PortraitDimension::ElevationAzimuth:
+        useAngle = true;
+        useAzimuth = true;
+        break;
+    case PortraitDimension::ThreeDimensional:
+        useAngle = true;
+        useAzimuth = true;
+        useRange = true;
+        break;
+    default:
+        // Используем переданные параметры
+        useAngle = angleChecked;
+        useAzimuth = azimuthChecked;
+        useRange = rangeChecked;
+        break;
     }
 
-    // Извлечение двумерных массивов
-    extract2DValues(absEoutArray, localAbsEout2D);
-    extract2DValues(normEoutArray, localNormEout2D);
+    // Подготовка 2D данных для отображения
+    prepare2DDataForDisplay(localPortraitData, useAngle, useAzimuth, useRange,
+                            localAbsEout, localAbsEout2D);
+
+    // Делаем то же самое для normEout, если нужно
+    PortraitData normalizedData;
+    normalizedData.dimension = dimension;
+    extract3DData(normEoutArray, normalizedData.data3D);
+    prepare2DDataForDisplay(normalizedData, useAngle, useAzimuth, useRange,
+                            localNormEout, localNormEout2D);
+
+    // Дополнительная отладочная информация
+    qDebug() << "After processing:";
+    qDebug() << "localAbsEout size:" << localAbsEout.size();
+    qDebug() << "localAbsEout2D size:" << localAbsEout2D.size()
+             << (localAbsEout2D.isEmpty() ? 0 : localAbsEout2D[0].size());
 
     // После обработки данных обновляем UI в главном потоке
     QMetaObject::invokeMethod(this, [=]() {
+            portraitData = localPortraitData;
             storedResults = localStoredResults;
             absEout = localAbsEout;
             normEout = localNormEout;
             absEout2D = localAbsEout2D;
             normEout2D = localNormEout2D;
+
+            // Устанавливаем состояние чекбоксов в соответствии с типом данных
+            anglePortraitCheckBox->setChecked(useAngle);
+            azimuthPortraitCheckBox->setChecked(useAzimuth);
+            rangePortraitCheckBox->setChecked(useRange);
+
             logMessage("Числовые значения с сервера получены и сохранены.");
+            logMessage(QString("Размер одномерных данных: %1, размер двумерных данных: %2x%3")
+                           .arg(absEout.size())
+                           .arg(absEout2D.size())
+                           .arg(absEout2D.isEmpty() ? 0 : absEout2D[0].size()));
 
             // Вызов метода для обновления состояния кнопок
             updateMenuActions();
@@ -1233,8 +1604,10 @@ void MainWindow::openResultsWindow() {
 }
 
 void MainWindow::openGraphWindow() {
-    if (!hasGraphData) {
-        logMessage("Нет данных для графика.");
+    if (absEout.isEmpty() || normEout.isEmpty()) {
+        logMessage("Нет данных для графика или они не были корректно обработаны.");
+        qDebug() << "Cannot open graph window: absEout size =" << absEout.size()
+                 << ", normEout size =" << normEout.size();
         return;
     }
 
@@ -1257,23 +1630,32 @@ void MainWindow::openGraphWindow() {
         x.append(i * stepX);
     }
 
-    qDebug() << "x:" << x;
-    qDebug() << "absEout:" << absEout;
-    qDebug() << "normEout:" << normEout;
+    qDebug() << "Graph data prepared:"
+             << "x size:" << x.size()
+             << "absEout size:" << absEout.size()
+             << "normEout size:" << normEout.size();
+
+    if (x.isEmpty()) {
+        logMessage("Ошибка: невозможно создать ось X для графика.");
+        return;
+    }
 
     graphWindow->setData(x, absEout, normEout);
     graphWindow->setAttribute(Qt::WA_DeleteOnClose);
     graphWindow->show();
+
+    logMessage(QString("Отображен график с %1 точками данных.").arg(absEout.size()));
 }
 
 void MainWindow::showPortrait() {
     if (!showPortraitAction->isEnabled()) {
-        logMessage("Недостаточно данных или типов портретов для отображения 2D портрета.");
+        logMessage("Двумерный портрет недоступен для текущего типа данных.");
         return;
     }
 
-    if (absEout2D.isEmpty() || normEout2D.isEmpty()) {
-        logMessage("Нет данных для отображения.");
+    // Проверяем наличие данных
+    if (absEout2D.isEmpty()) {
+        logMessage("Нет данных для отображения двумерного портрета.");
         return;
     }
 
@@ -1504,39 +1886,133 @@ void MainWindow::handleDataReceived(const QJsonObject &results) {
 }
 
 void MainWindow::updateMenuActions() {
-    // Логика для "Открыть числовые значения"
-    if (!absEout.isEmpty() && !normEout.isEmpty()) {
+    // Сначала проверяем, есть ли у нас данные вообще
+    if (portraitData.data3D.isEmpty()) {
+        hasNumericalData = false;
+        hasGraphData = false;
+        openResultsAction->setEnabled(false);
+        openGraphAction->setEnabled(false);
+        showPortraitAction->setEnabled(false);
+        return;
+    }
+
+    // Активируем кнопки на основе типа данных
+    switch (portraitData.dimension) {
+    case PortraitDimension::Range:
+    case PortraitDimension::Azimuth:
+    case PortraitDimension::Elevation:
+        // Для одномерных портретов активируем числовые значения и одномерный график
+        if (!absEout.isEmpty()) {
+            hasNumericalData = true;
+            hasGraphData = true;
+            openResultsAction->setEnabled(true);
+            openGraphAction->setEnabled(true);
+        } else {
+            hasNumericalData = false;
+            hasGraphData = false;
+            openResultsAction->setEnabled(false);
+            openGraphAction->setEnabled(false);
+        }
+        showPortraitAction->setEnabled(false);
+        break;
+
+    case PortraitDimension::ElevationRange:
+    case PortraitDimension::AzimuthRange:
+    case PortraitDimension::ElevationAzimuth:
+    case PortraitDimension::ThreeDimensional:
+        // Для двумерных и трехмерных портретов
         hasNumericalData = true;
         openResultsAction->setEnabled(true);
-    } else {
+
+        // График активен только если есть данные
+        if (!absEout.isEmpty()) {
+            hasGraphData = true;
+            openGraphAction->setEnabled(true);
+        } else {
+            hasGraphData = false;
+            openGraphAction->setEnabled(false);
+        }
+
+        // Двумерный портрет активен только если есть двумерные данные
+        showPortraitAction->setEnabled(!absEout2D.isEmpty());
+        break;
+
+    default:
+        // Неизвестный тип - ничего не активируем
         hasNumericalData = false;
-        openResultsAction->setEnabled(false);
-    }
-
-    // Логика для "Открыть график"
-    if (!absEout.isEmpty() && !normEout.isEmpty()) {
-        hasGraphData = true;
-        openGraphAction->setEnabled(true);
-    } else {
         hasGraphData = false;
+        openResultsAction->setEnabled(false);
         openGraphAction->setEnabled(false);
-    }
-
-    // Логика для "Показать 2D портрет"
-    int selectedPortraits = 0;
-    if (anglePortraitCheckBox->isChecked()) selectedPortraits++;
-    if (azimuthPortraitCheckBox->isChecked()) selectedPortraits++;
-    if (rangePortraitCheckBox->isChecked()) selectedPortraits++;
-
-    if (selectedPortraits == 2 && !absEout2D.isEmpty() && !normEout2D.isEmpty()) {
-        showPortraitAction->setEnabled(true);
-    } else {
         showPortraitAction->setEnabled(false);
+        break;
     }
+
+    // Вывод информации о типе портрета в лог для отладки
+    QString dimensionName;
+    switch (portraitData.dimension) {
+    case PortraitDimension::Range: dimensionName = "Дальностный"; break;
+    case PortraitDimension::Azimuth: dimensionName = "Азимутальный"; break;
+    case PortraitDimension::Elevation: dimensionName = "Угломестный"; break;
+    case PortraitDimension::AzimuthRange: dimensionName = "Азимутальный+Дальностный"; break;
+    case PortraitDimension::ElevationRange: dimensionName = "Угломестный+Дальностный"; break;
+    case PortraitDimension::ElevationAzimuth: dimensionName = "Угломестный+Азимутальный"; break;
+    case PortraitDimension::ThreeDimensional: dimensionName = "Трехмерный"; break;
+    default: dimensionName = "Неизвестный"; break;
+    }
+
+    qDebug() << "Тип портрета:" << dimensionName
+             << "1D данные (размер):" << absEout.size()
+             << "2D данные (размер):" << absEout2D.size() << "x" << (absEout2D.isEmpty() ? 0 : absEout2D[0].size())
+             << "Числовые значения:" << hasNumericalData
+             << "Одномерный график:" << hasGraphData
+             << "Двумерный портрет:" << showPortraitAction->isEnabled();
+
+    // Добавим сообщение в лог для пользователя
+    logMessage(QString("Данные портрета типа '%1' готовы к просмотру.").arg(dimensionName));
 }
 
 void MainWindow::onPortraitTypeChanged() {
-    updateMenuActions();
+    // Проверяем, какие типы портретов выбраны
+    bool isAngleChecked = anglePortraitCheckBox->isChecked();
+    bool isAzimuthChecked = azimuthPortraitCheckBox->isChecked();
+    bool isRangeChecked = rangePortraitCheckBox->isChecked();
+
+    // Если есть данные портрета, обновляем отображение
+    if (!portraitData.data3D.isEmpty()) {
+        QVector<double> tempAbsEout;
+        QVector<QVector<double>> tempAbsEout2D;
+        QVector<double> tempNormEout;
+        QVector<QVector<double>> tempNormEout2D;
+
+        // Готовим данные для отображения
+        prepare2DDataForDisplay(portraitData, isAngleChecked, isAzimuthChecked, isRangeChecked,
+                                tempAbsEout, tempAbsEout2D);
+
+        // Обновляем данные класса
+        absEout = tempAbsEout;
+        absEout2D = tempAbsEout2D;
+
+        // Подготавливаем данные для нормализованного отображения
+        PortraitData normalizedData;
+        normalizedData.dimension = portraitData.dimension;
+        normalizedData.data3D = portraitData.data3D; // Используем те же данные для простоты
+
+        prepare2DDataForDisplay(normalizedData, isAngleChecked, isAzimuthChecked, isRangeChecked,
+                                tempNormEout, tempNormEout2D);
+
+        normEout = tempNormEout;
+        normEout2D = tempNormEout2D;
+
+        // Логируем изменения выбранных типов портретов
+        QStringList selected;
+        if (isAngleChecked) selected << "Угломестный";
+        if (isAzimuthChecked) selected << "Азимутальный";
+        if (isRangeChecked) selected << "Дальностный";
+
+        logMessage(QString("Выбраны типы портретов: %1").arg(selected.join(", ")));
+    }
+
+    // Больше не вызываем updateMenuActions() здесь
 }
 
 // Метод для установки флага isModified
