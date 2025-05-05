@@ -1,858 +1,973 @@
-#include "PatternDiagramWindow.h"
+#include "patterndiagramwindow.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
+#include <QLabel>
 #include <QFileDialog>
 #include <QMessageBox>
-#include <QPainter>
 #include <QtMath>
-#include <QDebug>
 #include <algorithm>
+#include <QDebug>
+#include <QMatrix4x4>
+#include <QOpenGLShaderProgram>
+#include <QOpenGLBuffer>
+#include <QOpenGLVertexArrayObject>
+#include <QGroupBox>
+#include <QKeyEvent>
 
-// Вспомогательный класс для области рисования диаграммы направленности
-// Использует владельца (PatternDiagramWindow) для получения данных и отрисовки
-class DiagramCanvas : public QWidget {
-public:
-    DiagramCanvas(PatternDiagramWindow* owner, QWidget* parent = nullptr)
-        : QWidget(parent), m_owner(owner) {}
+GLPatternWidget::GLPatternWidget(QWidget *parent)
+    : QOpenGLWidget(parent),
+    xRot(0.0f),
+    yRot(0.0f),
+    zRot(0.0f),
+    scale(1.0f),
+    threshold(0.1f),
+    colorMode(0),
+    viewMode(PointsMode), // По умолчанию - режим точек
+    sliceIndex(0), // По умолчанию - первый срез
+    maxValue(1.0),
+    minValue(0.0)
+{
+    setFocusPolicy(Qt::StrongFocus);
+}
 
-protected:
-    void paintEvent(QPaintEvent* event) override {
-        QPainter painter(this);
-        painter.setRenderHint(QPainter::Antialiasing);
+void GLPatternWidget::setData(const QVector<QVector<QVector<double>>> &data)
+{
+    data3D = data;
 
-        // Рисуем фон и рамку
-        QRect rect = this->rect();
-        painter.fillRect(rect, Qt::white);
-        painter.setPen(Qt::black);
-        painter.drawRect(rect.adjusted(0, 0, -1, -1));
+    // Find max and min values for color mapping
+    maxValue = 0.0;
+    minValue = std::numeric_limits<double>::max();
 
-        // Выбираем тип диаграммы в зависимости от настроек:
-        // 0 - полярная (2D), 1 - сферическая (3D)
-        if (m_owner->getProjectionType() == 0) {
-            m_owner->drawPolarPattern(painter, rect);
-        } else {
-            m_owner->draw3DPattern(painter, rect);
+    for (const auto &plane : data3D) {
+        for (const auto &row : plane) {
+            for (double val : row) {
+                maxValue = qMax(maxValue, val);
+                minValue = qMin(minValue, val);
+            }
         }
     }
 
-private:
-    PatternDiagramWindow* m_owner;
-};
+    // Ensure we have a non-zero range
+    if (qFuzzyCompare(maxValue, minValue)) {
+        maxValue = minValue + 1.0;
+    }
 
-PatternDiagramWindow::PatternDiagramWindow(QWidget *parent)
-    : QDialog(parent),
-    m_scale(1.0),              // Начальный масштаб отображения
-    m_azimuthAngle(0.0),       // Начальный азимутальный угол просмотра (в градусах)
-    m_elevationAngle(30.0),    // Начальный угол места (в градусах)
-    m_normalized(true),        // Нормализация данных включена по умолчанию
-    m_logarithmicScale(false), // Логарифмический масштаб отключен по умолчанию
-    m_fillPattern(true),       // Заливка контуров включена по умолчанию
-    m_projectionType(0),       // Начальный тип проекции - полярная (2D)
-    m_sliceAngle(0),           // Начальный угол среза для 2D-проекции
-    m_maxValue(1.0),           // Инициализация значений для предотвращения деления на ноль
-    m_minValue(0.0)
+    // Generate data for all view modes
+    updateVertexBuffer();
+    generateSurfaceMesh();
+    updateSliceData();
+    generateSphericalMesh();
+
+    update();
+}
+
+void GLPatternWidget::setThreshold(double value)
 {
-    setWindowTitle("Диаграмма направленности");
-    resize(800, 600);
+    threshold = value;
+    updateVertexBuffer();
+    update();
+}
 
+void GLPatternWidget::setColorMode(int mode)
+{
+    colorMode = mode;
+    updateVertexBuffer();
+    update();
+}
+
+void GLPatternWidget::initializeGL()
+{
+    initializeOpenGLFunctions();
+    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_POINT_SMOOTH);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+}
+
+void GLPatternWidget::paintGL()
+{
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    if (data3D.isEmpty() || data3D[0].isEmpty() || data3D[0][0].isEmpty()) {
+        return;
+    }
+
+    // Set up camera view
+    QMatrix4x4 mvpMatrix;
+    mvpMatrix.perspective(45.0f, (float)width() / height(), 0.1f, 100.0f);
+    mvpMatrix.translate(0.0f, 0.0f, -5.0f);
+    mvpMatrix.scale(scale, scale, scale);
+    mvpMatrix.rotate(xRot, 1.0f, 0.0f, 0.0f);
+    mvpMatrix.rotate(yRot, 0.0f, 1.0f, 0.0f);
+    mvpMatrix.rotate(zRot, 0.0f, 0.0f, 1.0f);
+
+    // Different centering for sphere mode
+    float xCenter, yCenter, zCenter;
+    if (viewMode == SphereMode) {
+        // For sphere mode, don't center based on data dimensions
+        xCenter = 0.0f;
+        yCenter = 0.0f;
+        zCenter = 0.0f;
+    } else {
+        // Center for other modes
+        xCenter = -0.5f * data3D[0][0].size();
+        yCenter = -0.5f * data3D[0].size();
+        zCenter = -0.5f * data3D.size();
+    }
+    mvpMatrix.translate(xCenter, yCenter, zCenter);
+
+    glPushMatrix();
+    glLoadMatrixf(mvpMatrix.data());
+
+    // Отрисовка в зависимости от режима
+    switch (viewMode) {
+    case PointsMode:
+        if (!vertices.isEmpty()) {
+            // Режим точек - как было раньше
+            glPointSize(3.0f);
+            glEnableClientState(GL_VERTEX_ARRAY);
+            glEnableClientState(GL_COLOR_ARRAY);
+
+            glVertexPointer(3, GL_FLOAT, 6 * sizeof(GLfloat), vertices.data());
+            glColorPointer(3, GL_FLOAT, 6 * sizeof(GLfloat), vertices.data() + 3);
+
+            glDrawArrays(GL_POINTS, 0, vertices.size() / 6);
+
+            glDisableClientState(GL_VERTEX_ARRAY);
+            glDisableClientState(GL_COLOR_ARRAY);
+        }
+        break;
+
+    case SurfaceMode:
+        if (!surfaceVertices.isEmpty()) {
+            // Режим поверхности - рисуем треугольники
+            glEnableClientState(GL_VERTEX_ARRAY);
+            glEnableClientState(GL_COLOR_ARRAY);
+
+            glVertexPointer(3, GL_FLOAT, 6 * sizeof(GLfloat), surfaceVertices.data());
+            glColorPointer(3, GL_FLOAT, 6 * sizeof(GLfloat), surfaceVertices.data() + 3);
+
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+            glDrawArrays(GL_TRIANGLES, 0, surfaceVertices.size() / 6);
+
+            // Дополнительно можно нарисовать каркас поверх поверхности
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+            glColor3f(0.5f, 0.5f, 0.5f);
+            glDrawArrays(GL_TRIANGLES, 0, surfaceVertices.size() / 6);
+
+            glDisableClientState(GL_VERTEX_ARRAY);
+            glDisableClientState(GL_COLOR_ARRAY);
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); // Возвращаем режим по умолчанию
+        }
+        break;
+
+    case SliceMode:
+        if (!sliceVertices.isEmpty()) {
+            // Режим срезов - рисуем текстурированный квад
+            glEnableClientState(GL_VERTEX_ARRAY);
+            glEnableClientState(GL_COLOR_ARRAY);
+
+            glVertexPointer(3, GL_FLOAT, 6 * sizeof(GLfloat), sliceVertices.data());
+            glColorPointer(3, GL_FLOAT, 6 * sizeof(GLfloat), sliceVertices.data() + 3);
+
+            glDrawArrays(GL_QUADS, 0, sliceVertices.size() / 6);
+
+            glDisableClientState(GL_VERTEX_ARRAY);
+            glDisableClientState(GL_COLOR_ARRAY);
+        }
+        break;
+
+    case SphereMode:
+        if (!sphereVertices.isEmpty()) {
+            glEnableClientState(GL_VERTEX_ARRAY);
+            glEnableClientState(GL_COLOR_ARRAY);
+
+            glVertexPointer(3, GL_FLOAT, 6 * sizeof(GLfloat), sphereVertices.data());
+            glColorPointer(3, GL_FLOAT, 6 * sizeof(GLfloat), sphereVertices.data() + 3);
+
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+            glDrawArrays(GL_TRIANGLES, 0, sphereVertices.size() / 6);
+
+            // Optional: Draw wireframe on top
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+            glColor3f(0.3f, 0.3f, 0.3f);
+            glDrawArrays(GL_TRIANGLES, 0, sphereVertices.size() / 6);
+
+            glDisableClientState(GL_VERTEX_ARRAY);
+            glDisableClientState(GL_COLOR_ARRAY);
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        }
+        break;
+    }
+
+    glPopMatrix();
+
+    // Draw coordinate axes
+    glLineWidth(2.0f);
+    glBegin(GL_LINES);
+    // X axis (red)
+    glColor3f(1.0f, 0.0f, 0.0f);
+    glVertex3f(xCenter, yCenter, zCenter);
+    glVertex3f(xCenter + data3D[0][0].size(), yCenter, zCenter);
+
+    // Y axis (green)
+    glColor3f(0.0f, 1.0f, 0.0f);
+    glVertex3f(xCenter, yCenter, zCenter);
+    glVertex3f(xCenter, yCenter + data3D[0].size(), zCenter);
+
+    // Z axis (blue)
+    glColor3f(0.0f, 0.0f, 1.0f);
+    glVertex3f(xCenter, yCenter, zCenter);
+    glVertex3f(xCenter, yCenter, zCenter + data3D.size());
+    glEnd();
+}
+
+void GLPatternWidget::resizeGL(int width, int height)
+{
+    glViewport(0, 0, width, height);
+}
+
+void GLPatternWidget::mousePressEvent(QMouseEvent *event)
+{
+    lastMousePos = event->pos();
+}
+
+void GLPatternWidget::mouseMoveEvent(QMouseEvent *event)
+{
+    int dx = event->pos().x() - lastMousePos.x();
+    int dy = event->pos().y() - lastMousePos.y();
+
+    if (event->buttons() & Qt::LeftButton) {
+        yRot += dx;
+        xRot += dy;
+        update();
+    } else if (event->buttons() & Qt::RightButton) {
+        zRot += dx;
+        update();
+    }
+
+    lastMousePos = event->pos();
+}
+
+void GLPatternWidget::wheelEvent(QWheelEvent *event)
+{
+    QPoint numDegrees = event->angleDelta() / 8;
+
+    if (!numDegrees.isNull()) {
+        scale *= std::pow(1.1, numDegrees.y() / 15.0);
+        scale = qBound(0.1f, scale, 10.0f);
+        update();
+    }
+
+    event->accept();
+}
+
+void GLPatternWidget::updateVertexBuffer()
+{
+    vertices.clear();
+
+    if (data3D.isEmpty() || data3D[0].isEmpty() || data3D[0][0].isEmpty()) {
+        return;
+    }
+
+    int zSize = data3D.size();
+    int ySize = data3D[0].size();
+    int xSize = data3D[0][0].size();
+
+    // Scale factors to normalize coordinates
+    float xScale = 1.0f;
+    float yScale = (float)xSize / ySize;
+    float zScale = (float)xSize / zSize;
+
+    for (int z = 0; z < zSize; z++) {
+        for (int y = 0; y < ySize; y++) {
+            for (int x = 0; x < xSize; x++) {
+                double value = data3D[z][y][x];
+
+                // Skip points below threshold
+                if (value < threshold * maxValue) {
+                    continue;
+                }
+
+                // Add vertex
+                vertices.append(x * xScale);
+                vertices.append(y * yScale);
+                vertices.append(z * zScale);
+
+                // Add color
+                QColor color = getColorForValue(value);
+                vertices.append(color.redF());
+                vertices.append(color.greenF());
+                vertices.append(color.blueF());
+            }
+        }
+    }
+}
+
+QColor GLPatternWidget::getColorForValue(double value) const
+{
+    // Normalize value between 0 and 1
+    double normValue = (value - minValue) / (maxValue - minValue);
+    normValue = qBound(0.0, normValue, 1.0);
+
+    switch (colorMode) {
+    case 0: // HSV spectrum (blue to red)
+        return QColor::fromHsv(240 - (int)(240 * normValue), 255, 255);
+
+    case 1: // Grayscale
+    {
+        int gray = (int)(255 * normValue);
+        return QColor(gray, gray, gray);
+    }
+
+    case 2: // Hot (black to red to yellow to white)
+    {
+        if (normValue < 0.33) {
+            // Black to red
+            return QColor((int)(255 * (normValue * 3)), 0, 0);
+        } else if (normValue < 0.67) {
+            // Red to yellow
+            return QColor(255, (int)(255 * ((normValue - 0.33) * 3)), 0);
+        } else {
+            // Yellow to white
+            return QColor(255, 255, (int)(255 * ((normValue - 0.67) * 3)));
+        }
+    }
+
+    default:
+        return QColor::fromHsv(240 - (int)(240 * normValue), 255, 255);
+    }
+}
+
+// PatternDiagramWindow implementation
+PatternDiagramWindow::PatternDiagramWindow(QWidget *parent)
+    : QDialog(parent)
+{
+    setWindowTitle(tr("Трехмерная диаграмма"));
+    resize(1024, 768);
     setupUI();
 }
 
 void PatternDiagramWindow::setupUI()
 {
-    // Используем вертикальный компоновщик для основной структуры окна
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
 
-    // Создаем специализированный виджет для области рисования с передачей ссылки на текущий класс
-    m_drawingArea = new DiagramCanvas(this);
-    m_drawingArea->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    m_drawingArea->setMinimumHeight(400); // Минимальная высота для области рисования
+    // Create OpenGL widget for 3D visualization
+    glWidget = new GLPatternWidget(this);
 
-    // Отдельный слой для элементов управления
-    QWidget *controlPanel = new QWidget;
-    m_controlsLayout = new QVBoxLayout(controlPanel);
+    // Create controls
+    QHBoxLayout *controlsLayout = new QHBoxLayout();
 
-    // Первый ряд элементов управления: проекция и нормализация
-    QHBoxLayout *row1Layout = new QHBoxLayout();
-    row1Layout->addWidget(new QLabel("Тип проекции:"));
-    m_projectionCombo = new QComboBox(this);
-    m_projectionCombo->addItem("Полярная проекция");
-    m_projectionCombo->addItem("3D проекция");
-    row1Layout->addWidget(m_projectionCombo);
+    // View mode group
+    QGroupBox *viewModeGroup = new QGroupBox(tr("Режим отображения"));
+    QVBoxLayout *viewModeLayout = new QVBoxLayout(viewModeGroup);
 
-    m_normalizeCheck = new QCheckBox("Нормализация", this);
-    m_normalizeCheck->setChecked(m_normalized);
-    row1Layout->addWidget(m_normalizeCheck);
+    viewModeCombo = new QComboBox();
+    viewModeCombo->addItem(tr("3D точки"));
+    viewModeCombo->addItem(tr("3D поверхность"));
+    viewModeCombo->addItem(tr("2D срезы"));
+    viewModeCombo->addItem(tr("Сферическая диаграмма"));
 
-    m_logScaleCheck = new QCheckBox("Логарифмический масштаб", this);
-    m_logScaleCheck->setChecked(m_logarithmicScale);
-    row1Layout->addWidget(m_logScaleCheck);
+    viewModeLayout->addWidget(viewModeCombo);
 
-    m_fillCheck = new QCheckBox("Заполнение", this);
-    m_fillCheck->setChecked(m_fillPattern);
-    row1Layout->addWidget(m_fillCheck);
+    // Color mode group
+    QGroupBox *colorModeGroup = new QGroupBox(tr("Цветовая схема"));
+    QVBoxLayout *colorModeLayout = new QVBoxLayout(colorModeGroup);
 
-    // Второй ряд: угол среза
-    QHBoxLayout *row2Layout = new QHBoxLayout();
-    m_sliceLabel = new QLabel("Угол среза: 0°", this);
-    row2Layout->addWidget(m_sliceLabel);
+    colorModeCombo = new QComboBox();
+    colorModeCombo->addItem(tr("Спектр HSV"));
+    colorModeCombo->addItem(tr("Оттенки серого"));
+    colorModeCombo->addItem(tr("Тепловая карта"));
 
-    m_sliceSlider = new QSlider(Qt::Horizontal, this);
-    m_sliceSlider->setRange(0, 360);
-    m_sliceSlider->setValue(0);
-    m_sliceSlider->setTickInterval(45);
-    m_sliceSlider->setTickPosition(QSlider::TicksBelow);
-    row2Layout->addWidget(m_sliceSlider);
+    colorModeLayout->addWidget(colorModeCombo);
 
-    // Третий ряд: кнопки
-    QHBoxLayout *row3Layout = new QHBoxLayout();
-    m_resetButton = new QPushButton("Сбросить вид", this);
-    row3Layout->addWidget(m_resetButton);
+    // Threshold group
+    QGroupBox *thresholdGroup = new QGroupBox(tr("Порог отображения"));
+    QVBoxLayout *thresholdLayout = new QVBoxLayout(thresholdGroup);
 
-    m_saveButton = new QPushButton("Сохранить изображение", this);
-    row3Layout->addWidget(m_saveButton);
+    thresholdSlider = new QSlider(Qt::Horizontal);
+    thresholdSlider->setRange(0, 100);
+    thresholdSlider->setValue(10); // 10% by default
 
-    // Добавляем все ряды в панель управления
-    m_controlsLayout->addLayout(row1Layout);
-    m_controlsLayout->addLayout(row2Layout);
-    m_controlsLayout->addLayout(row3Layout);
+    thresholdLayout->addWidget(thresholdSlider);
 
-    // Добавляем область рисования и панель управления в основной компоновщик
-    // stretch factor 1 для области рисования, чтобы она занимала всё доступное пространство
-    mainLayout->addWidget(m_drawingArea, 1);
-    mainLayout->addWidget(controlPanel, 0);
+    // Slice control group - ADD THIS GROUP
+    sliceControlGroup = new QGroupBox(tr("Управление срезами"));
+    QVBoxLayout *sliceControlLayout = new QVBoxLayout(sliceControlGroup);
 
-    // Соединяем сигналы с слотами
-    connect(m_saveButton, &QPushButton::clicked, this, &PatternDiagramWindow::saveImage);
-    connect(m_resetButton, &QPushButton::clicked, this, &PatternDiagramWindow::resetView);
-    connect(m_projectionCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &PatternDiagramWindow::updateProjectionType);
-    connect(m_normalizeCheck, &QCheckBox::toggled,
-            this, &PatternDiagramWindow::toggleNormalization);
-    connect(m_logScaleCheck, &QCheckBox::toggled,
-            this, &PatternDiagramWindow::toggleLogScale);
-    connect(m_fillCheck, &QCheckBox::toggled,
-            this, &PatternDiagramWindow::toggleFillMode);
-    connect(m_sliceSlider, &QSlider::valueChanged,
-            this, &PatternDiagramWindow::updateSliceAngle);
+    sliceLabel = new QLabel(tr("Срез по Z:"));
+    sliceSlider = new QSlider(Qt::Horizontal);
+    sliceSlider->setRange(0, 100);
+    sliceSlider->setValue(50); // Середина по умолчанию
+
+    sliceControlLayout->addWidget(sliceLabel);
+    sliceControlLayout->addWidget(sliceSlider);
+
+    // Сначала делаем его невидимым, покажем только в режиме срезов
+    sliceControlGroup->setVisible(false);
+
+    // Buttons group
+    QGroupBox *buttonsGroup = new QGroupBox(tr("Действия"));
+    QVBoxLayout *buttonsLayout = new QVBoxLayout(buttonsGroup);
+
+    saveButton = new QPushButton(tr("Сохранить изображение"));
+    resetViewButton = new QPushButton(tr("Сбросить вид"));
+
+    buttonsLayout->addWidget(saveButton);
+    buttonsLayout->addWidget(resetViewButton);
+
+    // Add all control groups
+    controlsLayout->addWidget(viewModeGroup);
+    controlsLayout->addWidget(colorModeGroup);
+    controlsLayout->addWidget(thresholdGroup);
+    controlsLayout->addWidget(sliceControlGroup); // ADD THIS
+    controlsLayout->addWidget(buttonsGroup);
+
+    // Add widgets to main layout
+    mainLayout->addWidget(glWidget, 1);
+    mainLayout->addLayout(controlsLayout);
+
+    // Connect signals
+    connect(saveButton, &QPushButton::clicked, this, &PatternDiagramWindow::savePatternAsPNG);
+    connect(resetViewButton, &QPushButton::clicked, this, &PatternDiagramWindow::resetView);
+    connect(thresholdSlider, &QSlider::valueChanged, this, &PatternDiagramWindow::onThresholdChanged);
+    connect(colorModeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &PatternDiagramWindow::onColorModeChanged);
+    connect(viewModeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &PatternDiagramWindow::onViewModeChanged);
+    connect(sliceSlider, &QSlider::valueChanged, this, &PatternDiagramWindow::onSliceChanged); // ADD THIS
 }
 
-void PatternDiagramWindow::setData(const QVector<QVector<double>>& data)
+void PatternDiagramWindow::setData(const QVector<QVector<QVector<double>>> &data)
 {
-    m_data = data;
-    calculateMinMax();
-    // Обновляем область рисования вместо всего окна
-    if (m_drawingArea) {
-        m_drawingArea->update();
-    }
+    data3D = data;
+    glWidget->setData(data);
 }
 
-/**
- * Вычисляет минимальное и максимальное значения в данных для нормализации
- * Эти значения используются в normalizeValue() для приведения данных к диапазону [0, 1]
- */
-void PatternDiagramWindow::calculateMinMax()
+void PatternDiagramWindow::setData(const QVector<QVector<double>> &data2D)
 {
-    if (m_data.isEmpty()) return;
-
-    // Инициализируем максимум наименьшим возможным значением, а минимум - наибольшим
-    m_maxValue = std::numeric_limits<double>::lowest();
-    m_minValue = std::numeric_limits<double>::max();
-
-    // Находим фактические минимум и максимум в массиве данных
-    for (const auto& row : m_data) {
-        for (double val : row) {
-            if (val > m_maxValue) m_maxValue = val;
-            if (val < m_minValue) m_minValue = val;
-        }
-    }
-
-    // Защита от случая, когда все значения одинаковы (деление на ноль)
-    if (qFuzzyCompare(m_maxValue, m_minValue)) {
-        m_maxValue += 1.0;
-    }
+    // Convert 2D data to 3D for visualization
+    convert2DTo3D(data2D);
+    glWidget->setData(data3D);
 }
 
-void PatternDiagramWindow::paintEvent(QPaintEvent *event)
+void PatternDiagramWindow::convert2DTo3D(const QVector<QVector<double>> &data2D)
 {
-    Q_UNUSED(event);
+    if (data2D.isEmpty()) return;
 
-    // В обновленной реализации метода paintEvent(),
-    // отрисовка должна происходить только в области drawingArea,
-    // но не в основном окне.
+    int rows = data2D.size();
+    int cols = data2D[0].size();
 
-    // Вместо этого, мы оставляем эту функцию пустой,
-    // так как основная отрисовка будет происходить в paintEvent
-    // объекта drawingArea, переопределенном в setupUI()
-}
+    // Create a 3D dataset with copies of the 2D data along the Z axis
+    // This creates a "cylindrical" visualization
+    data3D.clear();
 
-/**
- * Отрисовывает диаграмму направленности в полярной проекции (2D)
- *
- * Математическая основа:
- * 1. Расчет координат точек в полярной системе координат
- * 2. Преобразование полярных координат в декартовы для отображения:
- *    x = centerX + r * cos(θ)
- *    y = centerY + r * sin(θ)
- * Где:
- *   - r - нормализованное значение (интенсивность) * радиус области
- *   - θ - угол в радианах
- *   - centerX, centerY - центр области отображения
- */
-void PatternDiagramWindow::drawPolarPattern(QPainter &painter, const QRect &rect)
-{
-    if (m_data.isEmpty()) return;
+    int zSize = qMin(rows, cols) / 2; // Use a reasonable depth
 
-    // Определяем центр и максимальный радиус для отображения
-    int centerX = rect.center().x();
-    int centerY = rect.center().y();
-    int radius = qMin(rect.width(), rect.height()) / 2 - 10; // 10px отступ от края
+    for (int z = 0; z < zSize; z++) {
+        double zFactor = (double)z / zSize; // Scale factor for depth
+        QVector<QVector<double>> layer;
 
-    // Рисуем вспомогательные окружности сетки через каждую четверть радиуса
-    painter.setPen(QPen(Qt::lightGray, 1, Qt::DashLine));
-    for (int r = radius / 4; r <= radius; r += radius / 4) {
-        painter.drawEllipse(QPoint(centerX, centerY), r, r);
-    }
-
-    // Рисуем радиальные линии через каждые 30 градусов
-    for (int angle = 0; angle < 360; angle += 30) {
-        double radians = qDegreesToRadians(static_cast<double>(angle));
-        int x = centerX + radius * cos(radians); // x = r * cos(θ)
-        int y = centerY + radius * sin(radians); // y = r * sin(θ)
-        painter.drawLine(centerX, centerY, x, y);
-
-        // Добавляем метки углов за пределами основного круга
-        int textX = centerX + (radius + 15) * cos(radians); // 15px отступ для текста
-        int textY = centerY + (radius + 15) * sin(radians);
-        painter.drawText(textX - 10, textY + 5, QString::number(angle) + "°");
-    }
-
-    // Получаем размеры данных диаграммы направленности
-    int rowCount = m_data.size();
-    int colCount = m_data[0].size(); // Количество углов в 360-градусной развертке
-
-    QVector<QPointF> points;
-
-    // Собираем точки для указанного среза (угол среза определяет индекс строки данных)
-    for (int i = 0; i < colCount; ++i) {
-        // Вычисляем угол для текущей точки (полный круг разбит на colCount частей)
-        double angle = 360.0 * i / colCount;
-        double radians = qDegreesToRadians(angle);
-
-        // Берем данные из ряда, соответствующего выбранному срезу
-        // Индекс строки ограничен размером массива данных
-        int rowIndex = qMin(m_sliceAngle * rowCount / 360, rowCount - 1);
-
-        // Нормализуем значение к диапазону [0,1]
-        double value = normalizeValue(m_data[rowIndex][i]);
-
-        // Масштабируем нормализованное значение до размера окна и преобразуем в декартовы координаты
-        double r = value * radius;
-        double x = centerX + r * cos(radians); // x = r * cos(θ)
-        double y = centerY + r * sin(radians); // y = r * sin(θ)
-
-        points.append(QPointF(x, y));
-    }
-
-    // Замыкаем контур, добавляя первую точку в конец массива
-    if (!points.isEmpty()) {
-        points.append(points.first());
-    }
-
-    // Рисуем контур диаграммы направленности
-    painter.setPen(QPen(Qt::blue, 2));
-
-    if (m_fillPattern) {
-        // Заполняем диаграмму с полупрозрачным цветом, если включена заливка
-        QColor fillColor = Qt::blue;
-        fillColor.setAlphaF(0.3); // 30% непрозрачности
-        painter.setBrush(fillColor);
-    } else {
-        painter.setBrush(Qt::NoBrush);
-    }
-
-    // Рисуем полигон, если есть хотя бы 2 точки
-    if (points.size() > 1) {
-        painter.drawPolygon(points.data(), points.size());
-    }
-
-    // Рисуем координатные оси
-    painter.setPen(QPen(Qt::black, 2));
-    painter.drawLine(centerX - radius, centerY, centerX + radius, centerY); // Ось X
-    painter.drawLine(centerX, centerY - radius, centerX, centerY + radius); // Ось Y
-
-    // Добавляем легенду с цветовой шкалой
-    painter.drawText(rect.right() - 150, rect.top() + 20, "Нормализованное значение");
-    for (int i = 0; i <= 10; ++i) {
-        double val = i / 10.0; // 10 градаций от 0 до 1
-        int y = rect.top() + 30 + i * 20;
-        painter.fillRect(rect.right() - 150, y, 20, 15, getColorForValue(val));
-        painter.drawRect(rect.right() - 150, y, 20, 15);
-        painter.drawText(rect.right() - 120, y + 12, QString::number(val, 'f', 1));
-    }
-}
-
-/**
- * Отрисовывает диаграмму направленности в 3D-проекции
- *
- * Математическая основа:
- * 1. Преобразование сферических координат в декартовы:
- *    x = r * sin(θ) * cos(φ)
- *    y = r * sin(θ) * sin(φ)
- *    z = r * cos(θ)
- *
- * 2. Матрица поворота вокруг оси Y (для угла места):
- *    |  cos(α)  0  sin(α) |
- *    |    0     1    0    |
- *    | -sin(α)  0  cos(α) |
- *
- * 3. Матрица поворота вокруг оси Z (для азимута):
- *    | cos(β)  -sin(β)  0 |
- *    | sin(β)   cos(β)  0 |
- *    |   0        0     1 |
- *
- * 4. Проецирование 3D-точек на 2D-плоскость экрана
- *
- * Где:
- *   - r - нормализованное значение (интенсивность)
- *   - θ - зенитный угол (отклонение от оси Z, 0-90°)
- *   - φ - азимутальный угол (0-360°)
- *   - α - угол места наблюдателя
- *   - β - азимутальный угол наблюдателя
- */
-void PatternDiagramWindow::draw3DPattern(QPainter &painter, const QRect &rect)
-{
-    if (m_data.isEmpty()) return;
-
-    // Определяем центр и размер области отображения
-    int centerX = rect.center().x();
-    int centerY = rect.center().y();
-    int size = qMin(rect.width(), rect.height()) / 2 - 20; // 20px отступ от края
-
-    // Сохраняем текущее состояние трансформации
-    painter.save();
-    // Перемещаем начало координат в центр области отображения
-    painter.translate(centerX, centerY);
-
-    // Рисуем оси координат в 3D с учетом текущего угла обзора
-    painter.setPen(QPen(Qt::red, 2));
-    painter.drawLine(0, 0, size, 0); // Ось X - красная
-    painter.drawText(size + 5, 0, "X");
-
-    painter.setPen(QPen(Qt::green, 2));
-    painter.drawLine(0, 0, 0, -size); // Ось Y - зеленая
-    painter.drawText(0, -size - 5, "Y");
-
-    painter.setPen(QPen(Qt::blue, 2));
-    // Вычисляем конечную точку оси Z с учетом текущего угла обзора
-    QPointF zEnd = sphericalToCartesian(size, m_elevationAngle, m_azimuthAngle);
-    painter.drawLine(0, 0, zEnd.x(), zEnd.y()); // Ось Z - синяя
-    painter.drawText(zEnd.x() + 5, zEnd.y() + 5, "Z");
-
-    // Рисуем вспомогательную сетку сферы (параллели и меридианы)
-    painter.setPen(QPen(Qt::lightGray, 1, Qt::DashLine));
-
-    // Горизонтальные круги (параллели) - линии постоянных зенитных углов θ
-    for (int elevation = 0; elevation <= 90; elevation += 15) { // от 0° до 90° с шагом 15°
-        QVector<QPointF> points;
-        for (int azimuth = 0; azimuth < 360; azimuth += 5) { // Полный круг с малым шагом для гладкости
-            points.append(sphericalToCartesian(size, elevation, azimuth));
-        }
-        points.append(points.first()); // Замыкаем контур
-
-        if (points.size() > 1) {
-            painter.drawPolyline(points.data(), points.size());
-        }
-    }
-
-    // Вертикальные круги (меридианы) - линии постоянных азимутальных углов φ
-    for (int azimuth = 0; azimuth < 360; azimuth += 30) { // от 0° до 360° с шагом 30°
-        QVector<QPointF> points;
-        for (int elevation = 0; elevation <= 90; elevation += 5) { // от 0° до 90° с малым шагом
-            points.append(sphericalToCartesian(size, elevation, azimuth));
-        }
-
-        if (points.size() > 1) {
-            painter.drawPolyline(points.data(), points.size());
-        }
-    }
-
-    // Получаем размеры данных диаграммы направленности
-    int rows = m_data.size(); // количество строк (зенитных углов θ)
-    int cols = m_data[0].size(); // количество столбцов (азимутальных углов φ)
-
-    painter.setPen(QPen(Qt::blue, 1));
-
-    // Для каждого зенитного угла (θ) строим радиальную линию
-    for (int i = 0; i < rows; ++i) {
-        // Вычисляем угол возвышения (зенитный угол θ)
-        double elevation = 90.0 * i / (rows - 1); // от 0° до 90°
-        QVector<QPointF> points;
-
-        // Для каждого азимутального угла (φ)
-        for (int j = 0; j < cols; ++j) {
-            // Вычисляем азимутальный угол
-            double azimuth = 360.0 * j / cols; // от 0° до 360°
-
-            // Нормализуем значение к диапазону [0,1]
-            double value = normalizeValue(m_data[i][j]);
-
-            // Преобразуем сферические координаты в декартовы с учетом текущего угла обзора
-            points.append(sphericalToCartesian(value * size, elevation, azimuth));
-        }
-
-        // Замыкаем контур для каждого зенитного угла
-        if (!points.isEmpty()) {
-            points.append(points.first());
-        }
-
-        // Рисуем контур для текущего зенитного угла
-        if (points.size() > 1) {
-            if (m_fillPattern) {
-                // Если включена заливка, используем полупрозрачный цвет
-                QColor fillColor = getColorForValue(0.5); // средний цвет в спектре
-                fillColor.setAlphaF(0.3); // 30% непрозрачности
-                painter.setBrush(fillColor);
-            } else {
-                painter.setBrush(Qt::NoBrush);
+        for (int y = 0; y < rows; y++) {
+            QVector<double> row;
+            for (int x = 0; x < cols; x++) {
+                double value = data2D[y][x] * (1.0 - zFactor * 0.9); // Fade with depth
+                row.append(value);
             }
-
-            // Для 3D в текущей реализации рисуем только контуры без заливки
-            // из-за сложности определения перекрытий
-            painter.drawPolyline(points.data(), points.size());
-        }
-    }
-
-    // Восстанавливаем предыдущее состояние трансформации
-    painter.restore();
-
-    // Добавляем легенду с цветовой шкалой
-    painter.drawText(rect.right() - 150, rect.top() + 20, "Нормализованное значение");
-    for (int i = 0; i <= 10; ++i) {
-        double val = i / 10.0; // 10 градаций от 0 до 1
-        int y = rect.top() + 30 + i * 20;
-        painter.fillRect(rect.right() - 150, y, 20, 15, getColorForValue(val));
-        painter.drawRect(rect.right() - 150, y, 20, 15);
-        painter.drawText(rect.right() - 120, y + 12, QString::number(val, 'f', 1));
-    }
-}
-
-/**
- * Преобразует нормализованное значение в цвет для отображения интенсивности
- *
- * Использует HSV-модель цвета, где:
- * - Оттенок (Hue): изменяется от 240° (синий) до 0° (красный)
- * - Насыщенность (Saturation): максимальная (255)
- * - Яркость (Value): максимальная (255)
- *
- * Формула: hue = 240 - value * 240
- *
- * @param value нормализованное значение в диапазоне [0,1]
- * @return QColor цвет в спектре от синего (минимум) до красного (максимум)
- */
-QColor PatternDiagramWindow::getColorForValue(double value) const
-{
-    // Преобразуем нормализованное значение [0,1] в угол оттенка [240,0]
-    // где 240° - синий (для минимальных значений)
-    // а 0° - красный (для максимальных значений)
-    int hue = static_cast<int>(240 - value * 240);
-    return QColor::fromHsv(hue, 255, 255); // Максимальная насыщенность и яркость
-}
-
-/**
- * Нормализует значение к диапазону [0,1] с учетом минимума и максимума данных
- * и выбранного типа шкалы (линейная или логарифмическая)
- *
- * Формулы нормализации:
- * - Линейная: norm_value = (value - min_value) / (max_value - min_value)
- * - Логарифмическая: norm_value = (ln(value) - ln(min_value)) / (ln(max_value) - ln(min_value))
- *
- * @param value исходное значение
- * @return нормализованное значение в диапазоне [0,1]
- */
-double PatternDiagramWindow::normalizeValue(double value) const
-{
-    if (m_logarithmicScale) {
-        // Для логарифмического масштаба защищаем от нулевых и отрицательных значений
-        double minPositive = qMax(m_minValue, 1e-10); // Минимальное положительное значение
-        double logMin = qLn(minPositive); // Натуральный логарифм минимума
-        double logMax = qLn(qMax(m_maxValue, minPositive * 1.1)); // Натуральный логарифм максимума
-        double logVal = qLn(qMax(value, minPositive)); // Натуральный логарифм значения
-
-        // Нормализация в логарифмическом масштабе
-        return (logVal - logMin) / (logMax - logMin);
-    } else {
-        // Для линейного масштаба
-        return (value - m_minValue) / (m_maxValue - m_minValue);
-    }
-}
-
-/**
- * Преобразует полярные координаты в декартовы
- *
- * Формулы:
- * x = radius * cos(angle)
- * y = radius * sin(angle)
- *
- * @param radius радиус (расстояние от начала координат)
- * @param angle угол в градусах (0° - вправо, 90° - вверх)
- * @return QPointF точка в декартовых координатах
- */
-QPointF PatternDiagramWindow::polarToCartesian(double radius, double angle) const
-{
-    // Преобразование угла из градусов в радианы
-    double radians = qDegreesToRadians(angle);
-    // Применение формул преобразования полярных координат в декартовы
-    return QPointF(radius * qCos(radians), radius * qSin(radians));
-}
-
-/**
- * Преобразует сферические координаты в декартовы с учетом текущего угла обзора
- *
- * Математический процесс:
- * 1. Преобразование из сферических в декартовы координаты:
- *    x = radius * sin(theta) * cos(phi)
- *    y = radius * sin(theta) * sin(phi)
- *    z = radius * cos(theta)
- *
- * 2. Применение поворота вокруг оси Y (для угла места):
- *    x' = x * cos(elevation) + z * sin(elevation)
- *    y' = y
- *    z' = -x * sin(elevation) + z * cos(elevation)
- *
- * 3. Применение поворота вокруг оси Z (для азимута):
- *    x'' = x' * cos(azimuth) - y' * sin(azimuth)
- *    y'' = x' * sin(azimuth) + y' * cos(azimuth)
- *    z'' = z'
- *
- * @param radius радиус (расстояние от начала координат)
- * @param theta зенитный угол в градусах (0° - вдоль оси Z, 90° - в плоскости XY)
- * @param phi азимутальный угол в градусах (0° - вдоль оси X, 90° - вдоль оси Y)
- * @return QPointF проекция 3D-точки на 2D-плоскость
- */
-QPointF PatternDiagramWindow::sphericalToCartesian(double radius, double theta, double phi) const
-{
-    // theta - угол отклонения от оси Z (0-90 градусов)
-    // phi - азимутальный угол в плоскости XY (0-360 градусов)
-    double thetaRad = qDegreesToRadians(theta);
-    double phiRad = qDegreesToRadians(phi);
-
-    // Применяем поворот для угла обзора
-    double azimuthRad = qDegreesToRadians(m_azimuthAngle);
-    double elevationRad = qDegreesToRadians(m_elevationAngle);
-
-    // Шаг 1: Преобразование из сферических в декартовы координаты
-    // Стандартные формулы для сферических координат:
-    // x = r * sin(θ) * cos(φ)
-    // y = r * sin(θ) * sin(φ)
-    // z = r * cos(θ)
-    double x = radius * qSin(thetaRad) * qCos(phiRad);
-    double y = radius * qSin(thetaRad) * qSin(phiRad);
-    double z = radius * qCos(thetaRad);
-
-    // Шаг 2: Применение матрицы поворота вокруг оси Y (для угла места)
-    // [  cos(α)  0  sin(α)  ]   [ x ]   [ x*cos(α) + z*sin(α) ]
-    // [    0     1     0    ] * [ y ] = [         y          ]
-    // [ -sin(α)  0  cos(α)  ]   [ z ]   [ -x*sin(α) + z*cos(α)]
-    double x2 = x * qCos(elevationRad) + z * qSin(elevationRad);
-    double y2 = y;
-    double z2 = -x * qSin(elevationRad) + z * qCos(elevationRad);
-
-    // Шаг 3: Применение матрицы поворота вокруг оси Z (для азимута)
-    // [ cos(β) -sin(β) 0 ]   [ x2 ]   [ x2*cos(β) - y2*sin(β) ]
-    // [ sin(β)  cos(β) 0 ] * [ y2 ] = [ x2*sin(β) + y2*cos(β) ]
-    // [   0       0    1 ]   [ z2 ]   [          z2          ]
-    double x3 = x2 * qCos(azimuthRad) - y2 * qSin(azimuthRad);
-    double y3 = x2 * qSin(azimuthRad) + y2 * qCos(azimuthRad);
-
-    // Результат: проекция 3D точки на 2D экран
-    // Инвертируем Y-координату для соответствия координатной системе экрана,
-    // где ось Y направлена вниз, а не вверх
-    return QPointF(x3, -y3);
-}
-
-/**
- * Обработка нажатия кнопки мыши
- *
- * Сохраняет начальную позицию мыши для расчета смещения при вращении вида
- * Обрабатывает только нажатия в области рисования диаграммы
- */
-void PatternDiagramWindow::mousePressEvent(QMouseEvent *event)
-{
-    // Проверяем, находится ли курсор над областью рисования
-    if (m_drawingArea && m_drawingArea->rect().contains(event->pos() - m_drawingArea->pos())) {
-        m_lastMousePos = event->pos();
-        event->accept();
-    } else {
-        // Если курсор не над областью рисования, передаем событие базовому классу
-        QDialog::mousePressEvent(event);
-    }
-}
-
-/**
- * Обработка перемещения мыши для вращения 3D-вида
- *
- * Математическая основа:
- * - Изменение азимутального угла пропорционально смещению по оси X
- * - Изменение угла места пропорционально смещению по оси Y (инвертированное)
- * - Ограничение угла места диапазоном [0°, 90°]
- *
- * Формулы:
- * azimuthAngle += deltaX * 0.5
- * elevationAngle = clamp(elevationAngle - deltaY * 0.5, 0, 90)
- */
-void PatternDiagramWindow::mouseMoveEvent(QMouseEvent *event)
-{
-    // Обрабатываем только если нажата левая кнопка мыши и имеется сохраненная начальная позиция
-    if (event->buttons() & Qt::LeftButton && !m_lastMousePos.isNull()) {
-        // Вычисляем разницу между текущей и предыдущей позициями
-        QPoint delta = event->pos() - m_lastMousePos;
-
-        // Изменяем азимутальный угол пропорционально смещению по X
-        // Коэффициент 0.5 подобран для комфортного вращения
-        m_azimuthAngle += delta.x() * 0.5;
-
-        // Изменяем угол места пропорционально смещению по Y (с инверсией)
-        // Ограничиваем угол места диапазоном [0°, 90°]
-        m_elevationAngle = qBound(0.0, m_elevationAngle - delta.y() * 0.5, 90.0);
-
-        // Обновляем позицию для следующего вычисления разницы
-        m_lastMousePos = event->pos();
-
-        // Обновляем только область рисования для повышения производительности
-        if (m_drawingArea) {
-            m_drawingArea->update();
+            layer.append(row);
         }
 
-        event->accept();
-    } else {
-        // Если не соблюдены условия для обработки, передаем событие базовому классу
-        QDialog::mouseMoveEvent(event);
+        data3D.append(layer);
     }
 }
 
-/**
- * Обработка прокрутки колеса мыши для масштабирования
- *
- * Математическая основа:
- * - Изменение масштаба пропорционально углу поворота колеса
- * - Ограничение масштаба диапазоном [0.1, 10.0]
- *
- * Формула:
- * scale = clamp(scale * (1 + wheelDelta / 360), 0.1, 10.0)
- */
-void PatternDiagramWindow::wheelEvent(QWheelEvent *event)
+void PatternDiagramWindow::savePatternAsPNG()
 {
-    // Проверяем, находится ли курсор над областью рисования
-    if (m_drawingArea && m_drawingArea->rect().contains(event->position().toPoint() - m_drawingArea->pos())) {
-        // Получаем угол поворота колеса мыши в градусах (деление на 8 - коэффициент Qt)
-        QPoint numDegrees = event->angleDelta() / 8;
-        if (!numDegrees.isNull()) {
-            // Вычисляем коэффициент масштабирования
-            // Для увеличения масштаба factor > 1, для уменьшения factor < 1
-            double factor = 1.0 + numDegrees.y() / 360.0;
-
-            // Применяем масштабирование с ограничением диапазона
-            m_scale = qBound(0.1, m_scale * factor, 10.0);
-
-            if (m_drawingArea) {
-                m_drawingArea->update(); // Обновить только область рисования
-            }
-
-            event->accept();
-        }
-    } else {
-        // Если курсор не над областью рисования, передаем событие базовому классу
-        QDialog::wheelEvent(event);
-    }
-}
-
-/**
- * Сохраняет текущее изображение диаграммы в PNG-файл
- *
- * Процесс:
- * 1. Создание пустого изображения размером с область рисования
- * 2. Рисование диаграммы в этом изображении с текущими параметрами
- * 3. Добавление информации о настройках
- * 4. Сохранение изображения в файл
- */
-void PatternDiagramWindow::saveImage()
-{
-    QString fileName = QFileDialog::getSaveFileName(this, tr("Сохранить изображение"), "", tr("PNG Image (*.png)"));
-    if (fileName.isEmpty()) return;
-
-    // Получаем область рисования (первый виджет в макете)
-    QWidget* drawingArea = nullptr;
-    if (layout()) {
-        QLayoutItem* item = layout()->itemAt(0);
-        if (item && item->widget()) {
-            drawingArea = item->widget();
-        }
-    }
-
-    if (!drawingArea) {
-        QMessageBox::warning(this, tr("Ошибка"), tr("Не удалось получить область рисования."));
+    QString fileName = QFileDialog::getSaveFileName(this, tr("Сохранить изображение"),
+                                                    "", tr("PNG Files (*.png)"));
+    if (fileName.isEmpty()) {
         return;
     }
 
-    // Создаем изображение размером с область рисования
-    QPixmap pixmap(drawingArea->size());
-    pixmap.fill(Qt::white);
+    // Get the OpenGL frame as an image
+    QImage image = glWidget->grabFramebuffer();
 
-    QPainter painter(&pixmap);
-
-    // Рисуем диаграмму непосредственно на pixmap
-    if (m_projectionType == 0) {
-        drawPolarPattern(painter, drawingArea->rect());
+    if (!image.save(fileName, "PNG")) {
+        QMessageBox::warning(this, tr("Ошибка"), tr("Не удалось сохранить файл."));
     } else {
-        draw3DPattern(painter, drawingArea->rect());
-    }
-
-    // Добавляем информацию о настройках в верхний левый угол
-    QString settings;
-    settings += m_normalized ? "Нормализовано " : "";
-    settings += m_logarithmicScale ? "Логарифмическая шкала " : "Линейная шкала ";
-    settings += QString("Угол среза: %1°").arg(m_sliceAngle);
-
-    painter.setPen(Qt::black);
-    QFont font = painter.font();
-    font.setPointSize(10);
-    painter.setFont(font);
-    painter.drawText(10, 20, settings);
-
-    // Сохраняем изображение и выводим сообщение о результате
-    if (pixmap.save(fileName)) {
         QMessageBox::information(this, tr("Успех"), tr("Изображение успешно сохранено."));
-    } else {
-        QMessageBox::warning(this, tr("Ошибка"), tr("Не удалось сохранить изображение."));
     }
 }
 
-/**
- * Сбрасывает параметры отображения к значениям по умолчанию
- *
- * Сбрасываемые параметры:
- * - Масштаб (m_scale = 1.0)
- * - Азимутальный угол (m_azimuthAngle = 0.0)
- * - Угол места (m_elevationAngle = 30.0)
- * - Угол среза (m_sliceAngle = 0)
- */
+void PatternDiagramWindow::onThresholdChanged(int value)
+{
+    double threshold = value / 100.0;
+    glWidget->setThreshold(threshold);
+}
+
+void PatternDiagramWindow::onColorModeChanged(int index)
+{
+    glWidget->setColorMode(index);
+}
+
+void PatternDiagramWindow::onViewModeChanged(int index)
+{
+    // Преобразуем индекс в enum GLPatternWidget::ViewMode
+    GLPatternWidget::ViewMode mode = static_cast<GLPatternWidget::ViewMode>(index);
+
+    // Обновляем режим отображения
+    glWidget->setViewMode(mode);
+
+    // Включаем/отключаем элементы управления в зависимости от режима
+    if (mode == GLPatternWidget::SliceMode) {
+        // Для режима срезов нам нужен дополнительный слайдер для выбора среза
+        // Если его нет, создаем и добавляем в интерфейс
+        // ...
+    }
+    // Показываем/скрываем элементы управления срезами
+    bool isSliceMode = (index == GLPatternWidget::SliceMode);
+    sliceControlGroup->setVisible(isSliceMode);
+
+    // Если перешли в режим срезов, инициализируем слайдер
+    if (isSliceMode) {
+        // Перенастраиваем слайдер в зависимости от количества срезов
+        int maxSlices = data3D.size() > 0 ? data3D.size() - 1 : 0;
+        int currentSlice = maxSlices / 2; // По умолчанию - середина
+
+        // Устанавливаем значение слайдера
+        sliceSlider->blockSignals(true);
+        sliceSlider->setValue((currentSlice * 100) / maxSlices);
+        sliceSlider->blockSignals(false);
+
+        // Устанавливаем текущий срез
+        if (glWidget) {
+            glWidget->setSliceIndex(currentSlice);
+        }
+    }
+
+}
+
+// Метод для генерации данных поверхности
+void GLPatternWidget::generateSurfaceMesh()
+{
+    surfaceVertices.clear();
+
+    if (data3D.isEmpty() || data3D[0].isEmpty() || data3D[0][0].isEmpty()) {
+        return;
+    }
+
+    int zSize = data3D.size();
+    int ySize = data3D[0].size();
+    int xSize = data3D[0][0].size();
+
+    // Scale factors to normalize coordinates
+    float xScale = 1.0f;
+    float yScale = (float)xSize / ySize;
+    float zScale = (float)xSize / zSize;
+
+    // Создаем треугольную сетку
+    for (int z = 0; z < zSize - 1; z++) {
+        for (int y = 0; y < ySize - 1; y++) {
+            for (int x = 0; x < xSize - 1; x++) {
+                double value1 = data3D[z][y][x];
+                double value2 = data3D[z][y+1][x];
+                double value3 = data3D[z+1][y][x];
+                double value4 = data3D[z+1][y+1][x];
+
+                // Пропускаем точки ниже порога
+                if (value1 < threshold * maxValue &&
+                    value2 < threshold * maxValue &&
+                    value3 < threshold * maxValue &&
+                    value4 < threshold * maxValue) {
+                    continue;
+                }
+
+                // Треугольник 1
+                // Вершина 1
+                surfaceVertices.append(x * xScale);
+                surfaceVertices.append(y * yScale);
+                surfaceVertices.append(z * zScale);
+
+                QColor color1 = getColorForValue(value1);
+                surfaceVertices.append(color1.redF());
+                surfaceVertices.append(color1.greenF());
+                surfaceVertices.append(color1.blueF());
+
+                // Вершина 2
+                surfaceVertices.append(x * xScale);
+                surfaceVertices.append((y+1) * yScale);
+                surfaceVertices.append(z * zScale);
+
+                QColor color2 = getColorForValue(value2);
+                surfaceVertices.append(color2.redF());
+                surfaceVertices.append(color2.greenF());
+                surfaceVertices.append(color2.blueF());
+
+                // Вершина 3
+                surfaceVertices.append((x+1) * xScale);
+                surfaceVertices.append(y * yScale);
+                surfaceVertices.append(z * zScale);
+
+                QColor color3 = getColorForValue(value3);
+                surfaceVertices.append(color3.redF());
+                surfaceVertices.append(color3.greenF());
+                surfaceVertices.append(color3.blueF());
+
+                // Треугольник 2
+                // Вершина 1
+                surfaceVertices.append((x+1) * xScale);
+                surfaceVertices.append(y * yScale);
+                surfaceVertices.append(z * zScale);
+
+                surfaceVertices.append(color3.redF());
+                surfaceVertices.append(color3.greenF());
+                surfaceVertices.append(color3.blueF());
+
+                // Вершина 2
+                surfaceVertices.append(x * xScale);
+                surfaceVertices.append((y+1) * yScale);
+                surfaceVertices.append(z * zScale);
+
+                surfaceVertices.append(color2.redF());
+                surfaceVertices.append(color2.greenF());
+                surfaceVertices.append(color2.blueF());
+
+                // Вершина 3
+                surfaceVertices.append((x+1) * xScale);
+                surfaceVertices.append((y+1) * yScale);
+                surfaceVertices.append(z * zScale);
+
+                QColor color4 = getColorForValue(value4);
+                surfaceVertices.append(color4.redF());
+                surfaceVertices.append(color4.greenF());
+                surfaceVertices.append(color4.blueF());
+            }
+        }
+    }
+}
+
+// Метод для подготовки данных 2D срезов
+void GLPatternWidget::updateSliceData()
+{
+    sliceVertices.clear();
+
+    if (data3D.isEmpty() || data3D[0].isEmpty() || data3D[0][0].isEmpty()) {
+        return;
+    }
+
+    int zSize = data3D.size();
+    int ySize = data3D[0].size();
+    int xSize = data3D[0][0].size();
+
+    // Нормируем координаты
+    float xScale = 1.0f;
+    float yScale = (float)xSize / ySize;
+    float zScale = (float)xSize / zSize;
+
+    // Ограничиваем индекс среза в пределах размера данных
+    sliceIndex = qBound(0, sliceIndex, zSize - 1);
+
+    // Создаем XY-срез для текущего Z
+    for (int y = 0; y < ySize - 1; y++) {
+        for (int x = 0; x < xSize - 1; x++) {
+            double value1 = data3D[sliceIndex][y][x];
+            double value2 = data3D[sliceIndex][y+1][x];
+            double value3 = data3D[sliceIndex][y][x+1];
+            double value4 = data3D[sliceIndex][y+1][x+1];
+
+            // Пропускаем квады с низкой интенсивностью
+            if (value1 < threshold * maxValue &&
+                value2 < threshold * maxValue &&
+                value3 < threshold * maxValue &&
+                value4 < threshold * maxValue) {
+                continue;
+            }
+
+            // Вершина 1
+            sliceVertices.append(x * xScale);
+            sliceVertices.append(y * yScale);
+            sliceVertices.append(sliceIndex * zScale);
+
+            QColor color1 = getColorForValue(value1);
+            sliceVertices.append(color1.redF());
+            sliceVertices.append(color1.greenF());
+            sliceVertices.append(color1.blueF());
+
+            // Вершина 2
+            sliceVertices.append((x+1) * xScale);
+            sliceVertices.append(y * yScale);
+            sliceVertices.append(sliceIndex * zScale);
+
+            QColor color3 = getColorForValue(value3);
+            sliceVertices.append(color3.redF());
+            sliceVertices.append(color3.greenF());
+            sliceVertices.append(color3.blueF());
+
+            // Вершина 3
+            sliceVertices.append((x+1) * xScale);
+            sliceVertices.append((y+1) * yScale);
+            sliceVertices.append(sliceIndex * zScale);
+
+            QColor color4 = getColorForValue(value4);
+            sliceVertices.append(color4.redF());
+            sliceVertices.append(color4.greenF());
+            sliceVertices.append(color4.blueF());
+
+            // Вершина 4
+            sliceVertices.append(x * xScale);
+            sliceVertices.append((y+1) * yScale);
+            sliceVertices.append(sliceIndex * zScale);
+
+            QColor color2 = getColorForValue(value2);
+            sliceVertices.append(color2.redF());
+            sliceVertices.append(color2.greenF());
+            sliceVertices.append(color2.blueF());
+        }
+    }
+}
+
+// Метод для сброса вида
+void GLPatternWidget::resetView()
+{
+    xRot = 0.0f;
+    yRot = 0.0f;
+    zRot = 0.0f;
+    scale = 1.0f;
+
+    // При сбросе пересоздаем все буферы
+    updateVertexBuffer();
+    if (viewMode == SurfaceMode) {
+        generateSurfaceMesh();
+    } else if (viewMode == SliceMode) {
+        updateSliceData();
+    }
+    update();
+}
+
+// Метод для установки режима отображения
+void GLPatternWidget::setViewMode(ViewMode mode)
+{
+    if (viewMode != mode) {
+        viewMode = mode;
+        // При изменении режима обновляем буферы для нового режима
+        if (mode == SurfaceMode) {
+            generateSurfaceMesh();
+        } else if (mode == SliceMode) {
+            updateSliceData();
+        } else if (mode == SphereMode) {
+            // Reset view for sphere mode to ensure visibility
+            xRot = 0.0f;
+            yRot = 0.0f;
+            zRot = 0.0f;
+            scale = 1.0f;  // Reset scale
+            generateSphericalMesh();
+        }
+        update();
+    }
+}
+
 void PatternDiagramWindow::resetView()
 {
-    // Сброс параметров отображения к значениям по умолчанию
-    m_scale = 1.0;
-    m_azimuthAngle = 0.0;
-    m_elevationAngle = 30.0;
-    m_sliceSlider->setValue(0);
+    // Сбрасываем вид
+    glWidget->resetView();
 
-    // Обновляем область рисования с новыми параметрами
-    if (m_drawingArea) {
-        m_drawingArea->update();
+    // Сбрасываем значение слайдера порога
+    thresholdSlider->setValue(10);
+}
+
+void GLPatternWidget::setSliceIndex(int index)
+{
+    if (data3D.isEmpty()) return;
+
+    // Ограничиваем индекс в пределах размера данных
+    int maxIndex = data3D.size() - 1;
+    sliceIndex = qBound(0, index, maxIndex);
+
+    // Обновляем данные для слайса и перерисовываем
+    if (viewMode == SliceMode) {
+        updateSliceData();
+        update();
     }
 }
 
-/**
- * Переключение режима нормализации данных
- *
- * При нормализации данные масштабируются к диапазону [0,1]
- * в соответствии с минимальным и максимальным значениями
- *
- * @param normalized флаг включения нормализации
- */
-void PatternDiagramWindow::toggleNormalization(bool normalized)
+void PatternDiagramWindow::onSliceChanged(int value)
 {
-    m_normalized = normalized;
-    if (m_drawingArea) {
-        m_drawingArea->update();
+    // Преобразуем значение слайдера в индекс среза
+    int maxSlices = data3D.size() > 0 ? data3D.size() - 1 : 0;
+    int sliceIndex = (value * maxSlices) / 100;
+
+    // Устанавливаем индекс среза в GLPatternWidget
+    if (glWidget) {
+        glWidget->setSliceIndex(sliceIndex);
     }
 }
 
-/**
- * Переключение между линейной и логарифмической шкалой
- *
- * Логарифмическая шкала используется для лучшего отображения данных
- * с большим динамическим диапазоном, где мелкие детали могут быть
- * незаметны в линейном масштабе
- *
- * @param useLog флаг использования логарифмической шкалы
- */
-void PatternDiagramWindow::toggleLogScale(bool useLog)
+void GLPatternWidget::keyPressEvent(QKeyEvent *event)
 {
-    m_logarithmicScale = useLog;
-    if (m_drawingArea) {
-        m_drawingArea->update();
+    if (viewMode == SliceMode) {
+        switch (event->key()) {
+        case Qt::Key_Up:
+        case Qt::Key_PageUp:
+            setSliceIndex(sliceIndex + 1);
+            break;
+
+        case Qt::Key_Down:
+        case Qt::Key_PageDown:
+            setSliceIndex(sliceIndex - 1);
+            break;
+
+        case Qt::Key_Home:
+            setSliceIndex(0);
+            break;
+
+        case Qt::Key_End:
+            setSliceIndex(data3D.size() - 1);
+            break;
+        }
     }
+
+    QOpenGLWidget::keyPressEvent(event);
 }
 
-/**
- * Переключение режима заливки диаграммы
- *
- * При включенной заливке диаграмма отображается как закрашенная область,
- * при выключенной - только как контур
- *
- * @param fill флаг включения заливки
- */
-void PatternDiagramWindow::toggleFillMode(bool fill)
+void GLPatternWidget::generateSphericalMesh()
 {
-    m_fillPattern = fill;
-    if (m_drawingArea) {
-        m_drawingArea->update();
-    }
-}
+    sphereVertices.clear();
 
-/**
- * Изменение типа проекции диаграммы (2D или 3D)
- *
- * @param index индекс типа проекции (0 - полярная 2D, 1 - сферическая 3D)
- */
-void PatternDiagramWindow::updateProjectionType(int index)
-{
-    m_projectionType = index;
-    if (m_drawingArea) {
-        m_drawingArea->update();
+    if (data3D.isEmpty() || data3D[0].isEmpty() || data3D[0][0].isEmpty()) {
+        qDebug() << "No data for spherical mesh";
+        return;
     }
-}
 
-/**
- * Обновление угла среза для 2D-диаграммы
- *
- * В 2D-представлении мы показываем срез 3D-данных под определенным углом.
- * Этот метод обновляет угол среза и текстовую метку.
- *
- * @param angle угол среза в градусах (0-360)
- */
-void PatternDiagramWindow::updateSliceAngle(int angle)
-{
-    m_sliceAngle = angle;
-    m_sliceLabel->setText(QString("Угол среза: %1°").arg(angle));
-    if (m_drawingArea) {
-        m_drawingArea->update();
-    }
-}
+    // In this mode, we'll interpret:
+    // data3D[i][j][k] where i=угломестный, j=азимутальный, k=дальностный
+    int thetaSteps = data3D.size();        // угломестный (0 to 180 degrees)
+    int phiSteps = data3D[0].size();       // азимутальный (0 to 360 degrees)
+    int rangeSteps = data3D[0][0].size();  // дальностный
 
-/**
- * Устанавливает азимутальный угол обзора
- *
- * @param angle угол в градусах
- */
-void PatternDiagramWindow::setAzimuthAngle(double angle)
-{
-    m_azimuthAngle = angle;
-    if (m_drawingArea) {
-        m_drawingArea->update();
-    }
-}
+    qDebug() << "Generating spherical mesh with dimensions:"
+             << thetaSteps << "theta steps,"
+             << phiSteps << "phi steps,"
+             << rangeSteps << "range steps";
 
-/**
- * Устанавливает угол места (возвышения) для обзора
- * с ограничением в диапазоне [0, 90] градусов
- *
- * @param angle угол в градусах
- */
-void PatternDiagramWindow::setElevationAngle(double angle)
-{
-    m_elevationAngle = qBound(0.0, angle, 90.0);
-    if (m_drawingArea) {
-        m_drawingArea->update();
+    double dtheta = M_PI / (thetaSteps > 1 ? thetaSteps - 1 : 1);
+    double dphi = 2.0 * M_PI / (phiSteps > 1 ? phiSteps - 1 : 1);
+
+    // Add a scaling factor to make the sphere more visible
+    float sphereScale = 5.0f;  // Increased scale for better visibility
+
+    // Lower the threshold for visualization
+    float visualThreshold = threshold * 0.5;
+
+    // Count generated vertices for debugging
+    int generatedVertices = 0;
+
+    // Create triangular mesh
+    for (int i = 0; i < thetaSteps - 1; i++) {
+        double theta1 = i * dtheta;
+        double theta2 = (i + 1) * dtheta;
+
+        for (int j = 0; j < phiSteps - 1; j++) {
+            double phi1 = j * dphi;
+            double phi2 = (j + 1) * dphi;
+
+            // Aggregate data along range dimension using maximum value
+            double val1 = 0.0;
+            double val2 = 0.0;
+            double val3 = 0.0;
+            double val4 = 0.0;
+
+            for (int k = 0; k < rangeSteps; k++) {
+                val1 = qMax(val1, data3D[i][j][k]);
+                val2 = qMax(val2, data3D[i][j+1][k]);
+                val3 = qMax(val3, data3D[i+1][j+1][k]);
+                val4 = qMax(val4, data3D[i+1][j][k]);
+            }
+
+            // Apply threshold
+            if (val1 < visualThreshold * maxValue &&
+                val2 < visualThreshold * maxValue &&
+                val3 < visualThreshold * maxValue &&
+                val4 < visualThreshold * maxValue) {
+                continue;
+            }
+
+            // Scale by intensity
+            val1 = qMax(0.1, val1 / maxValue) * sphereScale;
+            val2 = qMax(0.1, val2 / maxValue) * sphereScale;
+            val3 = qMax(0.1, val3 / maxValue) * sphereScale;
+            val4 = qMax(0.1, val4 / maxValue) * sphereScale;
+
+            // Calculate vertices in 3D space (spherical to Cartesian)
+            float x1 = val1 * sin(theta1) * cos(phi1);
+            float y1 = val1 * sin(theta1) * sin(phi1);
+            float z1 = val1 * cos(theta1);
+
+            float x2 = val2 * sin(theta1) * cos(phi2);
+            float y2 = val2 * sin(theta1) * sin(phi2);
+            float z2 = val2 * cos(theta1);
+
+            float x3 = val3 * sin(theta2) * cos(phi2);
+            float y3 = val3 * sin(theta2) * sin(phi2);
+            float z3 = val3 * cos(theta2);
+
+            float x4 = val4 * sin(theta2) * cos(phi1);
+            float y4 = val4 * sin(theta2) * sin(phi1);
+            float z4 = val4 * cos(theta2);
+
+            // Colors for each vertex
+            QColor color1 = getColorForValue(val1 * maxValue / sphereScale);
+            QColor color2 = getColorForValue(val2 * maxValue / sphereScale);
+            QColor color3 = getColorForValue(val3 * maxValue / sphereScale);
+            QColor color4 = getColorForValue(val4 * maxValue / sphereScale);
+
+            // Add triangles to the mesh
+            // Triangle 1
+            sphereVertices.append(x1);
+            sphereVertices.append(y1);
+            sphereVertices.append(z1);
+            sphereVertices.append(color1.redF());
+            sphereVertices.append(color1.greenF());
+            sphereVertices.append(color1.blueF());
+
+            sphereVertices.append(x2);
+            sphereVertices.append(y2);
+            sphereVertices.append(z2);
+            sphereVertices.append(color2.redF());
+            sphereVertices.append(color2.greenF());
+            sphereVertices.append(color2.blueF());
+
+            sphereVertices.append(x3);
+            sphereVertices.append(y3);
+            sphereVertices.append(z3);
+            sphereVertices.append(color3.redF());
+            sphereVertices.append(color3.greenF());
+            sphereVertices.append(color3.blueF());
+
+            // Triangle 2
+            sphereVertices.append(x1);
+            sphereVertices.append(y1);
+            sphereVertices.append(z1);
+            sphereVertices.append(color1.redF());
+            sphereVertices.append(color1.greenF());
+            sphereVertices.append(color1.blueF());
+
+            sphereVertices.append(x3);
+            sphereVertices.append(y3);
+            sphereVertices.append(z3);
+            sphereVertices.append(color3.redF());
+            sphereVertices.append(color3.greenF());
+            sphereVertices.append(color3.blueF());
+
+            sphereVertices.append(x4);
+            sphereVertices.append(y4);
+            sphereVertices.append(z4);
+            sphereVertices.append(color4.redF());
+            sphereVertices.append(color4.greenF());
+            sphereVertices.append(color4.blueF());
+
+            generatedVertices += 6;  // Added 6 vertices (2 triangles)
+        }
     }
+
+    qDebug() << "Generated spherical mesh with" << generatedVertices << "vertices";
+    qDebug() << "sphereVertices.size() = " << sphereVertices.size();
 }
