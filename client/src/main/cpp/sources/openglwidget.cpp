@@ -98,16 +98,18 @@ int OpenGLWidget::getVisibleTrianglesCount() const {
 }
 
 rVect OpenGLWidget::getDirectionVector() const {
-    // Перенесённая логика из MainWindow::calculateDirectVectorFromRotation
+    // Матрица преобразования для учета поворотов модели
     QMatrix4x4 rotationMatrix;
     rotationMatrix.setToIdentity();
     rotationMatrix.rotate(rotationX, 1.0f, 0.0f, 0.0f);
     rotationMatrix.rotate(rotationY, 0.0f, 1.0f, 0.0f);
     rotationMatrix.rotate(rotationZ, 0.0f, 0.0f, 1.0f);
 
+    // Направление по умолчанию (против оси Z в новой системе координат)
     QVector3D defaultDirection(0.0f, 0.0f, -1.0f);
     QVector3D transformedDirection = rotationMatrix.map(defaultDirection);
 
+    // Преобразуем в rVect формат, который ожидает сервер
     rVect directVector(transformedDirection.x(), transformedDirection.y(), transformedDirection.z());
     directVector.normalize();
 
@@ -538,8 +540,8 @@ void OpenGLWidget::drawGrid() {
     // Вычисление направления камеры
     QVector3D cameraDir = (actualCameraPos - actualObjectPos).normalized();
 
-    // Нормаль плоскости XZ
-    QVector3D gridNormal(0.0f, 1.0f, 0.0f);
+    // Нормаль плоскости XOY (теперь Z вверх)
+    QVector3D gridNormal(0.0f, 0.0f, 1.0f);
 
     // Вычисляем косинус угла между направлением камеры и нормалью сетки
     float dotProduct = QVector3D::dotProduct(cameraDir, gridNormal);
@@ -553,11 +555,11 @@ void OpenGLWidget::drawGrid() {
         gridAlpha = 0.185746f; // Значение на основе предоставленных данных
     }
 
-    // Обновление размеров сетки на основе размера объекта
+    // Обновление размеров сетки
     if (gridParametersChanged) {
         if (hasLoadedObject) {
             float sizeX = gridSize;
-            float sizeZ = gridSize;
+            float sizeY = gridSize;
             gridStep = gridSize / 20.0f;
         } else {
             gridSize = 12.14f;
@@ -566,9 +568,12 @@ void OpenGLWidget::drawGrid() {
         gridParametersChanged = false;
     }
 
-    // Включаем смешивание и настраиваем альфа-значение для сетки
+    // Включаем смешивание
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // Находим минимальную Z-координату для размещения сетки
+    float minZ = computeMinZ();
 
     // Отрисовка сетки с использованием gridAlpha
     glPushMatrix();
@@ -582,13 +587,13 @@ void OpenGLWidget::drawGrid() {
 
     glBegin(GL_LINES);
     for (float i = -gridSize; i <= gridSize; i += gridStep) {
-        // Линии параллельные Z
-        glVertex3f(i, 0.0f, -gridSize);
-        glVertex3f(i, 0.0f, gridSize);
-
         // Линии параллельные X
-        glVertex3f(-gridSize, 0.0f, i);
-        glVertex3f(gridSize, 0.0f, i);
+        glVertex3f(i, -gridSize, minZ);
+        glVertex3f(i, gridSize, minZ);
+
+        // Линии параллельные Y
+        glVertex3f(-gridSize, i, minZ);
+        glVertex3f(gridSize, i, minZ);
     }
     glEnd();
 
@@ -604,22 +609,22 @@ void OpenGLWidget::drawGrid() {
     // Ось X - красная
     glColor4f(axisColors[0].redF(), axisColors[0].greenF(), axisColors[0].blueF(), 1.0f);
     glBegin(GL_LINES);
-    glVertex3f(-gridSize, 0.0f, 0.0f);
-    glVertex3f(gridSize, 0.0f, 0.0f);
+    glVertex3f(-gridSize, 0.0f, minZ);
+    glVertex3f(gridSize, 0.0f, minZ);
     glEnd();
 
     // Ось Y - зеленая
     glColor4f(axisColors[1].redF(), axisColors[1].greenF(), axisColors[1].blueF(), 1.0f);
     glBegin(GL_LINES);
-    glVertex3f(0.0f, -gridSize, 0.0f);
-    glVertex3f(0.0f, gridSize, 0.0f);
+    glVertex3f(0.0f, -gridSize, minZ);
+    glVertex3f(0.0f, gridSize, minZ);
     glEnd();
 
     // Ось Z - синяя
     glColor4f(axisColors[2].redF(), axisColors[2].greenF(), axisColors[2].blueF(), 1.0f);
     glBegin(GL_LINES);
-    glVertex3f(0.0f, 0.0f, -gridSize);
-    glVertex3f(0.0f, 0.0f, gridSize);
+    glVertex3f(0.0f, 0.0f, minZ);
+    glVertex3f(0.0f, 0.0f, minZ + gridSize);
     glEnd();
 
     glEnable(GL_LIGHTING); // Включаем освещение обратно
@@ -678,28 +683,74 @@ void OpenGLWidget::setUnderlyingSurfaceVisible(bool visible) {
 void OpenGLWidget::drawUnderlyingSurface() {
     if (!showUnderlyingSurface) return;
 
+    // Вычисляем минимальную Z-координату модели для размещения поверхности
+    float minZ = computeMinZ();
+
     glPushAttrib(GL_ENABLE_BIT | GL_COLOR_BUFFER_BIT);
 
     // Enable blending for transparency
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // Disable lighting temporarily
+    // Временно отключаем освещение для рисования сетки
     glDisable(GL_LIGHTING);
 
-    // Set color for the underlying surface (light gray with transparency)
-    glColor4f(0.8f, 0.8f, 0.8f, surfaceAlpha);
+    // Установка контрастного цвета для подстилающей поверхности
+    // Используем голубоватый оттенок вместо серого
+    glColor4f(0.2f, 0.4f, 0.7f, surfaceAlpha);
 
-    // Draw the underlying surface as a large quad
+    // Рисуем основную поверхность
     glBegin(GL_QUADS);
-    float size = gridSize * 2.0f; // Use the same size as the grid
-    glNormal3f(0.0f, 1.0f, 0.0f); // Normal pointing up
-    glVertex3f(-size, 0.0f, -size);
-    glVertex3f(-size, 0.0f, size);
-    glVertex3f(size, 0.0f, size);
-    glVertex3f(size, 0.0f, -size);
+    float size = gridSize * 2.0f;
+    glNormal3f(0.0f, 0.0f, 1.0f); // Нормаль направлена вверх (ось Z)
+    glVertex3f(-size, -size, minZ);
+    glVertex3f(-size, size, minZ);
+    glVertex3f(size, size, minZ);
+    glVertex3f(size, -size, minZ);
     glEnd();
 
-    // Restore previous attributes
+    // Добавляем сетчатый узор на поверхность для улучшения различимости
+    glLineWidth(1.0f);
+    glColor4f(0.0f, 0.2f, 0.5f, surfaceAlpha + 0.1f); // Более темный и чуть более непрозрачный цвет для сетки
+
+    // Уменьшаем размер ячеек сетки для подстилающей поверхности
+    float gridDensity = gridStep * 0.5f;
+
+    glBegin(GL_LINES);
+    for (float i = -size; i <= size; i += gridDensity) {
+        // Линии параллельные X
+        glVertex3f(i, -size, minZ + 0.01f); // Небольшое смещение по Z для предотвращения z-fighting
+        glVertex3f(i, size, minZ + 0.01f);
+
+        // Линии параллельные Y
+        glVertex3f(-size, i, minZ + 0.01f);
+        glVertex3f(size, i, minZ + 0.01f);
+    }
+    glEnd();
+
+    // Добавляем выделение границы поверхности
+    glLineWidth(2.0f);
+    glColor4f(0.0f, 0.3f, 0.6f, surfaceAlpha + 0.2f); // Еще более темный цвет для границы
+    glBegin(GL_LINE_LOOP);
+    glVertex3f(-size, -size, minZ + 0.02f);
+    glVertex3f(-size, size, minZ + 0.02f);
+    glVertex3f(size, size, minZ + 0.02f);
+    glVertex3f(size, -size, minZ + 0.02f);
+    glEnd();
+
+    // Восстанавливаем атрибуты
     glPopAttrib();
+}
+
+// Новая функция для нахождения минимальной Z-координаты модели
+float OpenGLWidget::computeMinZ() const {
+    if (vertices.isEmpty()) return 0.0f;
+
+    float minZ = vertices[0].z();
+    for (const auto& vertex : vertices) {
+        minZ = qMin(minZ, vertex.z());
+    }
+
+    // Добавляем небольшой отступ, чтобы поверхность гарантированно была под объектом
+    return minZ - 0.5f;
 }

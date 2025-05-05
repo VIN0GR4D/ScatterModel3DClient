@@ -48,6 +48,12 @@ public:
     // Метод для применения фильтрации треугольников
     void applyFilteredTriangles(const QVector<QSharedPointer<triangle>>& filteredTriangles);
 
+    float getSurfaceAlpha() const { return surfaceAlpha; }
+    void setSurfaceAlpha(float alpha) {
+        surfaceAlpha = qBound(0.1f, alpha, 0.9f);  // Ограничиваем значения
+        update();
+    }
+
 public slots:
     void setUnderlyingSurfaceVisible(bool visible);
 
@@ -126,6 +132,8 @@ private:
 
     void initializeDefaultGrid();
     bool hasLoadedObject;  // флаг наличия загруженного объекта
+
+    float computeMinZ() const;
 
 protected:
     void initializeGL() override;

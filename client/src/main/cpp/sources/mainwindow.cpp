@@ -372,12 +372,25 @@ void MainWindow::setupParametersWidget() {
     freqBandComboBox->setCurrentIndex(5);
 
     pplaneCheckBox = new QCheckBox("Включить подстилающую поверхность", frequencyAndPlaneGroupBox);
+
+    // Добавляем слайдер и метку для настройки прозрачности поверхности
+    QHBoxLayout *surfaceAlphaLayout = new QHBoxLayout();
+    QLabel *surfaceAlphaLabel = new QLabel("Прозрачность поверхности:", frequencyAndPlaneGroupBox);
+    QSlider *surfaceAlphaSlider = new QSlider(Qt::Horizontal, frequencyAndPlaneGroupBox);
+    surfaceAlphaSlider->setRange(10, 80);  // Значения от 0.1 до 0.8
+    surfaceAlphaSlider->setValue(static_cast<int>(openGLWidget->getSurfaceAlpha() * 100));
+    surfaceAlphaSlider->setEnabled(pplaneCheckBox->isChecked());
+
+    surfaceAlphaLayout->addWidget(surfaceAlphaLabel);
+    surfaceAlphaLayout->addWidget(surfaceAlphaSlider);
+
     gridCheckBox = new QCheckBox("Показать сетку", frequencyAndPlaneGroupBox);
     gridCheckBox->setChecked(true);
 
     frequencyAndPlaneLayout->addWidget(new QLabel("Диапазон частот:"));
     frequencyAndPlaneLayout->addWidget(freqBandComboBox);
     frequencyAndPlaneLayout->addWidget(pplaneCheckBox);
+    frequencyAndPlaneLayout->addLayout(surfaceAlphaLayout);
     frequencyAndPlaneLayout->addWidget(gridCheckBox);
 
     // Группа для портретных типов
@@ -438,13 +451,27 @@ void MainWindow::setupParametersWidget() {
     disconnect(rangePortraitCheckBox, nullptr, nullptr, nullptr);
     disconnect(pplaneCheckBox, nullptr, nullptr, nullptr);
 
+    // Соединяем слайдер прозрачности с OpenGLWidget
+    connect(surfaceAlphaSlider, &QSlider::valueChanged, this, [this, surfaceAlphaSlider](int value) {
+        float alpha = value / 100.0f;
+        openGLWidget->setSurfaceAlpha(alpha);
+    });
+
+    // Активация/деактивация слайдера прозрачности при изменении состояния чекбокса
+    connect(pplaneCheckBox, &QCheckBox::toggled, surfaceAlphaSlider, &QSlider::setEnabled);
     connect(buttonApplyRotation, &QPushButton::clicked, this, &MainWindow::applyRotation);
     connect(buttonResetRotation, &QPushButton::clicked, this, &MainWindow::resetRotation);
     connect(gridCheckBox, &QCheckBox::stateChanged, this, &MainWindow::onGridCheckBoxStateChanged);
     connect(anglePortraitCheckBox, &QCheckBox::stateChanged, this, &MainWindow::onPortraitTypeChanged);
     connect(azimuthPortraitCheckBox, &QCheckBox::stateChanged, this, &MainWindow::onPortraitTypeChanged);
     connect(rangePortraitCheckBox, &QCheckBox::stateChanged, this, &MainWindow::onPortraitTypeChanged);
-    connect(pplaneCheckBox, &QCheckBox::toggled, openGLWidget, &OpenGLWidget::setUnderlyingSurfaceVisible);
+    connect(pplaneCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
+        openGLWidget->setUnderlyingSurfaceVisible(checked);
+
+        // Также обновляем флаг в объекте данных проекта
+        currentProjectData.showUnderlyingSurface = checked;
+        setModified(true); // Отмечаем, что проект изменен
+    });
 }
 
 void MainWindow::setupFilteringWidget() {
@@ -744,6 +771,14 @@ void MainWindow::loadModel() {
                         logMessage("Файл успешно загружен.");
                         showNotification("Файл успешно загружен", Notification::Success);
                         setModified(true); // Установка флага изменений
+                    }
+                }, Qt::QueuedConnection);
+
+            // После загрузки модели: пробуем определить, находится ли объект над подстилающей поверхностью
+            QMetaObject::invokeMethod(this, [=]() {
+                    // Если подстилающая поверхность включена, обновляем ее положение
+                    if (pplaneCheckBox->isChecked()) {
+                        openGLWidget->setUnderlyingSurfaceVisible(true);
                     }
                 }, Qt::QueuedConnection);
         });
@@ -1408,6 +1443,7 @@ void MainWindow::performCalculation() {
     // QVector3D waveDirection(0.0f, 0.0f, -1.0f);
     // rVect directVector = openGLWidget->QVector3DToRVect(waveDirection);
 
+    // Получение вектора направления, учитывающего систему координат сервера
     rVect directVector = openGLWidget->getDirectionVector();
 
     QJsonObject modelData;
@@ -1430,6 +1466,26 @@ void MainWindow::performCalculation() {
         abortCalculationButton->setEnabled(true);
         setModified(true); // Установка флага изменений после отправки данных
     });
+}
+
+rVect MainWindow::calculateDirectVectorFromRotation() {
+    QMatrix4x4 rotationMatrix;
+    rotationMatrix.setToIdentity();
+
+    // Исправление: используем поля класса с правильными именами
+    rotationMatrix.rotate(inputRotationX->value(), 1.0f, 0.0f, 0.0f); // Поворот вокруг X
+    rotationMatrix.rotate(inputRotationY->value(), 0.0f, 1.0f, 0.0f); // Поворот вокруг Y
+    rotationMatrix.rotate(inputRotationZ->value(), 0.0f, 0.0f, 1.0f); // Поворот вокруг Z
+
+    // Направление волны по умолчанию - в обратную сторону оси Z (новая система координат)
+    QVector3D defaultDirection(0.0f, 0.0f, -1.0f);
+    QVector3D transformedDirection = rotationMatrix.map(defaultDirection);
+
+    // Преобразуем в rVect и нормализуем
+    rVect directVector(transformedDirection.x(), transformedDirection.y(), transformedDirection.z());
+    directVector.normalize();
+
+    return directVector;
 }
 
 // Функция для подключения к серверу с обработкой результатов
@@ -1640,6 +1696,8 @@ bool MainWindow::saveProject() {
         currentProjectData.normEout = normEout;
         currentProjectData.absEout2D = absEout2D;
         currentProjectData.normEout2D = normEout2D;
+        currentProjectData.showUnderlyingSurface = pplaneCheckBox->isChecked();
+        currentProjectData.surfaceAlphaValue = openGLWidget->getSurfaceAlpha();
         // currentProjectData.storedResults уже обновляется в displayResults
 
         // Сохранение проекта
@@ -1702,6 +1760,12 @@ void MainWindow::openProject() {
             inputRotationY->setValue(data.rotationY);
             inputRotationZ->setValue(data.rotationZ);
             openGLWidget->setRotation(data.rotationX, data.rotationY, data.rotationZ);
+
+            // Восстанавливаем состояние подстилающей поверхности
+            pplaneCheckBox->setChecked(data.showUnderlyingSurface);
+            openGLWidget->setUnderlyingSurfaceVisible(data.showUnderlyingSurface);
+            openGLWidget->setSurfaceAlpha(data.surfaceAlphaValue);
+
             // Установка коэффициентов масштабирования
             openGLWidget->setScalingCoefficients(data.scalingCoefficients);
             // Загрузка результатов расчёта

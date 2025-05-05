@@ -1,5 +1,3 @@
-#pragma once
-
 #include <QString>
 #include <QJsonObject>
 #include <QVector3D>
@@ -25,6 +23,9 @@ public:
 
     QString projectName;
     QString workingDirectory;
+
+    bool showUnderlyingSurface;
+    float surfaceAlphaValue;
 };
 
 class ProjectSerializer {

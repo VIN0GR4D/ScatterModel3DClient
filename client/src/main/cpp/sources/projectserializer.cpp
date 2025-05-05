@@ -34,6 +34,10 @@ bool ProjectSerializer::saveProject(const QString& fileName, const ProjectData& 
     positionObject["z"] = data.objectPosition.z();
     rootObject["objectPosition"] = positionObject; // Добавление позиции в корневой объект
 
+    // Сохранение параметров подстилающей поверхности
+    rootObject["showUnderlyingSurface"] = data.showUnderlyingSurface;
+    rootObject["surfaceAlphaValue"] = data.surfaceAlphaValue;
+
     // Сохранение параметров поворота
     QJsonObject rotationObject; // Объект для поворота
     rotationObject["x"] = data.rotationX;
@@ -165,6 +169,10 @@ bool ProjectSerializer::loadProject(const QString& fileName, ProjectData& data) 
     data.objectPosition.setX(positionObject["x"].toDouble());
     data.objectPosition.setY(positionObject["y"].toDouble());
     data.objectPosition.setZ(positionObject["z"].toDouble());
+
+    // Загрузка параметров подстилающей поверхности
+    data.showUnderlyingSurface = rootObject["showUnderlyingSurface"].toBool(false);
+    data.surfaceAlphaValue = rootObject["surfaceAlphaValue"].toDouble(0.3);
 
     // Загрузка параметров поворота из JSON
     QJsonObject rotationObject = rootObject["rotation"].toObject(); // Получение объекта поворота
