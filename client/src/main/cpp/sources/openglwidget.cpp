@@ -540,7 +540,7 @@ void OpenGLWidget::drawGrid() {
     // Вычисление направления камеры
     QVector3D cameraDir = (actualCameraPos - actualObjectPos).normalized();
 
-    // Нормаль плоскости XOY (теперь Z вверх)
+    // Нормаль плоскости XOY (Z направлен вверх)
     QVector3D gridNormal(0.0f, 0.0f, 1.0f);
 
     // Вычисляем косинус угла между направлением камеры и нормалью сетки
@@ -742,7 +742,7 @@ void OpenGLWidget::drawUnderlyingSurface() {
     glPopAttrib();
 }
 
-// Новая функция для нахождения минимальной Z-координаты модели
+// Функция для нахождения минимальной Z-координаты модели
 float OpenGLWidget::computeMinZ() const {
     if (vertices.isEmpty()) return 0.0f;
 

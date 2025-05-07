@@ -3,6 +3,7 @@
         <file>icon.png</file>
         <file>load.png</file>
         <file>calculator.png</file>
+        <file>stop-calculator-button.png</file>
         <file>connect.png</file>
         <file>disconnect.png</file>
         <file>darktheme.qss</file>

@@ -11,6 +11,7 @@
 #include "notification.h"
 #include "notificationmanager.h"
 #include "patterndiagramwindow.h"
+#include "connectionmanager.h"
 #include <QMainWindow>
 #include <QPushButton>
 #include <QLineEdit>
@@ -65,13 +66,21 @@ struct PortraitData {
     QVector<double> data1D;
 };
 
-class MainWindow : public QMainWindow
+class MainWindow : public QMainWindow, public IConnectionObserver
 {
     Q_OBJECT
 
 public:
-    MainWindow(QWidget *parent = nullptr);
+    MainWindow(ConnectionManager* connectionManager, QWidget *parent = nullptr);
     ~MainWindow();
+
+    // Реализация интерфейса IConnectionObserver
+    void onConnectionStatusChanged(bool connected) override;
+    void onResultsReceived(const QJsonObject &results) override;
+    void onCalculationProgress(int progress) override;
+    void onLogMessage(const QString &message) override;
+    void onNotification(const QString &message, Notification::Type type) override;
+    void onCalculationAborted() override;
 
 protected:
     // Переопределение события закрытия окна
@@ -88,19 +97,13 @@ private slots:
     void resetRotation();
     void performCalculation();
     void saveResults();
-    void connectToServer();
-    void onConnectedToServer();
     void logMessage(const QString& message);
-    void authorizeClient();
-    void sendDataAfterAuthorization(std::function<void()> sendDataFunc);
     void openGraphWindow();
-    void disconnectFromServer();
     void showPortrait();
     void toggleTheme();
     bool saveProject();
     void loadTheme(const QString &themePath, const QString &iconPath, QAction *action);
     void openResultsWindow();
-    void handleDataReceived(const QJsonObject &results);
     void updateMenuActions();
     void onPortraitTypeChanged();
     void saveLog();
@@ -132,7 +135,6 @@ private:
     OpenGLWidget *openGLWidget;
     Parser *parser;
     std::unique_ptr<RayTracer> rayTracer;
-    TriangleClient *triangleClient;
     QLineEdit *serverAddressInput;
     QPushButton *connectButton, *buttonApplyRotation, *buttonResetRotation;
     QTextEdit *logDisplay;
@@ -148,7 +150,6 @@ private:
     bool hasNumericalData;
     bool hasGraphData;
 
-    bool serverEnabled;
     QVector<double> absEout;
     QVector<double> normEout;
     QVector<QVector<double>> absEout2D;
@@ -162,7 +163,6 @@ private:
     QComboBox *radiationPolarizationComboBox;
     QComboBox *receivePolarizationComboBox;
     QCheckBox *gridCheckBox;
-    QJsonObject vectorToJson(const QSharedPointer<const rVect>& vector);
     PortraitWindow *portraitWindow;
     ProjectData currentProjectData;
     bool isModified;
@@ -205,6 +205,8 @@ private:
     QProgressBar* progressBar;
 
     PatternDiagramWindow *patternDiagramWindow;
+
+    ConnectionManager* m_connectionManager;
 };
 
 #endif // MAINWINDOW_H

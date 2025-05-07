@@ -8,7 +8,6 @@
 #include "logindialog.h"
 #include "portraitwindow.h"
 #include "newprojectdialog.h"
-#include "geometryutils.h"
 #include <QFile>
 #include <QFileDialog>
 #include <QFormLayout>
@@ -29,16 +28,14 @@
 #include <QCloseEvent>
 #include <QGroupBox>
 
-MainWindow::MainWindow(QWidget *parent)
+MainWindow::MainWindow(ConnectionManager* connectionManager, QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
     , openGLWidget(new OpenGLWidget(this))
     , parser(new Parser(this))
     , rayTracer(std::make_unique<RayTracer>())
-    , triangleClient(nullptr) // Инициализируем указатель нулевым значением
     , hasNumericalData(false)
     , hasGraphData(false)
-    , serverEnabled(false)
     , absEout()
     , normEout()
     , absEout2D()
@@ -56,9 +53,15 @@ MainWindow::MainWindow(QWidget *parent)
     , isDarkTheme(true)
     , resultsWatcher(new QFutureWatcher<void>(this))
     , patternDiagramWindow(nullptr)
+    , m_connectionManager(connectionManager)
 {
     ui->setupUi(this);
     setCentralWidget(openGLWidget);
+
+    // Регистрация MainWindow как наблюдателя ConnectionManager
+    if (m_connectionManager) {
+        m_connectionManager->registerObserver(this);
+    }
 
     // Создание меню-бара
     QMenuBar *menuBar = new QMenuBar(this);
@@ -153,8 +156,6 @@ MainWindow::MainWindow(QWidget *parent)
     this->resize(1280, 720);
 
     // Соединения
-    connect(triangleClient, &TriangleClient::resultsReceived, this, &MainWindow::handleDataReceived);
-    connect(triangleClient, &TriangleClient::showNotification, this, &MainWindow::showNotification);
     connect(resultsWatcher, &QFutureWatcher<void>::finished, this, [this]() {
         logMessage("Обработка результатов завершена.");
         // Дополнительные действия после завершения
@@ -235,6 +236,9 @@ MainWindow::~MainWindow() {
     delete NotificationManager::instance();
     if (patternDiagramWindow) {
         delete patternDiagramWindow;
+    }
+    if (m_connectionManager) {
+        m_connectionManager->unregisterObserver(this);
     }
 }
 
@@ -644,7 +648,7 @@ void MainWindow::setupServerWidget() {
 
     // Кнопки управления расчётом
     QPushButton* performCalculationButton = new QPushButton(QIcon(":/calculator.png"), "Выполнить расчёт", calculationControlGroupBox);
-    abortCalculationButton = new QPushButton(QIcon(":/stop.png"), "Прервать расчёт", calculationControlGroupBox);
+    abortCalculationButton = new QPushButton(QIcon(":/stop-calculator-button.png"), "Прервать расчёт", calculationControlGroupBox);
     abortCalculationButton->setEnabled(false);
 
     calculationControlLayout->addWidget(progressLabel, 0, 0, Qt::AlignVCenter);
@@ -663,10 +667,25 @@ void MainWindow::setupServerWidget() {
     disconnect(disconnectButton, nullptr, nullptr, nullptr);
     disconnect(performCalculationButton, nullptr, nullptr, nullptr);
 
-    // Создаем новые соединения
-    connect(connectButton, &QPushButton::clicked, this, &MainWindow::connectToServer);
-    connect(disconnectButton, &QPushButton::clicked, this, &MainWindow::disconnectFromServer);
-    connect(abortCalculationButton, &QPushButton::clicked, this, &MainWindow::abortCalculation);
+    // Создаем новые соединения с использованием ConnectionManager
+    connect(connectButton, &QPushButton::clicked, this, [this]() {
+        if (m_connectionManager) {
+            m_connectionManager->connectToServer(serverAddressInput->text().trimmed());
+        }
+    });
+
+    connect(disconnectButton, &QPushButton::clicked, this, [this]() {
+        if (m_connectionManager) {
+            m_connectionManager->disconnectFromServer();
+        }
+    });
+
+    connect(abortCalculationButton, &QPushButton::clicked, this, [this]() {
+        if (m_connectionManager) {
+            m_connectionManager->abortCalculation();
+        }
+    });
+
     connect(performCalculationButton, &QPushButton::clicked, this, &MainWindow::performCalculation);
 
     // Обновление статуса при подключении/отключении
@@ -1267,128 +1286,6 @@ void MainWindow::resetRotation() {
     showNotification("Поворот объекта сброшен", Notification::Info);
 }
 
-// Метод для авторизации
-void MainWindow::authorizeClient() {
-    // Создаем диалоговое окно для ввода логина и пароля
-    LoginDialog dialog(this);
-
-    // Показываем диалоговое окно и ждем, пока пользователь не введет данные и не нажмет "Login"
-    if (dialog.exec() == QDialog::Accepted) {
-        // Получаем введенные пользователем логин и пароль
-        QString username = dialog.getUsername();
-        QString password = dialog.getPassword();
-
-        // Вызываем метод authorize у triangleClient с введенными данными
-        triangleClient->authorize(username, password);
-    }
-}
-
-void MainWindow::sendDataAfterAuthorization(std::function<void()> sendDataFunc) {
-    if (!triangleClient || !triangleClient->isConnected()) {
-        logMessage("Для начала подключитесь к серверу.");
-        showNotification("Для начала подключитесь к серверу.", Notification::Warning);
-        return;
-    }
-
-    if (!triangleClient->isAuthorized()) {
-        authorizeClient();  // Вызываем метод авторизации, если не авторизованы
-        QTimer::singleShot(2000, this, [this, sendDataFunc]() {
-            if (triangleClient->isConnected() && triangleClient->isAuthorized()) {
-                sendDataFunc();  // Отправляем данные после успешной авторизации
-            } else {
-                logMessage("Ошибка авторизации.");
-            }
-        });
-    } else {
-        sendDataFunc();  // Если уже авторизованы, отправляем данные сразу
-    }
-}
-
-QJsonObject MainWindow::vectorToJson(const QSharedPointer<const rVect>& vector) {
-    QJsonObject obj;
-    obj["x"] = vector->getX();
-    obj["y"] = vector->getY();
-    obj["z"] = vector->getZ();
-    return obj;
-}
-
-// Функция для выполнения расчета
-// void MainWindow::performCalculation() {
-//     QVector<QSharedPointer<triangle>> triangles = openGLWidget->getTriangles();
-//     if (triangles.isEmpty()) {
-//         logMessage("Ошибка: загруженный файл не содержит корректных данных объекта.");
-//         return;
-//     }
-
-//     if (!anglePortraitCheckBox->isChecked() && !azimuthPortraitCheckBox->isChecked() && !rangePortraitCheckBox->isChecked()) {
-//         logMessage("Ошибка: тип радиопортрета не задан. Пожалуйста, выберите хотя бы один тип радиопортрета.");
-//         return;
-//     }
-
-//     int polarRadiation = radiationPolarizationComboBox->currentIndex();
-//     int polarRecive = receivePolarizationComboBox->currentIndex();
-
-//     bool typeAngle = anglePortraitCheckBox->isChecked();
-//     bool typeAzimut = azimuthPortraitCheckBox->isChecked();
-//     bool typeLength = rangePortraitCheckBox->isChecked();
-
-//     // Получение значения диапазона частот
-//     int freqBand = freqBandComboBox->currentIndex();
-
-//     // Получение значения подстилающей поверхности
-//     bool pplane = pplaneCheckBox->isChecked();
-
-//     QJsonObject dataObject;
-//     QJsonArray visibleTrianglesArray;
-
-//     int index = 0;
-//     for (const auto& tri : triangles) {
-//         QSharedPointer<rVect> v1 = tri->getV1();
-//         QSharedPointer<rVect> v2 = tri->getV2();
-//         QSharedPointer<rVect> v3 = tri->getV3();
-
-//         dataObject[QString::number(index++)] = v1->getX();
-//         dataObject[QString::number(index++)] = v1->getY();
-//         dataObject[QString::number(index++)] = v1->getZ();
-//         dataObject[QString::number(index++)] = v2->getX();
-//         dataObject[QString::number(index++)] = v2->getY();
-//         dataObject[QString::number(index++)] = v2->getZ();
-//         dataObject[QString::number(index++)] = v3->getX();
-//         dataObject[QString::number(index++)] = v3->getY();
-//         dataObject[QString::number(index++)] = v3->getZ();
-
-//         visibleTrianglesArray.append(tri->getVisible());
-
-//         qDebug() << "Triangle" << index / 9 << ":"
-//                  << "V1(" << v1->getX() << "," << v1->getY() << "," << v1->getZ() << "),"
-//                  << "V2(" << v2->getX() << "," << v2->getY() << "," << v2->getZ() << "),"
-//                  << "V3(" << v3->getX() << "," << v3->getY() << "," << v3->getZ() << "),"
-//                  << "Visible:" << tri->getVisible();
-//     }
-
-//     QVector3D cameraPosition = openGLWidget->getCameraPosition();
-//     rVect directVector = openGLWidget->QVector3DToRVect(cameraPosition);
-
-//     QJsonObject modelData;
-//     modelData["data"] = dataObject;
-//     modelData["visibleTriangles"] = visibleTrianglesArray;
-//     modelData["freqBand"] = freqBand;
-//     modelData["polarRadiation"] = polarRadiation;
-//     modelData["polarRecive"] = polarRecive;
-//     modelData["typeAngle"] = typeAngle;
-//     modelData["typeAzimut"] = typeAzimut;
-//     modelData["typeLength"] = typeLength;
-//     modelData["pplane"] = pplane;
-//     modelData["directVector"] = vectorToJson(QSharedPointer<rVect>::create(directVector));
-
-//     // QJsonDocument doc(modelData);
-//     // qDebug() << "Model data to be sent to server:" << doc.toJson(QJsonDocument::Indented);
-
-//     sendDataAfterAuthorization([this, modelData]() {
-//         triangleClient->sendModelData(modelData);
-//     });
-// }
-
 void MainWindow::performCalculation() {
     QVector<QSharedPointer<triangle>> triangles = openGLWidget->getTriangles();
     if (triangles.isEmpty()) {
@@ -1399,24 +1296,34 @@ void MainWindow::performCalculation() {
 
     if (!anglePortraitCheckBox->isChecked() && !azimuthPortraitCheckBox->isChecked() && !rangePortraitCheckBox->isChecked()) {
         logMessage("Ошибка: тип радиопортрета не задан. Пожалуйста, выберите хотя бы один тип радиопортрета.");
-        showNotification("Тип тип радиопортрета не задан", Notification::Error);
+        showNotification("Тип радиопортрета не задан", Notification::Error);
         return;
     }
 
+    // Проверка наличия ConnectionManager
+    if (!m_connectionManager) {
+        logMessage("Ошибка: отсутствует менеджер соединений.");
+        showNotification("Внутренняя ошибка приложения", Notification::Error);
+        return;
+    }
+
+    // Если не подключены к серверу, предлагаем подключиться
+    if (!m_connectionManager->isConnected()) {
+        logMessage("Для расчёта необходимо подключение к серверу.");
+        showNotification("Подключитесь к серверу", Notification::Warning);
+        return;
+    }
+
+    // Сбор всех необходимых данных для расчёта
     int polarRadiation = radiationPolarizationComboBox->currentIndex();
     int polarRecive = receivePolarizationComboBox->currentIndex();
-
     bool typeAngle = anglePortraitCheckBox->isChecked();
     bool typeAzimut = azimuthPortraitCheckBox->isChecked();
     bool typeLength = rangePortraitCheckBox->isChecked();
-
-    // Получение значения диапазона частот
     freqBand = freqBandComboBox->currentIndex();
-
-    // Получение значения подстилающей поверхности
     bool pplane = pplaneCheckBox->isChecked();
 
-    QJsonObject dataObject;
+    // Подготовка данных о треугольниках
     QJsonArray coordinateArray;
     QJsonArray visibleTrianglesArray;
 
@@ -1438,14 +1345,10 @@ void MainWindow::performCalculation() {
         visibleTrianglesArray.append(tri->getVisible());
     }
 
-    // QVector3D cameraPosition = openGLWidget->getCameraPosition();
-    // rVect directVector = openGLWidget->QVector3DToRVect(cameraPosition);
-    // QVector3D waveDirection(0.0f, 0.0f, -1.0f);
-    // rVect directVector = openGLWidget->QVector3DToRVect(waveDirection);
-
-    // Получение вектора направления, учитывающего систему координат сервера
+    // Получение вектора направления
     rVect directVector = openGLWidget->getDirectionVector();
 
+    // Формирование JSON-объекта для отправки
     QJsonObject modelData;
     modelData["data"] = coordinateArray;
     modelData["visibleTriangles"] = visibleTrianglesArray;
@@ -1456,16 +1359,44 @@ void MainWindow::performCalculation() {
     modelData["typeAzimut"] = typeAzimut;
     modelData["typeLength"] = typeLength;
     modelData["pplane"] = pplane;
-    modelData["directVector"] = vectorToJson(QSharedPointer<rVect>::create(directVector));
 
-    QJsonDocument doc(modelData);
-    // qDebug() << "Model data to be sent to server:" << doc.toJson(QJsonDocument::Indented);
+    // Создание JSON-объекта для вектора направления
+    QJsonObject directVectorObj;
+    directVectorObj["x"] = directVector.getX();
+    directVectorObj["y"] = directVector.getY();
+    directVectorObj["z"] = directVector.getZ();
+    modelData["directVector"] = directVectorObj;
 
-    sendDataAfterAuthorization([this, modelData]() {
-        triangleClient->sendModelData(modelData);
+    // Установка параметров и отправка данных
+    m_connectionManager->setPolarizationAndType(polarRadiation, polarRecive, typeAngle, typeAzimut, typeLength);
+    m_connectionManager->setDirectVector(directVector);
+
+    // Проверка авторизации и отправка данных
+    if (!m_connectionManager->isAuthorized()) {
+        // Показываем диалог авторизации
+        LoginDialog dialog(this);
+        if (dialog.exec() == QDialog::Accepted) {
+            QString username = dialog.getUsername();
+            QString password = dialog.getPassword();
+            m_connectionManager->authorize(username, password);
+
+            // Ждем некоторое время и проверяем статус авторизации
+            QTimer::singleShot(2000, this, [this, modelData]() {
+                if (m_connectionManager->isAuthorized()) {
+                    m_connectionManager->sendModelData(modelData);
+                    abortCalculationButton->setEnabled(true);
+                    setModified(true);
+                } else {
+                    logMessage("Ошибка авторизации. Расчёт не запущен.");
+                }
+            });
+        }
+    } else {
+        // Если уже авторизованы, сразу отправляем данные
+        m_connectionManager->sendModelData(modelData);
         abortCalculationButton->setEnabled(true);
-        setModified(true); // Установка флага изменений после отправки данных
-    });
+        setModified(true);
+    }
 }
 
 rVect MainWindow::calculateDirectVectorFromRotation() {
@@ -1486,63 +1417,6 @@ rVect MainWindow::calculateDirectVectorFromRotation() {
     directVector.normalize();
 
     return directVector;
-}
-
-// Функция для подключения к серверу с обработкой результатов
-void MainWindow::connectToServer() {
-    QString serverAddress = serverAddressInput->text().trimmed();
-    if (!serverAddress.isEmpty()) {
-        if (triangleClient) {
-            triangleClient->deleteLater();
-        }
-        triangleClient = new TriangleClient(QUrl(serverAddress), this);
-
-        if (triangleClient) {
-            connect(triangleClient, &TriangleClient::resultsReceived, this, &MainWindow::displayResults);
-            connect(triangleClient, &TriangleClient::logMessage, this, &MainWindow::logMessage);
-            connect(triangleClient, &TriangleClient::showNotification, this, &MainWindow::showNotification);
-            connect(triangleClient, &TriangleClient::progressUpdated, this, &MainWindow::updateCalculationProgress);
-
-            // Добавляем обработку изменения состояния подключения
-            connect(triangleClient->getWebSocket(), &QWebSocket::connected, this, [this]() {
-                emit connectionStatusChanged(true);
-            });
-            connect(triangleClient->getWebSocket(), &QWebSocket::disconnected, this, [this]() {
-                emit connectionStatusChanged(false);
-            });
-
-            serverEnabled = true;
-            logMessage("Подключение к серверу: " + serverAddress);
-            showNotification("Подключение к серверу...", Notification::Info);
-        } else {
-            emit connectionStatusChanged(false);
-            logMessage("Ошибка создания клиента.");
-            showNotification("Ошибка создания клиента", Notification::Error);
-        }
-    } else {
-        emit connectionStatusChanged(false);
-        logMessage("Укажите адрес сервера.");
-        showNotification("Укажите адрес сервера", Notification::Warning);
-    }
-}
-
-void MainWindow::onConnectedToServer() {
-    sendDataAfterAuthorization([this]() {
-        QVector<QSharedPointer<triangle>> triangles;
-        // Заполните вектор triangles необходимыми данными
-        triangleClient->sendTriangleData(triangles);
-    });
-}
-
-void MainWindow::disconnectFromServer() {
-    if (triangleClient && triangleClient->isConnected()) {
-        triangleClient->disconnectFromServer();
-        logMessage("Отключен от сервера.");
-        emit connectionStatusChanged(false);
-        serverEnabled = false;
-    } else {
-        logMessage("Не подключен к серверу.");
-    }
 }
 
 void MainWindow::logMessage(const QString& message)
@@ -1875,14 +1749,6 @@ void MainWindow::newProject() {
     setModified(false); // Сброс флага после создания нового проекта
 }
 
-void MainWindow::handleDataReceived(const QJsonObject &results) {
-    // Обработка результатов и обновление внутренних состояний
-    displayResults(results);
-    showNotification("Получены новые результаты", Notification::Success);
-    abortCalculationButton->setEnabled(false);
-    setModified(true); // Установка флага изменений после получения данных
-}
-
 void MainWindow::updateMenuActions() {
     // Сначала проверяем, есть ли у нас данные вообще
     if (portraitData.data3D.isEmpty()) {
@@ -2137,23 +2003,19 @@ void MainWindow::toggleShadowTriangles() {
 }
 
 void MainWindow::abortCalculation() {
-    if (!triangleClient || !triangleClient->isConnected()) {
+    if (!m_connectionManager) {
+        logMessage("Ошибка: отсутствует менеджер соединений.");
+        return;
+    }
+
+    if (!m_connectionManager->isConnected()) {
         logMessage("Нет активного подключения к серверу");
         return;
     }
 
-    QJsonObject commandObject;
-    commandObject["type"] = "cmd";
-    commandObject["cmd"] = "server";
-    QJsonArray params;
-    params.append("stop");
-    commandObject["param"] = params;
-
-    triangleClient->sendCommand(commandObject);
-    abortCalculationButton->setEnabled(false);
-    progressBar->setValue(0);  // Сбрасываем прогресс-бар
-    logMessage("Отправлена команда прерывания расчёта");
-    showNotification("Расчёт прерван", Notification::Info);
+    m_connectionManager->abortCalculation();
+    // UI элементы обновляются в методе onCalculationAborted(),
+    // который вызывается через механизм наблюдателя
 }
 
 void MainWindow::updateCalculationProgress(int progress) {
@@ -2187,4 +2049,39 @@ void MainWindow::showPatternDiagram() {
         QMessageBox::warning(this, "Ошибка", "Нет данных для отображения диаграммы направленности. "
                                              "Сначала выполните расчёт или загрузите результаты.");
     }
+}
+
+void MainWindow::onConnectionStatusChanged(bool connected)
+{
+    // Логика обработки изменения статуса подключения
+    emit connectionStatusChanged(connected);
+}
+
+void MainWindow::onResultsReceived(const QJsonObject &results)
+{
+    displayResults(results);
+    showNotification("Получены новые результаты", Notification::Success);
+    abortCalculationButton->setEnabled(false);
+    setModified(true);
+}
+
+void MainWindow::onCalculationProgress(int progress)
+{
+    updateCalculationProgress(progress);
+}
+
+void MainWindow::onLogMessage(const QString &message)
+{
+    logMessage(message);
+}
+
+void MainWindow::onNotification(const QString &message, Notification::Type type)
+{
+    showNotification(message, type);
+}
+
+void MainWindow::onCalculationAborted()
+{
+    abortCalculationButton->setEnabled(false);
+    progressBar->setValue(0);
 }

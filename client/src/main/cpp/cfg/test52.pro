@@ -1,10 +1,10 @@
-QT       += core gui websockets opengl openglwidgets widgets charts printsupport concurrent
+QT       += core gui websockets opengl openglwidgets widgets charts printsupport concurrent testlib
 LIBS += -lopengl32
 LIBS += -lglu32
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets charts
 
-CONFIG += c++17
+CONFIG += c++17 testcase
 
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
@@ -12,6 +12,7 @@ CONFIG += c++17
 
 SOURCES += \
     aboutdialog.cpp \
+    connectionmanager.cpp \
     geometryutils.cpp \
     graphwindow.cpp \
     logindialog.cpp \
@@ -37,6 +38,7 @@ HEADERS += \
     Triangle.h \
     aboutdialog.h \
     cVect.h \
+    connectionmanager.h \
     geometryutils.h \
     graphwindow.h \
     logindialog.h \
@@ -86,3 +88,7 @@ DISTFILES += \
 
 RESOURCES += \
     resources.qrc
+
+SUBDIRS += \
+    connectionmanager_test.pro \
+    observer_pattern_test.pro
