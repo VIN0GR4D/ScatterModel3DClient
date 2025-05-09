@@ -754,3 +754,9 @@ float OpenGLWidget::computeMinZ() const {
     // Добавляем небольшой отступ, чтобы поверхность гарантированно была под объектом
     return minZ - 0.5f;
 }
+
+void OpenGLWidget::getRotation(float &x, float &y, float &z) const {
+    x = rotationX;
+    y = rotationY;
+    z = rotationZ;
+}

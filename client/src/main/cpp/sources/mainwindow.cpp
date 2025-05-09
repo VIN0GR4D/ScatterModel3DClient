@@ -32,8 +32,6 @@ MainWindow::MainWindow(ConnectionManager* connectionManager, QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
     , openGLWidget(new OpenGLWidget(this))
-    , parser(new Parser(this))
-    , rayTracer(std::make_unique<RayTracer>())
     , hasNumericalData(false)
     , hasGraphData(false)
     , absEout()
@@ -54,6 +52,7 @@ MainWindow::MainWindow(ConnectionManager* connectionManager, QWidget *parent)
     , resultsWatcher(new QFutureWatcher<void>(this))
     , patternDiagramWindow(nullptr)
     , m_connectionManager(connectionManager)
+    , m_modelController(new ModelController(this))
 {
     ui->setupUi(this);
     setCentralWidget(openGLWidget);
@@ -62,6 +61,24 @@ MainWindow::MainWindow(ConnectionManager* connectionManager, QWidget *parent)
     if (m_connectionManager) {
         m_connectionManager->registerObserver(this);
     }
+
+    // Регистрируем MainWindow как наблюдателя ModelController
+    m_modelController->registerObserver(this);
+    // Устанавливаем OpenGLWidget в ModelController
+    m_modelController->setOpenGLWidget(openGLWidget);
+
+    // Соединяем сигналы ModelController с слотами MainWindow
+    connect(m_modelController.get(), &ModelController::logMessage, this, &MainWindow::logMessage);
+    connect(m_modelController.get(), &ModelController::notificationRequested, this,
+            [this](const QString &message, int type) {
+                showNotification(message, static_cast<Notification::Type>(type));
+            });
+    connect(m_modelController.get(), &ModelController::rotationChanged, this,
+            [this](float x, float y, float z) {
+                updateRotationX(x);
+                updateRotationY(y);
+                updateRotationZ(z);
+            });
 
     // Создание меню-бара
     QMenuBar *menuBar = new QMenuBar(this);
@@ -76,7 +93,7 @@ MainWindow::MainWindow(ConnectionManager* connectionManager, QWidget *parent)
     closeAction->setToolTip("Закрыть текущую 3D модель");
     closeAction->setEnabled(false); // Изначально кнопка неактивна
     fileMenu->addAction(closeAction);
-    connect(closeAction, &QAction::triggered, this, &MainWindow::closeModel);
+    connect(closeAction, &QAction::triggered, this, &MainWindow::handleCloseModel);
 
     fileMenu->addAction(openAction);
     fileMenu->addAction(closeAction);
@@ -104,7 +121,7 @@ MainWindow::MainWindow(ConnectionManager* connectionManager, QWidget *parent)
     menuBar->addMenu(fileMenu);
     setMenuBar(menuBar);
 
-    connect(openAction, &QAction::triggered, this, &MainWindow::loadModel);
+    connect(openAction, &QAction::triggered, this, &MainWindow::handleLoadModel);
     connect(saveAction, &QAction::triggered, this, &MainWindow::saveProject);
     connect(exitAction, &QAction::triggered, this, &MainWindow::close);
 
@@ -160,28 +177,6 @@ MainWindow::MainWindow(ConnectionManager* connectionManager, QWidget *parent)
         logMessage("Обработка результатов завершена.");
         // Дополнительные действия после завершения
     });
-    connect(parser, &Parser::fileParsed, this, [&](const QVector<QVector3D> &v, const QVector<QVector<int>> &t, const QVector<QSharedPointer<triangle>> &tri) {
-        QVector3D observerPositionQVector = openGLWidget->getCameraPosition();
-        rVect observerPosition = openGLWidget->QVector3DToRVect(observerPositionQVector);
-
-        rayTracer->determineVisibility(tri, observerPosition);
-        openGLWidget->setGeometry(v, t, tri);
-    });
-
-    // Подключаем обработку изменения состояния модели для активации/деактивации кнопки
-    connect(parser, &Parser::modelInfoUpdated, this,
-            [closeAction](int nodesCount, int trianglesCount, const QString &fileName) {
-                closeAction->setEnabled(nodesCount > 0 || trianglesCount > 0);
-            });
-
-    // Подключаем сигнал обновления информации о модели
-    connect(parser, &Parser::modelInfoUpdated, this,
-            [this](int nodesCount, int trianglesCount, const QString &fileName) {
-                QFileInfo fileInfo(fileName);
-                modelFileNameLabel->setText(fileInfo.fileName());
-                totalNodesLabel->setText(QString("%1").arg(nodesCount));
-                totalTrianglesLabel->setText(QString("%1").arg(trianglesCount));
-            });
 
     // Создаем стек виджетов
     stackedWidget = new QStackedWidget(this);
@@ -463,8 +458,8 @@ void MainWindow::setupParametersWidget() {
 
     // Активация/деактивация слайдера прозрачности при изменении состояния чекбокса
     connect(pplaneCheckBox, &QCheckBox::toggled, surfaceAlphaSlider, &QSlider::setEnabled);
-    connect(buttonApplyRotation, &QPushButton::clicked, this, &MainWindow::applyRotation);
-    connect(buttonResetRotation, &QPushButton::clicked, this, &MainWindow::resetRotation);
+    connect(buttonApplyRotation, &QPushButton::clicked, this, &MainWindow::handleApplyRotation);
+    connect(buttonResetRotation, &QPushButton::clicked, this, &MainWindow::handleResetRotation);
     connect(gridCheckBox, &QCheckBox::stateChanged, this, &MainWindow::onGridCheckBoxStateChanged);
     connect(anglePortraitCheckBox, &QCheckBox::stateChanged, this, &MainWindow::onPortraitTypeChanged);
     connect(azimuthPortraitCheckBox, &QCheckBox::stateChanged, this, &MainWindow::onPortraitTypeChanged);
@@ -564,32 +559,11 @@ void MainWindow::setupFilteringWidget() {
     layout->addStretch();
 
     // Подключение сигналов
-    connect(toggleShellButton, &QPushButton::clicked, this, &MainWindow::toggleShadowTriangles);
+    connect(toggleShellButton, &QPushButton::clicked, this, &MainWindow::handleToggleShadowTriangles);
     connect(showAllTrianglesButton, &QPushButton::clicked, this, [this]() {
-        QVector<QSharedPointer<triangle>> triangles = openGLWidget->getTriangles();
-        if (triangles.isEmpty()) {
-            logMessage("Ошибка: не загружен 3D объект.");
-            showNotification("Нет загруженного объекта", Notification::Warning);
-            return;
-        }
-
-        openGLWidget->setShadowTrianglesFiltering(false);
-
-        int totalTriangles = triangles.size();
-        MeshFilter::FilterStats stats;
-        stats.totalTriangles = totalTriangles;
-        stats.shellTriangles = totalTriangles;
-        stats.visibleTriangles = totalTriangles;
-        stats.removedByShell = 0;
-        stats.removedByShadow = 0;
-
-        updateFilterStats(stats);
-
-        logMessage("Отображены все треугольники.");
-        showNotification("Все треугольники отображены", Notification::Success);
-        setModified(true);
+        m_modelController->resetToOriginalModel();
     });
-    connect(optimizeButton, &QPushButton::clicked, this, &MainWindow::performFiltering);
+    connect(optimizeButton, &QPushButton::clicked, this, &MainWindow::handleFilterModel);
 }
 
 void MainWindow::setupServerWidget() {
@@ -735,79 +709,6 @@ void MainWindow::showLogWindow()
     logWindow->show();
     logWindow->raise();
     logWindow->activateWindow();
-}
-
-// Функция для загрузки модели
-void MainWindow::loadModel() {
-    // Открываем диалоговое окно для выбора файла с 3D моделью формата OBJ
-    QString fileName = QFileDialog::getOpenFileName(this, "Открыть 3D модель", "", "OBJ Files (*.obj)");
-    if (!fileName.isEmpty()) {
-        progressBar->setValue(0);
-        // Выводим сообщение в лог о начале загрузки файла
-        logMessage("Начата загрузка файла: " + fileName);
-        showNotification("Начата загрузка файла", Notification::Info);
-
-        // Создаем объект QFutureWatcher для отслеживания завершения асинхронной задачи
-        QFutureWatcher<void> *watcher = new QFutureWatcher<void>(this);
-        // Соединяем сигнал finished объекта QFutureWatcher с лямбда-функцией для обработки завершения задачи
-        connect(watcher, &QFutureWatcher<void>::finished, this, [=]() {
-            // Освобождаем память, удаляя объект QFutureWatcher
-            watcher->deleteLater();
-        });
-
-        // Запускаем асинхронную задачу с использованием QtConcurrent::run
-        QFuture<void> future = QtConcurrent::run([=]() {
-            QFile file(fileName);
-            // Пытаемся открыть файл для чтения, если не удалось - выводим сообщение об ошибке в лог
-            if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-                QMetaObject::invokeMethod(this, [=]() {
-                        logMessage("Ошибка: не удалось открыть файл.");
-                        showNotification("Ошибка загрузки файла", Notification::Error);
-                    }, Qt::QueuedConnection);
-                return;
-            }
-
-            // Читаем содержимое файла
-            QTextStream in(&file);
-            // Очищаем текущую сцену и данные парсера
-            openGLWidget->clearScene();
-            parser->clearData();
-
-            // Сброс статистики фильтрации перед загрузкой новой модели
-            QMetaObject::invokeMethod(this, [=]() {
-                    MeshFilter::FilterStats emptyStats = {0, 0, 0};
-                    updateFilterStats(emptyStats);
-                }, Qt::QueuedConnection);
-
-            // Парсим содержимое файла и загружаем данные в OpenGL виджет
-            parser->readFromObjFile(fileName);
-
-            // Проверка наличия треугольников
-            QMetaObject::invokeMethod(this, [=]() {
-                    if (openGLWidget->getTriangles().isEmpty()) {
-                        logMessage("Ошибка: файл не содержит корректных данных объекта. Пожалуйста, загрузите корректный файл.");
-                    } else {
-                        logMessage("Файл успешно загружен.");
-                        showNotification("Файл успешно загружен", Notification::Success);
-                        setModified(true); // Установка флага изменений
-                    }
-                }, Qt::QueuedConnection);
-
-            // После загрузки модели: пробуем определить, находится ли объект над подстилающей поверхностью
-            QMetaObject::invokeMethod(this, [=]() {
-                    // Если подстилающая поверхность включена, обновляем ее положение
-                    if (pplaneCheckBox->isChecked()) {
-                        openGLWidget->setUnderlyingSurfaceVisible(true);
-                    }
-                }, Qt::QueuedConnection);
-        });
-
-        // Связываем QFutureWatcher с асинхронной задачей
-        watcher->setFuture(future);
-    } else {
-        // Если файл не был выбран, выводим сообщение об ошибке в лог
-        logMessage("Ошибка: файл не был выбран.");
-    }
 }
 
 PortraitDimension MainWindow::detectPortraitDimension(const QJsonArray &array) {
@@ -1265,30 +1166,9 @@ void MainWindow::updateRotationZ(double z) {
     inputRotationZ->blockSignals(false);
 }
 
-void MainWindow::applyRotation() {
-    float rotationX = inputRotationX->value();
-    float rotationY = inputRotationY->value();
-    float rotationZ = inputRotationZ->value();
-
-    openGLWidget->setRotation(rotationX, rotationY, rotationZ);
-    setModified(true); // Установка флага изменений
-    showNotification("Поворот применён", Notification::Info);
-    logMessage("Поворот применён.");
-}
-
-void MainWindow::resetRotation() {
-    inputRotationX->setValue(0);
-    inputRotationY->setValue(0);
-    inputRotationZ->setValue(0);
-
-    openGLWidget->setRotation(0, 0, 0);
-    setModified(true); // Установка флага изменений
-    showNotification("Поворот объекта сброшен", Notification::Info);
-}
-
 void MainWindow::performCalculation() {
-    QVector<QSharedPointer<triangle>> triangles = openGLWidget->getTriangles();
-    if (triangles.isEmpty()) {
+    // Проверяем, есть ли модель
+    if (!m_modelController->hasModel()) {
         logMessage("Ошибка: загруженный файл не содержит корректных данных объекта.");
         showNotification("Нет данных для расчёта", Notification::Error);
         return;
@@ -1323,6 +1203,9 @@ void MainWindow::performCalculation() {
     freqBand = freqBandComboBox->currentIndex();
     bool pplane = pplaneCheckBox->isChecked();
 
+    // Получение треугольников от ModelController
+    QVector<QSharedPointer<triangle>> triangles = m_modelController->getTriangles();
+
     // Подготовка данных о треугольниках
     QJsonArray coordinateArray;
     QJsonArray visibleTrianglesArray;
@@ -1345,8 +1228,8 @@ void MainWindow::performCalculation() {
         visibleTrianglesArray.append(tri->getVisible());
     }
 
-    // Получение вектора направления
-    rVect directVector = openGLWidget->getDirectionVector();
+    // Получение вектора направления от ModelController
+    rVect directVector = m_modelController->getDirectionVector();
 
     // Формирование JSON-объекта для отправки
     QJsonObject modelData;
@@ -1559,12 +1442,17 @@ void MainWindow::loadTheme(const QString &themePath, const QString &iconPath, QA
 bool MainWindow::saveProject() {
     QString fileName = QFileDialog::getSaveFileName(this, "Сохранить проект", "", "Файлы проекта (*.projjson);;Все файлы (*.*)");
     if (!fileName.isEmpty()) {
-        // Сбор данных из OpenGLWidget и MainWindow
-        currentProjectData.triangles = openGLWidget->getTriangles();
+        // Сбор данных из OpenGLWidget и MainWindow через ModelController
+        currentProjectData.triangles = m_modelController->getTriangles();
         currentProjectData.objectPosition = openGLWidget->getObjectPosition();
-        currentProjectData.rotationX = inputRotationX->value();
-        currentProjectData.rotationY = inputRotationY->value();
-        currentProjectData.rotationZ = inputRotationZ->value();
+
+        // Получаем текущие углы поворота
+        float rotX, rotY, rotZ;
+        m_modelController->getRotation(rotX, rotY, rotZ);
+        currentProjectData.rotationX = rotX;
+        currentProjectData.rotationY = rotY;
+        currentProjectData.rotationZ = rotZ;
+
         currentProjectData.scalingCoefficients = QVector3D(1.0f, 1.0f, 1.0f);
         currentProjectData.absEout = absEout;
         currentProjectData.normEout = normEout;
@@ -1572,7 +1460,6 @@ bool MainWindow::saveProject() {
         currentProjectData.normEout2D = normEout2D;
         currentProjectData.showUnderlyingSurface = pplaneCheckBox->isChecked();
         currentProjectData.surfaceAlphaValue = openGLWidget->getSurfaceAlpha();
-        // currentProjectData.storedResults уже обновляется в displayResults
 
         // Сохранение проекта
         if (ProjectSerializer::saveProject(fileName, currentProjectData)) {
@@ -1625,23 +1512,28 @@ void MainWindow::openProject() {
     if (!fileName.isEmpty()) {
         ProjectData data;
         if (ProjectSerializer::loadProject(fileName, data)) {
-            // Установка треугольников в OpenGLWidget
-            openGLWidget->setTriangles(data.triangles);
-            // Установка позиции объекта
-            openGLWidget->setObjectPosition(data.objectPosition);
-            // Установка поворотов
-            inputRotationX->setValue(data.rotationX);
-            inputRotationY->setValue(data.rotationY);
-            inputRotationZ->setValue(data.rotationZ);
-            openGLWidget->setRotation(data.rotationX, data.rotationY, data.rotationZ);
+            // Установка треугольников в ModelController
+            QMetaObject::invokeMethod(m_modelController.get(), [=]() {
+                    m_modelController->closeModel(); // Сначала закрываем текущую модель
 
-            // Восстанавливаем состояние подстилающей поверхности
-            pplaneCheckBox->setChecked(data.showUnderlyingSurface);
-            openGLWidget->setUnderlyingSurfaceVisible(data.showUnderlyingSurface);
-            openGLWidget->setSurfaceAlpha(data.surfaceAlphaValue);
+                    // Установка треугольников в OpenGLWidget
+                    openGLWidget->setTriangles(data.triangles);
 
-            // Установка коэффициентов масштабирования
-            openGLWidget->setScalingCoefficients(data.scalingCoefficients);
+                    // Установка позиции объекта
+                    openGLWidget->setObjectPosition(data.objectPosition);
+
+                    // Установка поворотов через ModelController
+                    m_modelController->setRotation(data.rotationX, data.rotationY, data.rotationZ);
+
+                    // Восстанавливаем состояние подстилающей поверхности
+                    pplaneCheckBox->setChecked(data.showUnderlyingSurface);
+                    openGLWidget->setUnderlyingSurfaceVisible(data.showUnderlyingSurface);
+                    openGLWidget->setSurfaceAlpha(data.surfaceAlphaValue);
+
+                    // Установка коэффициентов масштабирования
+                    openGLWidget->setScalingCoefficients(data.scalingCoefficients);
+                }, Qt::QueuedConnection);
+
             // Загрузка результатов расчёта
             absEout = data.absEout;
             normEout = data.normEout;
@@ -1669,6 +1561,7 @@ void MainWindow::openProject() {
     }
 }
 
+// Метод для создания нового проекта
 void MainWindow::newProject() {
     if (!maybeSave()) // Проверка на несохраненные изменения перед созданием нового проекта
         return;
@@ -1708,11 +1601,8 @@ void MainWindow::newProject() {
         return;
     }
 
-    // Очистка OpenGL сцены
-    openGLWidget->clearScene();
-
-    // Сброс данных парсера
-    parser->clearData();
+    // Очистка модели через ModelController
+    m_modelController->closeModel();
 
     // Очистка результатов
     absEout.clear();
@@ -1720,18 +1610,6 @@ void MainWindow::newProject() {
     absEout2D.clear();
     normEout2D.clear();
     storedResults.clear();
-
-    // Сброс вращения модели
-    inputRotationX->setValue(0);
-    inputRotationY->setValue(0);
-    inputRotationZ->setValue(0);
-    openGLWidget->setRotation(0, 0, 0);
-
-    // Сброс позиции объекта
-    openGLWidget->setObjectPosition(QVector3D(0.0f, 0.0f, 0.0f));
-
-    // Сброс коэффициентов масштабирования
-    openGLWidget->setScalingCoefficients(QVector3D(1.0f, 1.0f, 1.0f));
 
     // Сброс состояния чекбоксов и других элементов UI
     anglePortraitCheckBox->setChecked(false);
@@ -1918,30 +1796,6 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     }
 }
 
-void MainWindow::performFiltering() {
-    // if (triangles.isEmpty()) {
-    //     logMessage("Ошибка: не загружен 3D объект для фильтрации.");
-    //     return;
-    // }
-
-    QVector<QSharedPointer<triangle>> filteredTriangles = openGLWidget->getTriangles();
-    MeshFilter::FilterStats stats = meshFilter.filterMesh(filteredTriangles);
-
-    openGLWidget->applyFilteredTriangles(filteredTriangles);
-
-    // Обновление статистики
-    updateFilterStats(stats);
-
-    logMessage(QString("Фильтрация завершена. Всего треугольников: %1, "
-                       "Оболочка: %2, Видимые: %3")
-                   .arg(stats.totalTriangles)
-                   .arg(stats.shellTriangles)
-                   .arg(stats.visibleTriangles));
-    showNotification("Фильтрация объекта завершена", Notification::Success);
-
-    setModified(true);
-}
-
 void MainWindow::updateFilterStats(const MeshFilter::FilterStats& stats) {
     shellCountDisplay->setText(QString::number(stats.shellTriangles));
     visibleCountDisplay->setText(QString::number(stats.visibleTriangles));
@@ -1949,57 +1803,8 @@ void MainWindow::updateFilterStats(const MeshFilter::FilterStats& stats) {
     removedShadowDisplay->setText(QString::number(stats.removedByShadow));
 }
 
-void MainWindow::closeModel() {
-    if (openGLWidget) {
-        progressBar->setValue(0);  // Сброс прогресс-бара
-        openGLWidget->clearScene();  // Очищаем сцену OpenGL
-        parser->clearData();         // Очищаем данные парсера
-
-        // Сброс статистики фильтрации при закрытии модели
-        MeshFilter::FilterStats emptyStats = {0, 0, 0, 0, 0};
-        updateFilterStats(emptyStats);
-
-        logMessage("3D модель закрыта");
-        showNotification("3D модель закрыта", Notification::Info);
-        setModified(true);          // Устанавливаем флаг изменений
-    }
-}
-
 void MainWindow::showNotification(const QString &message, Notification::Type type) {
     NotificationManager::instance()->showMessage(message, type);
-}
-
-void MainWindow::toggleShadowTriangles() {
-    if (openGLWidget->getTotalTrianglesCount() == 0) {
-        logMessage("Ошибка: не загружен 3D объект для обработки.");
-        showNotification("Нет загруженного объекта", Notification::Warning);
-        return;
-    }
-
-    int originalCount = openGLWidget->getTotalTrianglesCount();
-
-    // Получаем позицию камеры
-    rVect observerPosition = openGLWidget->getCameraPositionAsRVect();
-
-    // Делегируем обработку треугольников в OpenGLWidget
-    openGLWidget->processShadowTriangles(observerPosition);
-
-    // Получаем статистику после обработки
-    int visibleCount = openGLWidget->getVisibleTrianglesCount();
-
-    // Обновляем статистику
-    MeshFilter::FilterStats stats = {
-        originalCount,           // totalTriangles
-        shellCountDisplay->text().toInt(), // сохраняем текущее значение shellTriangles
-        visibleCount,           // visibleTriangles
-        shellCountDisplay->text().toInt() > 0 ? originalCount - shellCountDisplay->text().toInt() : 0, // removedByShell
-        originalCount - visibleCount  // removedByShadow
-    };
-    updateFilterStats(stats);
-
-    logMessage(QString("Обработка теневых треугольников завершена. Скрыто: %1 треугольников").arg(originalCount - visibleCount));
-    showNotification("Обработка теневых треугольников завершена", Notification::Success);
-    setModified(true);
 }
 
 void MainWindow::abortCalculation() {
@@ -2084,4 +1889,119 @@ void MainWindow::onCalculationAborted()
 {
     abortCalculationButton->setEnabled(false);
     progressBar->setValue(0);
+}
+
+// Реализация методов интерфейса IModelObserver
+
+void MainWindow::onModelLoaded(const QString &fileName, int nodesCount, int trianglesCount) {
+    QFileInfo fileInfo(fileName);
+    modelFileNameLabel->setText(fileInfo.fileName());
+    totalNodesLabel->setText(QString("%1").arg(nodesCount));
+    totalTrianglesLabel->setText(QString("%1").arg(trianglesCount));
+
+    // Обновляем UI-элементы, которые зависят от наличия загруженной модели
+    // Например, активировать кнопку закрытия модели
+    QList<QAction*> actions = menuBar()->actions();
+    for (QAction* action : actions) {
+        if (action->text() == "Файл") {
+            QMenu* fileMenu = action->menu();
+            QList<QAction*> fileActions = fileMenu->actions();
+            for (QAction* fileAction : fileActions) {
+                if (fileAction->text() == "Закрыть") {
+                    fileAction->setEnabled(true);
+                    break;
+                }
+            }
+            break;
+        }
+    }
+
+    setModified(true);
+}
+
+void MainWindow::onModelModified() {
+    setModified(true);
+}
+
+void MainWindow::onModelClosed() {
+    modelFileNameLabel->setText("не загружен");
+    totalNodesLabel->setText("0");
+    totalTrianglesLabel->setText("0");
+
+    // Деактивировать кнопку закрытия модели
+    QList<QAction*> actions = menuBar()->actions();
+    for (QAction* action : actions) {
+        if (action->text() == "Файл") {
+            QMenu* fileMenu = action->menu();
+            QList<QAction*> fileActions = fileMenu->actions();
+            for (QAction* fileAction : fileActions) {
+                if (fileAction->text() == "Закрыть") {
+                    fileAction->setEnabled(false);
+                    break;
+                }
+            }
+            break;
+        }
+    }
+
+    setModified(true);
+}
+
+void MainWindow::onFilteringCompleted(const MeshFilter::FilterStats &stats) {
+    // Обновление статистики фильтрации
+    shellCountDisplay->setText(QString::number(stats.shellTriangles));
+    visibleCountDisplay->setText(QString::number(stats.visibleTriangles));
+    removedShellDisplay->setText(QString::number(stats.removedByShell));
+    removedShadowDisplay->setText(QString::number(stats.removedByShadow));
+}
+
+// Реализация слотов для интеграции с ModelController
+
+// Метод для
+void MainWindow::handleLoadModel() {
+    QString fileName = QFileDialog::getOpenFileName(this, "Открыть 3D модель", "", "OBJ Files (*.obj)");
+    if (!fileName.isEmpty()) {
+        progressBar->setValue(0);
+
+        // Используем QtConcurrent::run для выполнения в отдельном потоке
+        QFutureWatcher<void> *watcher = new QFutureWatcher<void>(this);
+        connect(watcher, &QFutureWatcher<void>::finished, this, [=]() {
+            watcher->deleteLater();
+        });
+
+        QFuture<void> future = QtConcurrent::run([=]() {
+            // Вызываем метод ModelController
+            QMetaObject::invokeMethod(m_modelController.get(), [=]() {
+                    m_modelController->loadModel(fileName);
+                }, Qt::QueuedConnection);
+        });
+
+        watcher->setFuture(future);
+    } else {
+        logMessage("Ошибка: файл не был выбран.");
+    }
+}
+
+void MainWindow::handleApplyRotation() {
+    float rotationX = inputRotationX->value();
+    float rotationY = inputRotationY->value();
+    float rotationZ = inputRotationZ->value();
+
+    m_modelController->setRotation(rotationX, rotationY, rotationZ);
+}
+
+void MainWindow::handleResetRotation() {
+    m_modelController->resetRotation();
+}
+
+void MainWindow::handleFilterModel() {
+    m_modelController->filterMesh();
+}
+
+void MainWindow::handleToggleShadowTriangles() {
+    m_modelController->toggleShadowTriangles();
+}
+
+void MainWindow::handleCloseModel() {
+    m_modelController->closeModel();
 }

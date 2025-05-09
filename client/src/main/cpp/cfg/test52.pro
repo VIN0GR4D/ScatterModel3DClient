@@ -20,6 +20,7 @@ SOURCES += \
     main.cpp \
     mainwindow.cpp \
     meshfilter.cpp \
+    modelcontroller.cpp \
     newprojectdialog.cpp \
     notification.cpp \
     notificationmanager.cpp \
@@ -45,6 +46,7 @@ HEADERS += \
     logworker.h \
     mainwindow.h \
     meshfilter.h \
+    modelcontroller.h \
     newprojectdialog.h \
     notification.h \
     notificationmanager.h \
@@ -88,7 +90,3 @@ DISTFILES += \
 
 RESOURCES += \
     resources.qrc
-
-SUBDIRS += \
-    connectionmanager_test.pro \
-    observer_pattern_test.pro

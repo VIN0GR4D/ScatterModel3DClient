@@ -4,7 +4,6 @@
 #include "openglwidget.h"
 #include "parser.h"
 #include "raytracer.h"
-#include "triangleclient.h"
 #include "portraitwindow.h"
 #include "projectserializer.h"
 #include "meshfilter.h"
@@ -12,6 +11,7 @@
 #include "notificationmanager.h"
 #include "patterndiagramwindow.h"
 #include "connectionmanager.h"
+#include "modelcontroller.h"
 #include <QMainWindow>
 #include <QPushButton>
 #include <QLineEdit>
@@ -66,7 +66,7 @@ struct PortraitData {
     QVector<double> data1D;
 };
 
-class MainWindow : public QMainWindow, public IConnectionObserver
+class MainWindow : public QMainWindow, public IConnectionObserver, public IModelObserver
 {
     Q_OBJECT
 
@@ -82,6 +82,12 @@ public:
     void onNotification(const QString &message, Notification::Type type) override;
     void onCalculationAborted() override;
 
+    // Реализация интерфейса IModelObserver
+    void onModelLoaded(const QString &fileName, int nodesCount, int trianglesCount) override;
+    void onModelModified() override;
+    void onModelClosed() override;
+    void onFilteringCompleted(const MeshFilter::FilterStats &stats) override;
+
 protected:
     // Переопределение события закрытия окна
     void closeEvent(QCloseEvent *event) override;
@@ -92,9 +98,6 @@ public slots:
     void updateRotationZ(double z);
 
 private slots:
-    void loadModel();
-    void applyRotation();
-    void resetRotation();
     void performCalculation();
     void saveResults();
     void logMessage(const QString& message);
@@ -113,11 +116,17 @@ private slots:
     void onGridCheckBoxStateChanged(int state);
     void openProject();
     void newProject();
-    void closeModel();
-    void toggleShadowTriangles();
     void abortCalculation();
     void updateCalculationProgress(int progress);
     void showPatternDiagram();
+
+    // Слоты для работы с ModelController
+    void handleLoadModel();
+    void handleApplyRotation();
+    void handleResetRotation();
+    void handleFilterModel();
+    void handleToggleShadowTriangles();
+    void handleCloseModel();
 
 signals:
     void connectionStatusChanged(bool connected);
@@ -133,8 +142,6 @@ private:
 
     Ui::MainWindow *ui;
     OpenGLWidget *openGLWidget;
-    Parser *parser;
-    std::unique_ptr<RayTracer> rayTracer;
     QLineEdit *serverAddressInput;
     QPushButton *connectButton, *buttonApplyRotation, *buttonResetRotation;
     QTextEdit *logDisplay;
@@ -175,8 +182,6 @@ private:
     QFutureWatcher<void> *resultsWatcher;
 
     QTreeWidget* filterTreeWidget;
-    MeshFilter meshFilter;
-    void performFiltering();
     void updateFilterStats(const MeshFilter::FilterStats& stats);
     QTreeWidgetItem* shellStatsItem;
     QTreeWidgetItem* visibilityStatsItem;
@@ -207,6 +212,8 @@ private:
     PatternDiagramWindow *patternDiagramWindow;
 
     ConnectionManager* m_connectionManager;
+
+    std::unique_ptr<ModelController> m_modelController;
 };
 
 #endif // MAINWINDOW_H

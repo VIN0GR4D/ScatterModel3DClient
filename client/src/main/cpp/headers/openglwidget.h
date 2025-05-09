@@ -8,9 +8,9 @@
 #include <QOpenGLFunctions_3_0>
 #include <QSharedPointer>
 #include <QMatrix4x4>
+#include <cstddef>
 #include "Triangle.h"
 #include "raytracer.h"
-#include "geometryutils.h"
 
 class OpenGLWidget : public QOpenGLWidget, protected QOpenGLFunctions_3_0 {
     Q_OBJECT
@@ -53,6 +53,9 @@ public:
         surfaceAlpha = qBound(0.1f, alpha, 0.9f);  // Ограничиваем значения
         update();
     }
+
+    // Метод для получения текущего значения rotation
+    void getRotation(float &x, float &y, float &z) const;
 
 public slots:
     void setUnderlyingSurfaceVisible(bool visible);
