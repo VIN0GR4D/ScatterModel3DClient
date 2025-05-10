@@ -1,4 +1,3 @@
-// connectionmanager.cpp
 #include "connectionmanager.h"
 #include "triangleclient.h"
 
@@ -215,8 +214,14 @@ void ConnectionManager::handleLogMessage(const QString &message)
 
 void ConnectionManager::handleNotification(const QString &message, Notification::Type type)
 {
+    if (m_observers.isEmpty()) {
+        return;
+    }
+
     for (auto observer : m_observers) {
-        observer->onNotification(message, type);
+        if (observer) {
+            observer->onNotification(message, type);
+        }
     }
 }
 

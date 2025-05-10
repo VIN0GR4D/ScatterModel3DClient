@@ -196,13 +196,32 @@ QColor OpenGLWidget::chooseColorForTriangle(int triangleIndex) {
 }
 
 // Обновление видимости треугольников
+// void OpenGLWidget::updateVisibility(const QVector<QSharedPointer<triangle>>& triangles) {
+//     rayTracer.setTriangles(triangles); // Установка треугольников для трассировщика лучей
+//     rVect observerPosition = QVector3DToRVect(cameraPosition); // Преобразование QVector3D в rVect
+//     rayTracer.determineVisibility(triangles, observerPosition); // Определение видимости треугольников относительно позиции камеры
+// }
+// Попытка увеличить прозводительность, обновляя видимость только когда камера перемещается на значительное расстояние.
 void OpenGLWidget::updateVisibility(const QVector<QSharedPointer<triangle>>& triangles) {
-    rayTracer.setTriangles(triangles); // Установка треугольников для трассировщика лучей
-    rVect observerPosition = QVector3DToRVect(cameraPosition); // Преобразование QVector3D в rVect
-    rayTracer.determineVisibility(triangles, observerPosition); // Определение видимости треугольников относительно позиции камеры
+    // Обновляем видимость только если положение камеры существенно изменилось
+    static rVect lastObserverPosition;
+    rVect currentObserverPosition = QVector3DToRVect(cameraPosition);
+
+    // Если расстояние меньше порога, пропускаем обновление
+    if (!triangles.isEmpty() && (lastObserverPosition - currentObserverPosition).length() < 0.1f) {
+        return; // Камера мало сдвинулась, пропускаем пересчет
+    }
+
+    lastObserverPosition = currentObserverPosition;
+    rayTracer.setTriangles(triangles);
+    rayTracer.determineVisibility(triangles, currentObserverPosition);
 }
 
 void OpenGLWidget::setRotation(float x, float y, float z) {
+    // Проверяем, действительно ли изменились значения
+    if (qFuzzyCompare(rotationX, x) && qFuzzyCompare(rotationY, y) && qFuzzyCompare(rotationZ, z))
+        return;
+
     rotationX = x;
     rotationY = y;
     rotationZ = z;
@@ -282,8 +301,6 @@ void OpenGLWidget::resizeGL(int w, int h) {
     glMatrixMode(GL_PROJECTION);
     glLoadMatrixf(projection.constData());
     glMatrixMode(GL_MODELVIEW);
-
-    calculatePixelOccupation();
 }
 
 // Отрисовка сцены
@@ -340,8 +357,6 @@ void OpenGLWidget::paintGL() {
         glVertex3f(v3->getX(), v3->getY(), v3->getZ());
         glEnd();
     }
-
-    calculatePixelOccupation();
 
     // Отрисовка индикатора координат
     drawCoordinateIndicator();
@@ -401,44 +416,6 @@ void OpenGLWidget::wheelEvent(QWheelEvent *event) {
     float factor = delta > 0 ? (1 + zoomSensitivity) : (1 - zoomSensitivity);
     scale *= factor;
     update();
-}
-
-// Функции для подсчёта пиксилей в изображении объекта
-void OpenGLWidget::calculatePixelOccupation() {
-    // Получение текущих ModelView и Projection матриц
-    QMatrix4x4 modelViewMatrix;
-    QMatrix4x4 projectionMatrix;
-    glGetFloatv(GL_MODELVIEW_MATRIX, modelViewMatrix.data());
-    glGetFloatv(GL_PROJECTION_MATRIX, projectionMatrix.data());
-
-    // qDebug() << "ModelView Matrix:" << modelViewMatrix;
-    // qDebug() << "Projection Matrix:" << projectionMatrix;
-
-    int windowWidth = this->width();
-    int windowHeight = this->height();
-
-    QVector<QVector3D> screenCoords;
-    for (const QVector3D& vertex : vertices) {
-        QVector3D screenCoord = projectToScreen(vertex, modelViewMatrix, projectionMatrix, windowWidth, windowHeight);
-        screenCoords.append(screenCoord);
-        // qDebug() << "World Coord:" << vertex << "Screen Coord:" << screenCoord;
-    }
-
-    // Найти минимальные и максимальные координаты
-    float minX = windowWidth, minY = windowHeight, maxX = 0, maxY = 0;
-    for (const QVector3D& coord : screenCoords) {
-        minX = qMin(minX, coord.x());
-        minY = qMin(minY, coord.y());
-        maxX = qMax(maxX, coord.x());
-        maxY = qMax(maxY, coord.y());
-    }
-
-    // // Площадь в пикселях
-    // int pixelWidth = maxX - minX;
-    // int pixelHeight = maxY - minY;
-    // int pixelArea = pixelWidth * pixelHeight;
-
-    // qDebug() << "Object occupies" << pixelArea << "pixels (" << pixelWidth << "x" << pixelHeight << ")";
 }
 
 QVector3D OpenGLWidget::projectToScreen(const QVector3D& worldCoord, const QMatrix4x4& modelView, const QMatrix4x4& projection, int windowWidth, int windowHeight) {
@@ -534,8 +511,15 @@ void OpenGLWidget::initializeDefaultGrid() {
 void OpenGLWidget::drawGrid() {
     if (!gridVisible) return;
 
+    // Определяем положение сетки с учетом наличия объекта
     QVector3D actualCameraPos = hasLoadedObject ? cameraPosition : QVector3D(-0.25f, -0.25f, -18.65f);
     QVector3D actualObjectPos = hasLoadedObject ? objectPosition : QVector3D(-0.25f, -0.25f, 2.5f);
+
+    // Определяем высоту сетки
+    float gridZ = 0.0f;
+    if (hasLoadedObject && !vertices.isEmpty()) {
+        gridZ = computeMinZ();
+    }
 
     // Вычисление направления камеры
     QVector3D cameraDir = (actualCameraPos - actualObjectPos).normalized();
@@ -548,18 +532,16 @@ void OpenGLWidget::drawGrid() {
 
     // Устанавливаем значение alpha
     if (hasLoadedObject) {
-        gridAlpha = minAlpha + (maxAlpha - minAlpha) * dotProduct;
+        gridAlpha = minAlpha + (maxAlpha - minAlpha) * std::abs(dotProduct);
         float distance = (actualCameraPos - actualObjectPos).length();
         gridAlpha *= qBound(minAlpha, 1.0f - distance / 1000.0f, maxAlpha);
     } else {
-        gridAlpha = 0.185746f; // Значение на основе предоставленных данных
+        gridAlpha = 0.185746f;
     }
 
     // Обновление размеров сетки
     if (gridParametersChanged) {
         if (hasLoadedObject) {
-            float sizeX = gridSize;
-            float sizeY = gridSize;
             gridStep = gridSize / 20.0f;
         } else {
             gridSize = 12.14f;
@@ -572,9 +554,6 @@ void OpenGLWidget::drawGrid() {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // Находим минимальную Z-координату для размещения сетки
-    float minZ = computeMinZ();
-
     // Отрисовка сетки с использованием gridAlpha
     glPushMatrix();
     glPushAttrib(GL_ENABLE_BIT | GL_COLOR_BUFFER_BIT | GL_LINE_BIT);
@@ -583,17 +562,18 @@ void OpenGLWidget::drawGrid() {
     glDisable(GL_DEPTH_TEST);
 
     // Устанавливаем цвет сетки с альфа-прозрачностью
-    glColor4f(0.5f, 0.5f, 0.5f, gridAlpha);
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA); // Для премультипликации
+    glColor4f(0.5f * gridAlpha, 0.5f * gridAlpha, 0.5f * gridAlpha, gridAlpha);
 
     glBegin(GL_LINES);
     for (float i = -gridSize; i <= gridSize; i += gridStep) {
         // Линии параллельные X
-        glVertex3f(i, -gridSize, minZ);
-        glVertex3f(i, gridSize, minZ);
+        glVertex3f(i, -gridSize, gridZ);
+        glVertex3f(i, gridSize, gridZ);
 
         // Линии параллельные Y
-        glVertex3f(-gridSize, i, minZ);
-        glVertex3f(gridSize, i, minZ);
+        glVertex3f(-gridSize, i, gridZ);
+        glVertex3f(gridSize, i, gridZ);
     }
     glEnd();
 
@@ -602,32 +582,32 @@ void OpenGLWidget::drawGrid() {
 
     // Отрисовка осей координат
     glPushAttrib(GL_ENABLE_BIT | GL_COLOR_BUFFER_BIT | GL_LINE_BIT);
-    glLineWidth(2.0f); // Фиксированная толщина линий
+    glLineWidth(2.0f);
 
-    glDisable(GL_LIGHTING); // Отключаем освещение для корректного отображения цветов
+    glDisable(GL_LIGHTING);
 
     // Ось X - красная
     glColor4f(axisColors[0].redF(), axisColors[0].greenF(), axisColors[0].blueF(), 1.0f);
     glBegin(GL_LINES);
-    glVertex3f(-gridSize, 0.0f, minZ);
-    glVertex3f(gridSize, 0.0f, minZ);
+    glVertex3f(-gridSize, 0.0f, gridZ);
+    glVertex3f(gridSize, 0.0f, gridZ);
     glEnd();
 
     // Ось Y - зеленая
     glColor4f(axisColors[1].redF(), axisColors[1].greenF(), axisColors[1].blueF(), 1.0f);
     glBegin(GL_LINES);
-    glVertex3f(0.0f, -gridSize, minZ);
-    glVertex3f(0.0f, gridSize, minZ);
+    glVertex3f(0.0f, -gridSize, gridZ);
+    glVertex3f(0.0f, gridSize, gridZ);
     glEnd();
 
     // Ось Z - синяя
     glColor4f(axisColors[2].redF(), axisColors[2].greenF(), axisColors[2].blueF(), 1.0f);
     glBegin(GL_LINES);
-    glVertex3f(0.0f, 0.0f, minZ);
-    glVertex3f(0.0f, 0.0f, minZ + gridSize);
+    glVertex3f(0.0f, 0.0f, gridZ);
+    glVertex3f(0.0f, 0.0f, gridZ + gridSize);
     glEnd();
 
-    glEnable(GL_LIGHTING); // Включаем освещение обратно
+    glEnable(GL_LIGHTING);
     glPopAttrib();
 }
 
@@ -744,7 +724,9 @@ void OpenGLWidget::drawUnderlyingSurface() {
 
 // Функция для нахождения минимальной Z-координаты модели
 float OpenGLWidget::computeMinZ() const {
-    if (vertices.isEmpty()) return 0.0f;
+    if (vertices.isEmpty()) {
+        return hasLoadedObject ? 0.0f : -0.5f;
+    }
 
     float minZ = vertices[0].z();
     for (const auto& vertex : vertices) {

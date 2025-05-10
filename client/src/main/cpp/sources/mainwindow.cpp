@@ -1502,6 +1502,8 @@ void MainWindow::showAboutDialog() {
 void MainWindow::onGridCheckBoxStateChanged(int state) {
     bool visible = (state == Qt::Checked);
     openGLWidget->setGridVisible(visible);
+
+    logMessage(QString("Сетка %1").arg(visible ? "включена" : "выключена"));
 }
 
 void MainWindow::openProject() {

@@ -120,7 +120,11 @@ void ModelController::setRotation(float x, float y, float z) {
     }
 
     emit rotationChanged(x, y, z);
-    notifyObserversModelModified();
+
+    // Проверяем, что список наблюдателей не пуст
+    if (!m_observers.isEmpty()) {
+        notifyObserversModelModified();
+    }
 }
 
 void ModelController::resetRotation() {

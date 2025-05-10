@@ -91,6 +91,7 @@ void NotificationManager::showMessage(const QString &message, Notification::Type
     updateNotificationHistory(message, type);
 
     Notification *notification = new Notification();
+    notification->setAttribute(Qt::WA_DeleteOnClose, true);  // Гарантируем удаление при закрытии
 
     connect(notification, &QObject::destroyed, this, &NotificationManager::removeNotification);
     connect(notification, &Notification::startedMoving, this, &NotificationManager::updatePositions);
