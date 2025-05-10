@@ -3,9 +3,24 @@
 
 #include <QVector>
 #include <QSharedPointer>
+#include <QHash>
 #include "Triangle.h"
 #include "rVect.h"
 #include "geometryutils.h"
+
+// Ключ для пространственной хеш-таблицы - объявляем вне класса MeshFilter
+struct MeshFilterCellKey {
+    qint64 x, y, z;
+
+    bool operator==(const MeshFilterCellKey& other) const {
+        return x == other.x && y == other.y && z == other.z;
+    }
+};
+
+// Определение хеш-функции для CellKey для использования в QHash
+inline uint qHash(const MeshFilterCellKey& key, uint seed = 0) {
+    return qHash(key.x, seed) ^ qHash(key.y, seed) ^ qHash(key.z, seed);
+}
 
 class MeshFilter {
 public:
@@ -17,8 +32,8 @@ public:
         int shellTriangles;      // Треугольники в оболочке
         int visibleTriangles;    // Видимые треугольники
         int removedTriangles;    // Удаленные треугольники
-        int removedByShell;     // Треугольники, удаленные при оптимизации структуры
-        int removedByShadow;    // Треугольники, скрытые при переключении видимости
+        int removedByShell;      // Треугольники, удаленные при оптимизации структуры
+        int removedByShadow;     // Треугольники, скрытые при переключении видимости
     };
 
     FilterStats filterMesh(QVector<QSharedPointer<triangle>>& triangles);
@@ -42,10 +57,15 @@ private:
         TriangleInfo(const QSharedPointer<triangle>& t);
     };
 
-    bool isTriangleOnShell(const TriangleInfo& triInfo, const QVector<TriangleInfo>& allTriangles);
+    // Структура для пространственного разбиения
+    struct SpatialGrid {
+        QHash<MeshFilterCellKey, QVector<int>> cells;
+        double cellSize;
+    };
+
+    bool isTriangleOnShell(int triIndex, const QVector<TriangleInfo>& allTriangles, const SpatialGrid& grid);
     bool isIntersectingPlane(const TriangleInfo& triInfo, const Plane& plane);
     double calculateDistance(const rVect& point, const Plane& plane);
-    bool isTriangleVisible(const TriangleInfo& triInfo);
     double calculateObjectSize(const QVector<TriangleInfo>& triangleInfos);
 };
 
