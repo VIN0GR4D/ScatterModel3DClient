@@ -12,6 +12,7 @@
 #include "patterndiagramwindow.h"
 #include "connectionmanager.h"
 #include "modelcontroller.h"
+#include "portraittypes.h"
 #include <QMainWindow>
 #include <QPushButton>
 #include <QLineEdit>
@@ -47,17 +48,6 @@ class PortraitWindow;
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
-
-enum PortraitDimension {
-    Undefined = -1,
-    Range = 0,       // Дальностный
-    Azimuth = 1,     // Азимутальный
-    Elevation = 2,   // Угломестный
-    AzimuthRange = 3,    // Комбинация Азимутальный+Дальностный
-    ElevationRange = 4,  // Комбинация Угломестный+Дальностный
-    ElevationAzimuth = 5, // Комбинация Угломестный+Азимутальный
-    ThreeDimensional = 6  // Комбинация Угломестный+Азимутальный+Дальностный
-};
 
 struct PortraitData {
     PortraitDimension dimension;

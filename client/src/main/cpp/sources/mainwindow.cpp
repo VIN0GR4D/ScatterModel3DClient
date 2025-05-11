@@ -1360,34 +1360,90 @@ void MainWindow::openGraphWindow() {
 
     GraphWindow *graphWindow = new GraphWindow(this);
 
-    // Определение шага по оси X в зависимости от freqBand
-    double stepX;
-    switch (freqBand) {
-    case 0: stepX = 1.5; break; // P-диапазон
-    case 1: stepX = 0.5; break; // L-диапазон
-    case 2: stepX = 0.5; break; // S-диапазон
-    case 3: stepX = 0.5; break; // C-диапазон
-    case 4: stepX = 0.25; break; // X-диапазон
-    case 5: stepX = 0.125; break; // Ka-диапазон
-    default: stepX = 1.0; break; // Значение по умолчанию
+    // Передаем информацию о частотном диапазоне и типе портрета
+    graphWindow->setFreqBand(freqBand);
+    graphWindow->setPortraitType(portraitData.dimension);
+
+    // Передаем информацию о выбранных типах портрета
+    bool isAngleSelected = anglePortraitCheckBox->isChecked();
+    bool isAzimuthSelected = azimuthPortraitCheckBox->isChecked();
+    bool isRangeSelected = rangePortraitCheckBox->isChecked();
+    graphWindow->setPortraitSelections(isAngleSelected, isAzimuthSelected, isRangeSelected);
+
+    // Если портрет многомерный (2D или 3D), передаем двумерные данные
+    if (portraitData.dimension >= PortraitDimension::AzimuthRange && !absEout2D.isEmpty() && !normEout2D.isEmpty()) {
+        graphWindow->setData2D(absEout2D, normEout2D);
+
+        // Устанавливаем информационный заголовок в зависимости от типа портрета
+        QString infoText;
+        switch (portraitData.dimension) {
+        case PortraitDimension::AzimuthRange:
+            infoText = tr("Азимутально-дальностная плоскость");
+            break;
+        case PortraitDimension::ElevationRange:
+            infoText = tr("Угломестно-дальностная плоскость");
+            break;
+        case PortraitDimension::ElevationAzimuth:
+            infoText = tr("Угломестно-азимутальная плоскость");
+            break;
+        case PortraitDimension::ThreeDimensional:
+            infoText = tr("Трехмерный портрет");
+            break;
+        default:
+            break;
+        }
+
+        if (!infoText.isEmpty()) {
+            graphWindow->setInfoText(infoText);
+        }
+    }
+    else {
+        // Определение шага по оси X в зависимости от freqBand и типа портрета
+        double stepX;
+        switch (freqBand) {
+        case 0: stepX = 1.5; break; // P-диапазон
+        case 1: stepX = 0.5; break; // L-диапазон
+        case 2: stepX = 0.5; break; // S-диапазон
+        case 3: stepX = 0.5; break; // C-диапазон
+        case 4: stepX = 0.25; break; // X-диапазон
+        case 5: stepX = 0.125; break; // Ka-диапазон
+        default: stepX = 1.0; break; // Значение по умолчанию
+        }
+
+        // Создаем данные для оси X
+        QVector<double> x;
+        for (int i = 0; i < absEout.size(); ++i) {
+            // Тип шкалы зависит от типа портрета
+            if (portraitData.dimension == PortraitDimension::Range) {
+                // Для дальностного портрета - шаг в метрах
+                x.append(i * stepX);
+            }
+            else if (portraitData.dimension == PortraitDimension::Azimuth ||
+                     portraitData.dimension == PortraitDimension::Elevation) {
+                // Для азимутального и угломестного портретов - шаг в градусах
+                // Преобразуем индекс в угол (примерное преобразование)
+                double angle = i * 360.0 / absEout.size() - 180.0;
+                x.append(angle);
+            }
+            else {
+                // Для остальных типов просто используем индекс
+                x.append(i);
+            }
+        }
+
+        qDebug() << "Graph data prepared:"
+                 << "x size:" << x.size()
+                 << "absEout size:" << absEout.size()
+                 << "normEout size:" << normEout.size();
+
+        if (x.isEmpty()) {
+            logMessage("Ошибка: невозможно создать ось X для графика.");
+            return;
+        }
+
+        graphWindow->setData(x, absEout, normEout);
     }
 
-    QVector<double> x;
-    for (int i = 0; i < absEout.size(); ++i) {
-        x.append(i * stepX);
-    }
-
-    qDebug() << "Graph data prepared:"
-             << "x size:" << x.size()
-             << "absEout size:" << absEout.size()
-             << "normEout size:" << normEout.size();
-
-    if (x.isEmpty()) {
-        logMessage("Ошибка: невозможно создать ось X для графика.");
-        return;
-    }
-
-    graphWindow->setData(x, absEout, normEout);
     graphWindow->setAttribute(Qt::WA_DeleteOnClose);
     graphWindow->show();
 

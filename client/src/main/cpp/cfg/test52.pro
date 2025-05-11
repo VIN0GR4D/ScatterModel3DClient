@@ -1,4 +1,4 @@
-QT       += core gui websockets opengl openglwidgets widgets charts printsupport concurrent testlib
+QT       += core gui websockets opengl openglwidgets widgets charts printsupport concurrent testlib printsupport
 LIBS += -lopengl32
 LIBS += -lglu32
 
@@ -53,6 +53,7 @@ HEADERS += \
     openglwidget.h \
     parser.h \
     patterndiagramwindow.h \
+    portraittypes.h \
     portraitwindow.h \
     projectserializer.h \
     rVect.h \
