@@ -309,54 +309,67 @@ void OpenGLWidget::paintGL() {
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
-    // Применение трансформаций камеры
+    // Применение трансформаций камеры для всей сцены
     glTranslatef(-cameraPosition.x(), -cameraPosition.y(), cameraPosition.z());
-
-    // Применение трансформаций объекта
-    glTranslatef(objectPosition.x(), objectPosition.y(), objectPosition.z());
-    glScalef(scale, scale, scale);
-    glRotatef(rotationX, 1.0f, 0.0f, 0.0f);
-    glRotatef(rotationY, 0.0f, 1.0f, 0.0f);
-    glRotatef(rotationZ, 0.0f, 0.0f, 1.0f);
 
     // Установка позиции источника света, прикрепленного к камере
     GLfloat lightPos[] = { lightPosition.x(), lightPosition.y(), lightPosition.z(), 1.0f };
     glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
 
-    // Отрисовка pplane
-    drawUnderlyingSurface();
+    // 1. Отрисовка статичных элементов сцены (сетка и подстилающая поверхность)
+    glPushMatrix(); // Сохраняем состояние матрицы для статичных элементов
+    {
+        // Применяем только позицию объекта, но не вращение
+        glTranslatef(objectPosition.x(), objectPosition.y(), objectPosition.z());
 
-    // Отрисовка сетки
-    drawGrid();
+        // Отрисовка подстилающей поверхности
+        drawUnderlyingSurface();
 
-    // Обновление видимости только при изменении параметров камеры или загрузке новых данных
-    if (geometryChanged) {
-        updateVisibility(triangles);
-        geometryChanged = false; // Сбросить флаг изменения геометрии
+        // Отрисовка сетки
+        drawGrid();
     }
+    glPopMatrix(); // Восстанавливаем состояние матрицы после отрисовки статичных элементов
 
-    // Отрисовка видимых треугольников
-    for (int i = 0; i < triangles.size(); ++i) {
-        auto triangle = triangles[i];
-        if (filterShadowTriangles && !triangle->getVisible()) continue; // Пропускаем невидимые треугольники
+    // 2. Отрисовка 3D-объекта с вращением
+    glPushMatrix(); // Сохраняем состояние матрицы для объекта
+    {
+        // Применение трансформаций только к объекту
+        glTranslatef(objectPosition.x(), objectPosition.y(), objectPosition.z());
+        glScalef(scale, scale, scale);
+        glRotatef(rotationX, 1.0f, 0.0f, 0.0f);
+        glRotatef(rotationY, 0.0f, 1.0f, 0.0f);
+        glRotatef(rotationZ, 0.0f, 0.0f, 1.0f);
 
-        QColor color = triangleColors[i];
-        glColor3f(color.redF(), color.greenF(), color.blueF());
+        // Обновление видимости только при изменении параметров камеры или загрузке новых данных
+        if (geometryChanged) {
+            updateVisibility(triangles);
+            geometryChanged = false; // Сбросить флаг изменения геометрии
+        }
 
-        glBegin(GL_TRIANGLES);
-        auto v1 = triangles[i]->getV1();
-        auto v2 = triangles[i]->getV2();
-        auto v3 = triangles[i]->getV3();
+        // Отрисовка видимых треугольников
+        for (int i = 0; i < triangles.size(); ++i) {
+            auto triangle = triangles[i];
+            if (filterShadowTriangles && !triangle->getVisible()) continue; // Пропускаем невидимые треугольники
 
-        rVect normal = GeometryUtils::computeNormal(triangle);
-        QVector3D normalVec(normal.getX(), normal.getY(), normal.getZ());
-        glNormal3f(normalVec.x(), normalVec.y(), normalVec.z());
+            QColor color = triangleColors[i];
+            glColor3f(color.redF(), color.greenF(), color.blueF());
 
-        glVertex3f(v1->getX(), v1->getY(), v1->getZ());
-        glVertex3f(v2->getX(), v2->getY(), v2->getZ());
-        glVertex3f(v3->getX(), v3->getY(), v3->getZ());
-        glEnd();
+            glBegin(GL_TRIANGLES);
+            auto v1 = triangles[i]->getV1();
+            auto v2 = triangles[i]->getV2();
+            auto v3 = triangles[i]->getV3();
+
+            rVect normal = GeometryUtils::computeNormal(triangle);
+            QVector3D normalVec(normal.getX(), normal.getY(), normal.getZ());
+            glNormal3f(normalVec.x(), normalVec.y(), normalVec.z());
+
+            glVertex3f(v1->getX(), v1->getY(), v1->getZ());
+            glVertex3f(v2->getX(), v2->getY(), v2->getZ());
+            glVertex3f(v3->getX(), v3->getY(), v3->getZ());
+            glEnd();
+        }
     }
+    glPopMatrix(); // Восстанавливаем состояние матрицы после отрисовки объекта
 
     // Отрисовка индикатора координат
     drawCoordinateIndicator();
@@ -531,13 +544,14 @@ void OpenGLWidget::drawGrid() {
     float dotProduct = QVector3D::dotProduct(cameraDir, gridNormal);
 
     // Устанавливаем значение alpha
-    if (hasLoadedObject) {
-        gridAlpha = minAlpha + (maxAlpha - minAlpha) * std::abs(dotProduct);
-        float distance = (actualCameraPos - actualObjectPos).length();
-        gridAlpha *= qBound(minAlpha, 1.0f - distance / 1000.0f, maxAlpha);
-    } else {
-        gridAlpha = 0.185746f;
-    }
+    // if (hasLoadedObject) {
+    //     gridAlpha = minAlpha + (maxAlpha - minAlpha) * std::abs(dotProduct);
+    //     float distance = (actualCameraPos - actualObjectPos).length();
+    //     gridAlpha *= qBound(minAlpha, 1.0f - distance / 1000.0f, maxAlpha);
+    // } else {
+    //     gridAlpha = 0.185746f;
+    // }
+    gridAlpha = 0.185746f;
 
     // Обновление размеров сетки
     if (gridParametersChanged) {
