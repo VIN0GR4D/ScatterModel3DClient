@@ -80,7 +80,26 @@ bool OpenGLWidget::hasShadowTriangles() const {
 }
 
 void OpenGLWidget::processShadowTriangles(const rVect& observerPosition) {
-    rayTracer.determineVisibility(triangles, observerPosition);
+    // Создаем матрицу вращения
+    QMatrix4x4 rotationMatrix;
+    rotationMatrix.setToIdentity();
+    rotationMatrix.rotate(rotationX, 1.0f, 0.0f, 0.0f);
+    rotationMatrix.rotate(rotationY, 0.0f, 1.0f, 0.0f);
+    rotationMatrix.rotate(rotationZ, 0.0f, 0.0f, 1.0f);
+
+    // Создаем обратную матрицу вращения
+    QMatrix4x4 inverseRotationMatrix = rotationMatrix.inverted();
+
+    // Преобразуем позицию наблюдателя в систему координат объекта
+    QVector3D observerPos(observerPosition.getX(), observerPosition.getY(), observerPosition.getZ());
+    QVector3D transformedObserver = inverseRotationMatrix.map(observerPos);
+
+    // Преобразуем обратно в rVect
+    rVect transformedObserverPos(transformedObserver.x(), transformedObserver.y(), transformedObserver.z());
+
+    // Определяем видимость с использованием преобразованной позиции наблюдателя
+    rayTracer.determineVisibility(triangles, transformedObserverPos);
+
     setShadowTrianglesFiltering(true);
     update();
 }
