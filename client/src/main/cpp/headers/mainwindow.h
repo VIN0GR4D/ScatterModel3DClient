@@ -118,6 +118,8 @@ private slots:
     void handleToggleShadowTriangles();
     void handleCloseModel();
 
+    void handleResetScale();
+
 signals:
     void connectionStatusChanged(bool connected);
 
@@ -134,6 +136,7 @@ private:
     OpenGLWidget *openGLWidget;
     QLineEdit *serverAddressInput;
     QPushButton *connectButton, *buttonApplyRotation, *buttonResetRotation;
+    QPushButton *buttonResetScale;
     QTextEdit *logDisplay;
     QDoubleSpinBox *inputWavelength, *inputResolution;
     QDoubleSpinBox *inputRotationX, *inputRotationY, *inputRotationZ;

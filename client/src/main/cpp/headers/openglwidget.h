@@ -57,6 +57,8 @@ public:
     // Метод для получения текущего значения rotation
     void getRotation(float &x, float &y, float &z) const;
 
+    void resetScale();
+
 public slots:
     void setUnderlyingSurfaceVisible(bool visible);
 

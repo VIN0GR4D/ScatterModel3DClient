@@ -9,7 +9,8 @@ ModelController::ModelController(QObject *parent)
     m_openGLWidget(nullptr),
     m_rotationX(0.0f),
     m_rotationY(0.0f),
-    m_rotationZ(0.0f)
+    m_rotationZ(0.0f),
+    m_currentStats()
 {
     // Соединяем сигналы Parser с соответствующими слотами
     connect(m_parser.get(), &Parser::fileParsed, this,
@@ -70,6 +71,22 @@ bool ModelController::loadModel(const QString &fileName) {
         return false;
     }
 
+    // Сбрасываем статистику фильтрации для нового объекта
+    int totalTriangles = m_triangles.size();
+    MeshFilter::FilterStats newStats;
+    newStats.totalTriangles = totalTriangles;
+    newStats.shellTriangles = totalTriangles;  // Изначально все треугольники считаются частью оболочки
+    newStats.visibleTriangles = totalTriangles; // Изначально все треугольники видимы
+    newStats.removedByShell = 0;
+    newStats.removedByShadow = 0;
+    newStats.filterType = MeshFilter::ResetFilter;
+
+    // Обновляем текущую статистику
+    m_currentStats = newStats;
+
+    // Уведомляем наблюдателей о завершении загрузки модели и об обновлении статистики
+    notifyObserversFilteringCompleted(m_currentStats);
+
     emit logMessage("Файл успешно загружен.");
     emit notificationRequested("Файл успешно загружен", 1); // 1 = Notification::Success
     notifyObserversModelModified();
@@ -85,6 +102,13 @@ void ModelController::closeModel() {
     m_triangles.clear();
     m_vertices.clear();
     m_triangleIndices.clear();
+
+    // Сбрасываем статистику фильтрации при закрытии модели
+    MeshFilter::FilterStats emptyStats;
+    m_currentStats = emptyStats;
+
+    // Уведомляем наблюдателей об обновлении статистики
+    notifyObserversFilteringCompleted(m_currentStats);
 
     emit logMessage("3D модель закрыта");
     emit notificationRequested("3D модель закрыта", 0); // 0 = Notification::Info
@@ -148,6 +172,21 @@ void ModelController::filterMesh() {
     QVector<QSharedPointer<triangle>> filteredTriangles = m_triangles;
     MeshFilter::FilterStats stats = m_meshFilter.filterMesh(filteredTriangles);
 
+    // Обновляем текущую статистику по оболочке (shell)
+    m_currentStats.totalTriangles = stats.totalTriangles;
+    m_currentStats.shellTriangles = stats.shellTriangles;
+    m_currentStats.removedByShell = stats.removedByShell;
+
+    // Сохраняем текущие данные о видимости, если они уже были
+    stats.visibleTriangles = m_currentStats.visibleTriangles;
+    stats.removedByShadow = m_currentStats.removedByShadow;
+
+    // Устанавливаем тип фильтрации
+    stats.filterType = MeshFilter::ShellFilter;
+
+    // Обновляем текущую статистику полностью
+    m_currentStats = stats;
+
     // Применяем отфильтрованные треугольники
     if (m_openGLWidget) {
         m_openGLWidget->applyFilteredTriangles(filteredTriangles);
@@ -162,7 +201,7 @@ void ModelController::filterMesh() {
                         .arg(stats.visibleTriangles));
     emit notificationRequested("Фильтрация объекта завершена", 1); // 1 = Notification::Success
 
-    notifyObserversFilteringCompleted(stats);
+    notifyObserversFilteringCompleted(m_currentStats);
     notifyObserversModelModified();
 }
 
@@ -183,15 +222,26 @@ void ModelController::toggleShadowTriangles() {
 
     int visibleCount = getVisibleTrianglesCount();
 
+    // Создаем структуру только для видимости (shadow)
     MeshFilter::FilterStats stats;
     stats.totalTriangles = originalCount;
     stats.visibleTriangles = visibleCount;
     stats.removedByShadow = originalCount - visibleCount;
 
+    // Сохраняем текущие данные об оболочке
+    stats.shellTriangles = m_currentStats.shellTriangles;
+    stats.removedByShell = m_currentStats.removedByShell;
+
+    // Устанавливаем тип фильтрации
+    stats.filterType = MeshFilter::ShadowFilter;
+
+    // Обновляем текущую статистику полностью
+    m_currentStats = stats;
+
     emit logMessage(QString("Обработка теневых треугольников завершена. Скрыто: %1 треугольников").arg(originalCount - visibleCount));
     emit notificationRequested("Обработка теневых треугольников завершена", 1); // 1 = Notification::Success
 
-    notifyObserversFilteringCompleted(stats);
+    notifyObserversFilteringCompleted(m_currentStats);
     notifyObserversModelModified();
 }
 
@@ -206,12 +256,18 @@ void ModelController::resetToOriginalModel() {
         m_openGLWidget->setShadowTrianglesFiltering(false);
 
         int totalTriangles = m_triangles.size();
+
+        // Создаем структуру для сброса всех фильтров
         MeshFilter::FilterStats stats;
         stats.totalTriangles = totalTriangles;
-        stats.shellTriangles = totalTriangles;
-        stats.visibleTriangles = totalTriangles;
+        stats.shellTriangles = totalTriangles; // Все треугольники в оболочке
+        stats.visibleTriangles = totalTriangles; // Все треугольники видимы
         stats.removedByShell = 0;
         stats.removedByShadow = 0;
+        stats.filterType = MeshFilter::ResetFilter;
+
+        // Обновляем текущую статистику полностью
+        m_currentStats = stats;
 
         notifyObserversFilteringCompleted(stats);
     }
@@ -303,4 +359,13 @@ void ModelController::notifyObserversFilteringCompleted(const MeshFilter::Filter
     for (auto observer : m_observers) {
         observer->onFilteringCompleted(stats);
     }
+}
+
+void ModelController::resetScale() {
+    if (m_openGLWidget) {
+        m_openGLWidget->resetScale();
+    }
+
+    // Уведомляем наблюдателей об изменении модели
+    notifyObserversModelModified();
 }

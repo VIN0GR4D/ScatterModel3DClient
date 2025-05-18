@@ -27,13 +27,34 @@ public:
     MeshFilter();
     ~MeshFilter();
 
+    // Перечисление для типов фильтрации
+    enum FilterType {
+        NoFilter = 0,      // Без фильтрации
+        ShellFilter = 1,   // Фильтрация оболочки (оптимизация)
+        ShadowFilter = 2,  // Фильтрация теневых треугольников
+        ResetFilter = 3    // Сброс фильтров
+    };
+
     struct FilterStats {
         int totalTriangles;      // Общее количество треугольников
         int shellTriangles;      // Треугольники в оболочке
         int visibleTriangles;    // Видимые треугольники
         int removedTriangles;    // Удаленные треугольники
-        int removedByShell;      // Треугольники, удаленные при оптимизации структуры
+        int removedByShell;      // Треугольники, удаленные при оптимизации
         int removedByShadow;     // Треугольники, скрытые при переключении видимости
+        FilterType filterType;   // Тип выполненной фильтрации
+
+        // Конструктор по умолчанию
+        FilterStats()
+            : totalTriangles(0), shellTriangles(0), visibleTriangles(0),
+            removedTriangles(0), removedByShell(0), removedByShadow(0),
+            filterType(NoFilter) {}
+
+        // Конструктор с параметрами (без filterType)
+        FilterStats(int total, int shell, int visible, int removed, int removedShell, int removedShadow)
+            : totalTriangles(total), shellTriangles(shell), visibleTriangles(visible),
+            removedTriangles(removed), removedByShell(removedShell), removedByShadow(removedShadow),
+            filterType(NoFilter) {}
     };
 
     FilterStats filterMesh(QVector<QSharedPointer<triangle>>& triangles);

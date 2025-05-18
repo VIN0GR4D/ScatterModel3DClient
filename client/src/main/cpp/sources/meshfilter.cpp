@@ -19,8 +19,9 @@ MeshFilter::FilterStats MeshFilter::filterMesh(QVector<QSharedPointer<triangle>>
     QElapsedTimer timer;
     timer.start();
 
-    FilterStats stats = {0, 0, 0, 0, 0, 0};
+    FilterStats stats; // Используем конструктор по умолчанию
     stats.totalTriangles = triangles.size();
+    stats.filterType = ShellFilter; // Указываем тип фильтрации
 
     if (triangles.isEmpty()) {
         return stats;

@@ -58,6 +58,7 @@ public:
     void setRotation(float x, float y, float z);
     void resetRotation();
     void getRotation(float &x, float &y, float &z) const;
+    void resetScale();
 
     // Методы для управления фильтрацией
     void filterMesh();
@@ -107,6 +108,8 @@ private:
     void notifyObserversModelModified();
     void notifyObserversModelClosed();
     void notifyObserversFilteringCompleted(const MeshFilter::FilterStats &stats);
+
+    MeshFilter::FilterStats m_currentStats; // Текущая статистика фильтрации
 };
 
 #endif // MODELCONTROLLER_H

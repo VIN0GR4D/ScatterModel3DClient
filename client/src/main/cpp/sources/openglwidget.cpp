@@ -775,3 +775,8 @@ void OpenGLWidget::getRotation(float &x, float &y, float &z) const {
     y = rotationY;
     z = rotationZ;
 }
+
+void OpenGLWidget::resetScale() {
+    scale = 1.0f;  // Сброс масштаба к значению по умолчанию
+    update();      // Перерисовать виджет
+}

@@ -430,8 +430,13 @@ void MainWindow::setupParametersWidget() {
     QHBoxLayout *rotationButtonLayout = new QHBoxLayout();
     buttonApplyRotation = new QPushButton(QIcon(":/apply.png"), "Применить", rotationGroupBox);
     buttonResetRotation = new QPushButton(QIcon(":/reset.png"), "Сбросить", rotationGroupBox);
+
+    buttonResetScale = new QPushButton(QIcon(":/reset.png"), "Сбросить масштаб", rotationGroupBox);
+
+
     rotationButtonLayout->addWidget(buttonApplyRotation);
     rotationButtonLayout->addWidget(buttonResetRotation);
+    rotationButtonLayout->addWidget(buttonResetScale);
     rotationLayout->addLayout(rotationButtonLayout, 3, 0, 1, 2);
 
     // Добавляем все группы в основной layout
@@ -460,6 +465,7 @@ void MainWindow::setupParametersWidget() {
     connect(pplaneCheckBox, &QCheckBox::toggled, surfaceAlphaSlider, &QSlider::setEnabled);
     connect(buttonApplyRotation, &QPushButton::clicked, this, &MainWindow::handleApplyRotation);
     connect(buttonResetRotation, &QPushButton::clicked, this, &MainWindow::handleResetRotation);
+    connect(buttonResetScale, &QPushButton::clicked, this, &MainWindow::handleResetScale);
     connect(gridCheckBox, &QCheckBox::stateChanged, this, &MainWindow::onGridCheckBoxStateChanged);
     connect(anglePortraitCheckBox, &QCheckBox::stateChanged, this, &MainWindow::onPortraitTypeChanged);
     connect(azimuthPortraitCheckBox, &QCheckBox::stateChanged, this, &MainWindow::onPortraitTypeChanged);
@@ -2006,11 +2012,61 @@ void MainWindow::onModelClosed() {
 }
 
 void MainWindow::onFilteringCompleted(const MeshFilter::FilterStats &stats) {
-    // Обновление статистики фильтрации
-    shellCountDisplay->setText(QString::number(stats.shellTriangles));
-    visibleCountDisplay->setText(QString::number(stats.visibleTriangles));
-    removedShellDisplay->setText(QString::number(stats.removedByShell));
-    removedShadowDisplay->setText(QString::number(stats.removedByShadow));
+    // Всегда обновляем общее количество треугольников
+    totalTrianglesLabel->setText(QString::number(stats.totalTriangles));
+
+    // Проверка на случай, если модель была закрыта или очищена
+    if (stats.totalTriangles == 0) {
+        // Сбрасываем все значения статистики на "0"
+        shellCountDisplay->setText("0");
+        visibleCountDisplay->setText("0");
+        removedShellDisplay->setText("0");
+        removedShadowDisplay->setText("0");
+        return;
+    }
+
+    // Обновляем статистику в зависимости от типа выполненной фильтрации
+    switch (stats.filterType) {
+    case MeshFilter::ShellFilter:
+        // При фильтрации оболочки обновляем только соответствующие поля
+        shellCountDisplay->setText(QString::number(stats.shellTriangles));
+        removedShellDisplay->setText(QString::number(stats.removedByShell));
+
+        // Текущие значения для видимости сохраняем
+        if (stats.visibleTriangles > 0) {
+            visibleCountDisplay->setText(QString::number(stats.visibleTriangles));
+            removedShadowDisplay->setText(QString::number(stats.removedByShadow));
+        }
+        break;
+
+    case MeshFilter::ShadowFilter:
+        // При фильтрации теней обновляем только соответствующие поля
+        visibleCountDisplay->setText(QString::number(stats.visibleTriangles));
+        removedShadowDisplay->setText(QString::number(stats.removedByShadow));
+
+        // Текущие значения для оболочки сохраняем
+        if (stats.shellTriangles > 0) {
+            shellCountDisplay->setText(QString::number(stats.shellTriangles));
+            removedShellDisplay->setText(QString::number(stats.removedByShell));
+        }
+        break;
+
+    case MeshFilter::ResetFilter:
+        // При сбросе обновляем все поля
+        shellCountDisplay->setText(QString::number(stats.shellTriangles));
+        visibleCountDisplay->setText(QString::number(stats.visibleTriangles));
+        removedShellDisplay->setText(QString::number(stats.removedByShell));
+        removedShadowDisplay->setText(QString::number(stats.removedByShadow));
+        break;
+
+    default:
+        // По умолчанию обновляем все поля
+        shellCountDisplay->setText(QString::number(stats.shellTriangles));
+        visibleCountDisplay->setText(QString::number(stats.visibleTriangles));
+        removedShellDisplay->setText(QString::number(stats.removedByShell));
+        removedShadowDisplay->setText(QString::number(stats.removedByShadow));
+        break;
+    }
 }
 
 // Реализация слотов для интеграции с ModelController
@@ -2062,4 +2118,11 @@ void MainWindow::handleToggleShadowTriangles() {
 
 void MainWindow::handleCloseModel() {
     m_modelController->closeModel();
+}
+
+void MainWindow::handleResetScale() {
+    m_modelController->resetScale();
+
+    // Выводим сообщение в журнал
+    logMessage("Масштаб объекта сброшен к исходному значению (1.0)");
 }
