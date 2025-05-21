@@ -165,12 +165,13 @@ void OpenGLWidget::computeBoundingVolume() {
 
     float boundingSphereRadius = std::sqrt(maxRadiusSq);
 
-    // Обновление позиции камеры
-    updateCameraPosition(center, boundingSphereRadius);
+    // Сохраняем центр и радиус
+    boundingSphereCenter = center;
 
-    // Обновление размеров сетки на основе ограничивающего объема
+    // Обновляем размеры сетки на основе ограничивающего объема
     gridSize = boundingSphereRadius * 3.0f; // Сетка 3 раза больше радиуса сферы
     gridStep = boundingSphereRadius / 10.0f; // Шаг сетки 1/10 радиуса
+
     // Устанавливаем флаг, что параметры сетки изменились
     gridParametersChanged = true;
 }
@@ -779,4 +780,47 @@ void OpenGLWidget::getRotation(float &x, float &y, float &z) const {
 void OpenGLWidget::resetScale() {
     scale = 1.0f;  // Сброс масштаба к значению по умолчанию
     update();      // Перерисовать виджет
+}
+
+void OpenGLWidget::setTrianglesPreservingTransform(const QVector<QSharedPointer<triangle>>& tri) {
+    // Сохраняем текущие параметры трансформации
+    float currentRotX = rotationX;
+    float currentRotY = rotationY;
+    float currentRotZ = rotationZ;
+    float currentScale = scale;
+    QVector3D currentObjectPos = objectPosition;
+
+    // Устанавливаем треугольники
+    triangles = tri;
+    vertices.clear();
+    triangleIndices.clear();
+
+    for (const auto& triangle : triangles) {
+        int index = vertices.size();
+        vertices.append(QVector3D(triangle->getV1()->getX(), triangle->getV1()->getY(), triangle->getV1()->getZ()));
+        vertices.append(QVector3D(triangle->getV2()->getX(), triangle->getV2()->getY(), triangle->getV2()->getZ()));
+        vertices.append(QVector3D(triangle->getV3()->getX(), triangle->getV3()->getY(), triangle->getV3()->getZ()));
+
+        triangleIndices.append({index, index + 1, index + 2});
+    }
+
+    // Вычисляем ограничивающий объем, но без сброса трансформаций
+    computeBoundingVolume();
+
+    // Восстанавливаем параметры трансформации
+    rotationX = currentRotX;
+    rotationY = currentRotY;
+    rotationZ = currentRotZ;
+    scale = currentScale;
+    objectPosition = currentObjectPos;
+
+    // Обновляем цвета треугольников
+    triangleColors.clear();
+    for (int i = 0; i < triangleIndices.size(); ++i) {
+        triangleColors.append(chooseColorForTriangle(i));
+    }
+
+    // Помечаем геометрию измененной для перерисовки
+    geometryChanged = true;
+    update();
 }

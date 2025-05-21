@@ -89,6 +89,15 @@ private:
     MeshFilter m_meshFilter;
     OpenGLWidget *m_openGLWidget;
 
+    // Исходный набор треугольников
+    QVector<QSharedPointer<triangle>> m_originalTriangles;
+
+    // Флаг, указывающий, было ли применено фильтрование оболочки
+    bool m_shellFilteringApplied = false;
+
+    // Флаг, указывающий, было ли применено фильтрование теней
+    bool m_shadowFilteringApplied = false;
+
     // Данные модели
     QVector<QSharedPointer<triangle>> m_triangles;
     QVector<QSharedPointer<node>> m_nodes;

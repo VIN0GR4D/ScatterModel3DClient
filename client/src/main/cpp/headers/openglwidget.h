@@ -59,6 +59,8 @@ public:
 
     void resetScale();
 
+    void setTrianglesPreservingTransform(const QVector<QSharedPointer<triangle>>& tri);
+
 public slots:
     void setUnderlyingSurfaceVisible(bool visible);
 

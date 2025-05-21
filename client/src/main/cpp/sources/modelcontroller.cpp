@@ -81,6 +81,10 @@ bool ModelController::loadModel(const QString &fileName) {
     newStats.removedByShadow = 0;
     newStats.filterType = MeshFilter::ResetFilter;
 
+    m_originalTriangles = m_triangles; // Сохраняем исходную копию
+    m_shellFilteringApplied = false; // Сбрасываем флаги
+    m_shadowFilteringApplied = false;
+
     // Обновляем текущую статистику
     m_currentStats = newStats;
 
@@ -102,6 +106,10 @@ void ModelController::closeModel() {
     m_triangles.clear();
     m_vertices.clear();
     m_triangleIndices.clear();
+
+    m_originalTriangles.clear();
+    m_shellFilteringApplied = false;
+    m_shadowFilteringApplied = false;
 
     // Сбрасываем статистику фильтрации при закрытии модели
     MeshFilter::FilterStats emptyStats;
@@ -168,9 +176,42 @@ void ModelController::filterMesh() {
         return;
     }
 
+    // Используем исходный набор треугольников, если он есть
+    QVector<QSharedPointer<triangle>> sourceTriangles;
+    if (!m_originalTriangles.isEmpty()) {
+        sourceTriangles = m_originalTriangles;
+    } else {
+        sourceTriangles = m_triangles;
+        m_originalTriangles = m_triangles; // Сохраняем для будущего использования
+    }
+
+    // Если уже применено фильтрование теней, сохраняем состояние видимости
+    QVector<bool> visibilityState;
+    if (m_shadowFilteringApplied) {
+        for (const auto& tri : m_triangles) {
+            visibilityState.append(tri->getVisible());
+        }
+    }
+
     // Создаем копию треугольников для фильтрации
-    QVector<QSharedPointer<triangle>> filteredTriangles = m_triangles;
+    QVector<QSharedPointer<triangle>> filteredTriangles = sourceTriangles;
+
+    // Фильтруем треугольники для определения оболочки
     MeshFilter::FilterStats stats = m_meshFilter.filterMesh(filteredTriangles);
+
+    // Если ранее было применено фильтрование теней, восстанавливаем состояние видимости
+    if (m_shadowFilteringApplied && filteredTriangles.size() == visibilityState.size()) {
+        for (int i = 0; i < filteredTriangles.size(); ++i) {
+            filteredTriangles[i]->setVisible(visibilityState[i]);
+        }
+
+        // Корректируем статистику
+        stats.visibleTriangles = 0;
+        for (const auto& tri : filteredTriangles) {
+            if (tri->getVisible()) stats.visibleTriangles++;
+        }
+        stats.removedByShadow = filteredTriangles.size() - stats.visibleTriangles;
+    }
 
     // Обновляем текущую статистику по оболочке (shell)
     m_currentStats.totalTriangles = stats.totalTriangles;
@@ -178,18 +219,25 @@ void ModelController::filterMesh() {
     m_currentStats.removedByShell = stats.removedByShell;
 
     // Сохраняем текущие данные о видимости, если они уже были
-    stats.visibleTriangles = m_currentStats.visibleTriangles;
-    stats.removedByShadow = m_currentStats.removedByShadow;
+    if (m_shadowFilteringApplied) {
+        stats.visibleTriangles = m_currentStats.visibleTriangles;
+        stats.removedByShadow = m_currentStats.removedByShadow;
+    } else {
+        stats.visibleTriangles = stats.shellTriangles; // По умолчанию все треугольники оболочки видимы
+        stats.removedByShadow = 0;
+    }
 
     // Устанавливаем тип фильтрации
     stats.filterType = MeshFilter::ShellFilter;
 
     // Обновляем текущую статистику полностью
     m_currentStats = stats;
+    m_shellFilteringApplied = true;
 
-    // Применяем отфильтрованные треугольники
+    // Применяем отфильтрованные треугольники, сохраняя трансформацию
     if (m_openGLWidget) {
-        m_openGLWidget->applyFilteredTriangles(filteredTriangles);
+        // Используем новый метод вместо applyFilteredTriangles
+        m_openGLWidget->setTrianglesPreservingTransform(filteredTriangles);
     }
 
     m_triangles = filteredTriangles;
@@ -229,14 +277,20 @@ void ModelController::toggleShadowTriangles() {
     stats.removedByShadow = originalCount - visibleCount;
 
     // Сохраняем текущие данные об оболочке
-    stats.shellTriangles = m_currentStats.shellTriangles;
-    stats.removedByShell = m_currentStats.removedByShell;
+    if (m_shellFilteringApplied) {
+        stats.shellTriangles = m_currentStats.shellTriangles;
+        stats.removedByShell = m_currentStats.removedByShell;
+    } else {
+        stats.shellTriangles = originalCount; // По умолчанию все треугольники считаются оболочкой
+        stats.removedByShell = 0;
+    }
 
     // Устанавливаем тип фильтрации
     stats.filterType = MeshFilter::ShadowFilter;
 
     // Обновляем текущую статистику полностью
     m_currentStats = stats;
+    m_shadowFilteringApplied = true;
 
     emit logMessage(QString("Обработка теневых треугольников завершена. Скрыто: %1 треугольников").arg(originalCount - visibleCount));
     emit notificationRequested("Обработка теневых треугольников завершена", 1); // 1 = Notification::Success
@@ -252,7 +306,19 @@ void ModelController::resetToOriginalModel() {
         return;
     }
 
+    // Восстанавливаем исходный набор треугольников, если он был сохранен
+    if (!m_originalTriangles.isEmpty()) {
+        m_triangles = m_originalTriangles;
+    }
+
     if (m_openGLWidget) {
+        // Устанавливаем все треугольники видимыми
+        for (auto& tri : m_triangles) {
+            tri->setVisible(true);
+        }
+
+        // Используем новый метод для сохранения трансформации
+        m_openGLWidget->setTrianglesPreservingTransform(m_triangles);
         m_openGLWidget->setShadowTrianglesFiltering(false);
 
         int totalTriangles = m_triangles.size();
@@ -268,6 +334,10 @@ void ModelController::resetToOriginalModel() {
 
         // Обновляем текущую статистику полностью
         m_currentStats = stats;
+
+        // Сбрасываем флаги
+        m_shellFilteringApplied = false;
+        m_shadowFilteringApplied = false;
 
         notifyObserversFilteringCompleted(stats);
     }
