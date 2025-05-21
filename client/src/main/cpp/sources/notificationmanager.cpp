@@ -90,7 +90,21 @@ void NotificationManager::showMessage(const QString &message, Notification::Type
     // Обновляем историю уведомлений
     updateNotificationHistory(message, type);
 
-    Notification *notification = new Notification();
+    // Находим главное окно приложения - MainWindow
+    QWidget *mainWindow = QApplication::activeWindow();
+    if (!mainWindow) {
+        // Если не найдено активное окно, ищем любое окно верхнего уровня
+        QWidgetList topLevelWidgets = QApplication::topLevelWidgets();
+        for (QWidget *widget : topLevelWidgets) {
+            if (widget->isVisible() && widget->windowType() == Qt::Window) {
+                mainWindow = widget;
+                break;
+            }
+        }
+    }
+
+    // Создаем уведомление с указанием родителя
+    Notification *notification = new Notification(mainWindow);
     notification->setAttribute(Qt::WA_DeleteOnClose, true);  // Гарантируем удаление при закрытии
 
     connect(notification, &QObject::destroyed, this, &NotificationManager::removeNotification);
@@ -98,10 +112,6 @@ void NotificationManager::showMessage(const QString &message, Notification::Type
 
     m_notifications.append(notification);
 
-    QScreen *screen = QApplication::primaryScreen();
-    QRect screenGeometry = screen->availableGeometry();
-
-    int x = screenGeometry.width() - notification->width() - 20;
     int totalHeight = 0;
 
     for (int i = m_notifications.size() - 2; i >= 0; --i) {

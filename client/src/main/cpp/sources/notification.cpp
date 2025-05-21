@@ -24,7 +24,7 @@ Notification::Notification(QWidget *parent)
 
 void Notification::setupUI()
 {
-    setWindowFlags(Qt::FramelessWindowHint | Qt::Tool | Qt::WindowStaysOnTopHint);
+    setWindowFlags(Qt::FramelessWindowHint | Qt::SubWindow);
     setAttribute(Qt::WA_TranslucentBackground);
     setAttribute(Qt::WA_ShowWithoutActivating);
 
@@ -34,14 +34,14 @@ void Notification::setupUI()
 
     // Настройка иконки
     iconLabel->setFixedSize(24, 24);
-    iconLabel->setAttribute(Qt::WA_TranslucentBackground);  // Добавляем прозрачность
+    iconLabel->setAttribute(Qt::WA_TranslucentBackground);
     mainLayout->addWidget(iconLabel);
 
     // Настройка сообщения
     messageLabel->setAlignment(Qt::AlignVCenter | Qt::AlignLeft);
     messageLabel->setWordWrap(true);
-    messageLabel->setAttribute(Qt::WA_TranslucentBackground);  // Добавляем прозрачность
-    messageLabel->setStyleSheet("QLabel { color: white; background: transparent; }");  // Добавляем transparent в стили
+    messageLabel->setAttribute(Qt::WA_TranslucentBackground);
+    messageLabel->setStyleSheet("QLabel { color: white; background: transparent; }");
     mainLayout->addWidget(messageLabel, 1);
 
     // Настройка кнопки закрытия
@@ -108,15 +108,15 @@ void Notification::showMessage(const QString &message, Type type, int duration)
 
     adjustSize();
 
-    // Позиционирование уведомления в правом верхнем углу
-    QScreen *screen = QApplication::primaryScreen();
-    QRect screenGeometry = screen->availableGeometry();
+    // Расчет позиции относительно родительского окна
+    QWidget *parentWidget = qobject_cast<QWidget*>(parent());
+    QRect parentGeometry = parentWidget ? parentWidget->rect() : QRect(0, 0, 800, 600);
 
-    int x = screenGeometry.width() - width() - 20;
+    int x = parentGeometry.width() - width() - 20;
     int y = 20;
 
     // Анимация появления
-    setGeometry(screenGeometry.width(), y, width(), height());
+    setGeometry(parentGeometry.width(), y, width(), height());
     show();
 
     animation->setDuration(300);
@@ -188,10 +188,10 @@ void Notification::paintEvent(QPaintEvent *event)
 
 void Notification::moveDown(int offset)
 {
-    QScreen *screen = QApplication::primaryScreen();
-    QRect screenGeometry = screen->availableGeometry();
+    QWidget *parentWidget = qobject_cast<QWidget*>(parent());
+    QRect parentGeometry = parentWidget ? parentWidget->rect() : QRect(0, 0, 800, 600);
 
-    int x = screenGeometry.width() - width() - 20;
+    int x = parentGeometry.width() - width() - 20;
     int y = 20 + offset;
 
     QPropertyAnimation *moveAnimation = new QPropertyAnimation(this, "geometry");
@@ -208,10 +208,10 @@ void Notification::moveDown(int offset)
 
 void Notification::updatePosition(int offset)
 {
-    QScreen *screen = QApplication::primaryScreen();
-    QRect screenGeometry = screen->availableGeometry();
+    QWidget *parentWidget = qobject_cast<QWidget*>(parent());
+    QRect parentGeometry = parentWidget ? parentWidget->rect() : QRect(0, 0, 800, 600);
 
-    int x = screenGeometry.width() - width() - 20;
+    int x = parentGeometry.width() - width() - 20;
     int y = 20 + offset;
 
     move(x, y);
