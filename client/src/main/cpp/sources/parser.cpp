@@ -132,26 +132,29 @@ void Parser::createNode(const QStringList& parts) {
 void Parser::createTriangle(const QStringList& parts) {
     QVector<int> vertexIndices;
 
+    // Собираем все индексы вершин
     for (int i = 1; i < parts.size(); ++i) {
         QStringList indices = parts[i].split('/');
         bool okV;
 
-        QSharedPointer<node> vNode = nodes[indices[0].toInt(&okV) - 1];
-        if (!okV || !nodeIndexCache.contains(vNode)) {
+        int vIndex = indices[0].toInt(&okV) - 1; // OBJ индексы начинаются с 1
+        if (!okV || vIndex < 0 || vIndex >= nodes.size()) {
             qWarning() << "Invalid vertex index for triangle: " << parts[i];
             return;
         }
-
-        int vIndex = nodeIndexCache[vNode];  // Использование кэша для получения индекса
         vertexIndices.append(vIndex);
     }
 
+    // Триангуляция: разбиваем полигон на треугольники
     if (vertexIndices.size() >= 3) {
-        auto V1 = nodes.at(vertexIndices[0]);
-        auto V2 = nodes.at(vertexIndices[1]);
-        auto V3 = nodes.at(vertexIndices[2]);
-        auto newTriangle = QSharedPointer<triangle>::create(true, V1, V2, V3);
-        triangles.append(newTriangle);
+        // Используем веерную триангуляцию (fan triangulation)
+        for (int i = 1; i < vertexIndices.size() - 1; ++i) {
+            auto V1 = nodes.at(vertexIndices[0]);
+            auto V2 = nodes.at(vertexIndices[i]);
+            auto V3 = nodes.at(vertexIndices[i + 1]);
+            auto newTriangle = QSharedPointer<triangle>::create(true, V1, V2, V3);
+            triangles.append(newTriangle);
+        }
     }
 }
 
